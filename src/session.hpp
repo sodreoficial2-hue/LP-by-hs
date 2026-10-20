@@ -19,9 +19,9 @@ inline constexpr std::array<const char*,14> parameterNames = {
  "Volume", "Attack", "Decay", "Sustain", "Release", "Filter", "Reverb",
  "Delay", "Chorus", "Tremolo", "Compressor", "Bass", "Mid", "Treble"};
 struct ButtonBinding {
- int kind=0; // 0 unassigned, 0x90 note, 0xb0 CC
+ int kind=0; // 0 unassigned, 0xc0 Program Change only
  int channel=0,number=0;
- bool valid() const {return (kind==0||kind==0x90||kind==0xb0)&&channel>=0&&channel<16&&number>=0&&number<128;}
+ bool valid() const {return (kind==0||kind==0xc0)&&channel>=0&&channel<16&&number>=0&&number<128;}
  bool same(const ButtonBinding& b) const {return kind!=0&&kind==b.kind&&channel==b.channel&&number==b.number;}
 };
 struct Patch {
@@ -48,10 +48,10 @@ struct Session {
  void save(const std::filesystem::path& path) const {
   // Caller chooses path; does not auto-save shows.
   std::ostringstream f;
-  f << "LPHS_PROFILE 2\n" << std::setprecision(9);
+  f << "LPHS_PROFILE 3\n" << std::setprecision(9);
   for(std::size_t i=0;i<favorites.size();++i) if(favorites[i]) {
    auto& p=*favorites[i];
-   if(!p.button.valid()) throw std::runtime_error("Invalid MIDI button");
+   if(!p.button.valid()||(p.button.kind!=0&&p.button.number!=static_cast<int>(i))) throw std::runtime_error("Invalid MIDI button");
    if(p.sfz.empty() || p.sfz.size()>32768) throw std::runtime_error("Invalid SFZ path");
    for(auto value:p.parameters) if(!std::isfinite(value) || value<0 || value>1) throw std::runtime_error("Invalid parameter value");
    for(auto cc:p.cc) if(cc < -1 || cc >127) throw std::runtime_error("Invalid MIDI CC");
@@ -68,7 +68,7 @@ struct Session {
  }
  void load(const std::filesystem::path& path) {
   std::ifstream f(path,std::ios::binary); std::string magic; int version=0;
-  if(!(f>>magic>>version) || magic!="LPHS_PROFILE" || (version!=1&&version!=2))
+  if(!(f>>magic>>version) || magic!="LPHS_PROFILE" || (version<1||version>3))
    throw std::runtime_error("Invalid profile header");
   Session candidate; unsigned slot;
   for(;;) {
@@ -79,8 +79,17 @@ struct Session {
    for(auto& v:p.parameters) if(!(f>>v) || !std::isfinite(v) || v<0 || v>1)
     throw std::runtime_error("Invalid parameter value");
    for(auto& v:p.cc) if(!(f>>v) || v < -1 || v >127) throw std::runtime_error("Invalid MIDI CC");
-   if(version==2 && (!(f>>p.button.kind>>p.button.channel>>p.button.number)||!p.button.valid()))
-    throw std::runtime_error("Invalid MIDI button");
+   if(version>=2) {
+    if(!(f>>p.button.kind>>p.button.channel>>p.button.number))throw std::runtime_error("Invalid MIDI button");
+    if(version==2) {
+     // Earlier reconstruction used notes/CC, contrary to the requested contract.
+     if((p.button.kind!=0&&p.button.kind!=0x90&&p.button.kind!=0xb0)||p.button.channel<0||p.button.channel>15||p.button.number<0||p.button.number>127)
+      throw std::runtime_error("Invalid legacy MIDI button");
+     p.button={}; // Preserve sounds and knobs, remove obsolete favorite triggers.
+    }
+    if(!p.button.valid()||(p.button.kind!=0&&p.button.number!=static_cast<int>(slot)))
+     throw std::runtime_error("Favorite must use its corresponding Program Change");
+   }
    for(const auto& other:candidate.favorites)if(other&&p.button.same(other->button))
     throw std::runtime_error("Duplicate MIDI button");
    candidate.favorites[slot]=std::move(p);

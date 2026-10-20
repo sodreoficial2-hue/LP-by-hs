@@ -29,7 +29,7 @@ No Windows, o projeto CMake também gera o alvo `LivePerformance`. As DLLs reais
 
 ## Etapa 3
 
-Processador estéreo conectado ao renderizador sfizz: volume, filtro passa-baixas, EQ de três bandas, compressor estéreo, tremolo, reverb, delay e chorus. MIDI Learn por nota ou CC para selecionar favoritos, com canais separados e consumo das teclas reservadas. Perfis `.lphs` v2 preservam os botões; leitura dos perfis v1 da reconstrução mantida.
+Processador estéreo conectado ao renderizador sfizz: volume, filtro passa-baixas, EQ de três bandas, compressor estéreo, tremolo, reverb, delay e chorus. MIDI Learn dos favoritos exclusivamente por Program Change: favorito 1 → PC 1 até favorito 20 → PC 20. O clique direito aprende o canal do PC correspondente; nota/CC não trocam favoritos. Perfis `.lphs` v3 preservam esses vínculos; leitura v1/v2 mantida, descartando apenas vínculos antigos de nota/CC nos favoritos.
 
 Validação: testes locais com sinais numéricos e sfizz simulado; não são testes auditivos nem de hardware. ADSR por voz, Envelope Filter dinâmico, stream ASIO e painel do driver continuam pendentes. Ver [docs/RECONSTRUCAO-ETAPA-3.md](docs/RECONSTRUCAO-ETAPA-3.md).
 

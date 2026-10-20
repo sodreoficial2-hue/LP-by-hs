@@ -18,3 +18,7 @@ Preserve `recovery/extracted` and SHA-256 inventories. These are original artifa
 Distinguish build success, test-double validation, real sfizz rendering, and Windows/ASIO hardware validation. Never claim the latter from the former. The new host is not yet a replacement for the supplied working executable.
 
 Keep accessibility: large controls, visible focus, keyboard arrows, ESC and E, twenty favorites numbered 1–20. Wire MIDI Program Change is 0–19.
+
+## Favorite MIDI contract (user correction, 20 October 2026)
+
+Favorite N always corresponds to displayed Program Change N (1–20); MIDI wire values are N-1 (0–19). Right-click Favorite Learn accepts only the corresponding Program Change and records its MIDI channel in the manually saved show profile. Do not assign notes or CC to favorite selection. A wrong PC during learning must leave the binding untouched and show the expected PC. Knob MIDI Learn remains CC-based. Legacy reconstruction v2 note/CC favorite bindings are discarded on import while preserving sounds, parameters and knob mappings.

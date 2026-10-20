@@ -37,19 +37,23 @@ int main(int argc,char** argv) {
  check(router.route({0xb0,91,32}).action==lp::MidiAction::Parameter);
  check(std::abs(s.favorites[0]->parameters[6]-32/127.f)<0.00001f);
  router.learn(7);router.route({0xb0,91,0});check(s.favorites[0]->cc[6]==-1 && s.favorites[0]->cc[7]==91);
- // Buttons are channel-specific; consume reserved note releases and CC edges.
- router.learnFavorite(19);check(router.route({0x92,48,100}).action==lp::MidiAction::Learned);
- check(router.route({0x92,48,100}).action==lp::MidiAction::Ignore);
- check(router.route({0x82,48,64}).action==lp::MidiAction::Ignore);
- check(router.route({0x92,48,100}).action==lp::MidiAction::Favorite);
- check(router.route({0x91,48,100}).action==lp::MidiAction::NoteOn);
- router.learnFavorite(0);router.route({0xb3,22,127});
- check(router.route({0xb3,22,127}).action==lp::MidiAction::Ignore);
- check(router.route({0xb3,22,0}).action==lp::MidiAction::Ignore);
- check(router.route({0xb3,22,127}).action==lp::MidiAction::Favorite);
- router.learnFavorite(19);router.route({0xb3,22,127});check(s.favorites[0]->button.kind==0);
- router.resetButtons();check(router.route({0xb3,22,127}).index==19);
- router.learnFavorite(0);router.cancelLearn();check(router.route({0x90,65,100}).action==lp::MidiAction::NoteOn);
+ // Favorite Learn accepts PC only and preserves exact slot numbering.
+ for(int slot=0;slot<20;++slot){s.favorites[slot]=lp::Patch{};s.favorites[slot]->sfz="piano.sfz";}
+ for(int slot=0;slot<20;++slot){auto pc=static_cast<std::uint8_t>(slot);auto result=router.route({0xc0,pc,0});check(result.action==lp::MidiAction::Favorite&&result.index==slot);}
+ router.learnFavorite(19);
+ check(router.route({0x92,48,100}).action==lp::MidiAction::NoteOn);
+ check(router.route({0x82,48,64}).action==lp::MidiAction::NoteOff);
+ check(router.route({0xb3,22,127}).action==lp::MidiAction::Control);
+ check(s.favorites[19]->button.kind==0);
+ check(router.route({0xc2,0,0}).action==lp::MidiAction::WrongProgram);
+ check(s.favorites[19]->button.kind==0);
+ check(router.route({0xc2,19,0}).action==lp::MidiAction::FavoriteLearned);
+ check(s.favorites[19]->button.kind==0xc0&&s.favorites[19]->button.number==19&&s.favorites[19]->button.channel==2);
+ check(router.route({0xc2,19,0}).action==lp::MidiAction::Favorite);
+ check(router.route({0xc2,19,0}).action==lp::MidiAction::Favorite); // Repeated PC remains valid.
+ check(router.route({0xc1,19,0}).action==lp::MidiAction::Ignore);
+ router.learnFavorite(0);router.cancelLearn();check(router.route({0xc3,0,0}).action==lp::MidiAction::Favorite);
+ check(s.favorites[0]->button.kind==0);
  lp::MidiQueue<4> small;check(small.push({0x90,1,1}));check(small.push({0x90,2,2}));
  check(small.push({0x90,3,3}));check(!small.push({0x90,4,4}));check(small.takeOverflow());check(!small.takeOverflow());
  lp::MidiQueue<> queue;
