@@ -28,16 +28,20 @@ Dsp::Dsp(float sampleRate):rate(sampleRate) {
   chorus[c].resize(static_cast<std::size_t>(rate*.05f)+2);
   for(int k=0;k<4;++k)reverb[c][k].samples.resize(static_cast<std::size_t>(rate*(lengths[k]+c*.0013f)));
  }
+ // Precompute the resonant low-pass coefficients: no tan/pow in sample loop.
+ const float maxHz=std::min(16000.f,rate*.45f),k=1/1.2f;
+ for(std::size_t i=0;i<cutoffTable.size();++i){float hz=80*std::pow(maxHz/80,i/511.f);float g=std::tan(pi*hz/rate);float a1=1/(1+g*(g+k));cutoffTable[i]={a1,g*a1,g*g*a1};}
+ followerAttack=std::exp(-1/(rate*.002f));followerRelease=std::exp(-1/(rate*.08f));
  parameters(p);
 }
 void Dsp::parameters(const std::array<float,14>& values) {
  for(float v:values)if(!std::isfinite(v)||v<0||v>1)throw std::invalid_argument("Invalid DSP parameter");
- p=values;float hz=80*std::pow(200.f,p[5]);cutoff=1-std::exp(-2*pi*hz/rate);
+ p=values;
  constexpr float frequencies[]{120,1000,6000};
  for(auto& channel:eq)for(int k=0;k<3;++k)channel[k].peak(rate,frequencies[k],24*(p[11+k]-.5f));
 }
 void Dsp::reset() noexcept {
- filter.fill(0);envelope=phase=chorusPhase=0;delayAt=chorusAt=0;
+ filter.fill({});follower=0;envelope=phase=chorusPhase=0;delayAt=chorusAt=0;
  for(auto& channel:eq)for(auto& band:channel)band.z1=band.z2=0;
  for(int c=0;c<2;++c){std::fill(delay[c].begin(),delay[c].end(),0);std::fill(chorus[c].begin(),chorus[c].end(),0);
   for(auto& comb:reverb[c]){std::fill(comb.samples.begin(),comb.samples.end(),0);comb.cursor=0;}}
@@ -48,8 +52,20 @@ void Dsp::process(float* left,float* right,int frames) noexcept {
  const float threshold=std::pow(10.f,(-6-24*p[10])/20),ratio=1+7*p[10];
  for(int i=0;i<frames;++i){
   float x[]{clean(left[i]),clean(right[i])};
+  float detector=std::max(std::abs(x[0]),std::abs(x[1]));
+  float followerCoefficient=detector>follower?followerAttack:followerRelease;
+  follower=followerCoefficient*follower+(1-followerCoefficient)*detector;
+  float opening=p[5]+(1-p[5])*std::clamp(follower*4,0.f,1.f);
+  float tablePosition=std::clamp(opening,0.f,1.f)*511;
+  auto position=static_cast<std::size_t>(tablePosition);float fraction=tablePosition-position;
+  const auto& lo=cutoffTable[position];const auto& hi=cutoffTable[std::min<std::size_t>(position+1,511)];
+  FilterCoefficients coeff{lo.a1+fraction*(hi.a1-lo.a1),lo.a2+fraction*(hi.a2-lo.a2),lo.a3+fraction*(hi.a3-lo.a3)};
   for(int c=0;c<2;++c){
-   if(p[5]<1){filter[c]+=cutoff*(x[c]-filter[c]);x[c]=filter[c];}
+   auto& state=filter[c];float v3=x[c]-state.integrator2;
+   float v1=coeff.a1*state.integrator1+coeff.a2*v3;
+   float v2=state.integrator2+coeff.a2*state.integrator1+coeff.a3*v3;
+   state.integrator1=2*v1-state.integrator1;state.integrator2=2*v2-state.integrator2;
+   if(p[5]<1)x[c]=v2;
    for(int k=0;k<3;++k)if(p[11+k]!=.5f)x[c]=eq[c][k].tick(x[c]);
   }
   float peak=std::max(std::abs(x[0]),std::abs(x[1]));

@@ -19,9 +19,13 @@ private:
   void peak(float rate,float frequency,float db);
  };
  struct Comb {std::vector<float> samples;std::size_t cursor=0;float tick(float x) noexcept;};
- float rate,cutoff=1,envelope=0,phase=0,chorusPhase=0;
+ struct FilterState {float integrator1=0,integrator2=0;};
+ struct FilterCoefficients {float a1=0,a2=0,a3=0;};
+ std::array<FilterCoefficients,512> cutoffTable{};
+ std::array<FilterState,2> filter{};
+ float rate,envelope=0,phase=0,chorusPhase=0;
+ float follower=0,followerAttack=0,followerRelease=0;
  std::array<float,14> p=Patch{}.parameters;
- std::array<float,2> filter{};
  std::array<std::array<Biquad,3>,2> eq;
  std::array<std::vector<float>,2> delay,chorus;
  std::array<std::array<Comb,4>,2> reverb;

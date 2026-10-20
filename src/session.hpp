@@ -16,7 +16,7 @@
 namespace lp {
 // Reimplementation based on recovered behavior; not original source.
 inline constexpr std::array<const char*,14> parameterNames = {
- "Volume", "Attack", "Decay", "Sustain", "Release", "Filter", "Reverb",
+ "Volume", "Attack", "Decay", "Sustain", "Release", "Envelope Filter", "Reverb",
  "Delay", "Chorus", "Tremolo", "Compressor", "Bass", "Mid", "Treble"};
 struct ButtonBinding {
  int kind=0; // 0 unassigned, 0xc0 Program Change only
@@ -25,6 +25,7 @@ struct ButtonBinding {
  bool same(const ButtonBinding& b) const {return kind!=0&&kind==b.kind&&channel==b.channel&&number==b.number;}
 };
 struct Patch {
+ bool adsrEnabled=false;
  ButtonBinding button;
  std::string sfz;
  std::array<float,14> parameters{1,0,0,1,0,1,0,0,0,0,0,0.5f,0.5f,0.5f};
@@ -44,11 +45,12 @@ struct Session {
   if(index>=parameterNames.size() || !std::isfinite(value) || value<0 || value>1)
    throw std::invalid_argument("Invalid parameter");
   favorites[*current]->parameters[index]=value;
+  if(index>=1&&index<=4)favorites[*current]->adsrEnabled=true;
  }
  void save(const std::filesystem::path& path) const {
   // Caller chooses path; does not auto-save shows.
   std::ostringstream f;
-  f << "LPHS_PROFILE 3\n" << std::setprecision(9);
+  f << "LPHS_PROFILE 4\n" << std::setprecision(9);
   for(std::size_t i=0;i<favorites.size();++i) if(favorites[i]) {
    auto& p=*favorites[i];
    if(!p.button.valid()||(p.button.kind!=0&&p.button.number!=static_cast<int>(i))) throw std::runtime_error("Invalid MIDI button");
@@ -58,7 +60,7 @@ struct Session {
    f << i << ' ' << std::quoted(p.sfz);
    for(auto v:p.parameters) f << ' ' << v;
    for(auto v:p.cc) f << ' ' << v;
-   f << ' ' << p.button.kind << ' ' << p.button.channel << ' ' << p.button.number;
+   f << ' ' << p.button.kind << ' ' << p.button.channel << ' ' << p.button.number << ' ' << (p.adsrEnabled?1:0);
    f << '\n';
   }
   for(std::size_t a=0;a<favorites.size();++a)if(favorites[a])
@@ -68,7 +70,7 @@ struct Session {
  }
  void load(const std::filesystem::path& path) {
   std::ifstream f(path,std::ios::binary); std::string magic; int version=0;
-  if(!(f>>magic>>version) || magic!="LPHS_PROFILE" || (version<1||version>3))
+  if(!(f>>magic>>version) || magic!="LPHS_PROFILE" || (version<1||version>4))
    throw std::runtime_error("Invalid profile header");
   Session candidate; unsigned slot;
   for(;;) {
@@ -90,6 +92,8 @@ struct Session {
     if(!p.button.valid()||(p.button.kind!=0&&p.button.number!=static_cast<int>(slot)))
      throw std::runtime_error("Favorite must use its corresponding Program Change");
    }
+   if(version==4){int enabled=-1;if(!(f>>enabled)||(enabled!=0&&enabled!=1))throw std::runtime_error("Invalid ADSR state");p.adsrEnabled=enabled==1;}
+   else p.adsrEnabled=p.parameters[1]!=0||p.parameters[2]!=0||p.parameters[3]!=1||p.parameters[4]!=0;
    for(const auto& other:candidate.favorites)if(other&&p.button.same(other->button))
     throw std::runtime_error("Duplicate MIDI button");
    candidate.favorites[slot]=std::move(p);

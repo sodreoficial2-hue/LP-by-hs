@@ -18,6 +18,9 @@ int main(int argc,char** argv) {
    check(rejected && engine.loaded() && engine.regions()==3);
    engine.render(l,r,256);check(l[0]==0.25f);
   }
+  auto native=engine.envelope(0);auto adsr=lp::Patch{}.parameters;adsr[1]=.5f;adsr[2]=.25f;adsr[3]=.2f;adsr[4]=.5f;
+  engine.parameters(adsr,true);for(int region=0;region<3;++region){auto actual=engine.envelope(region);check(std::abs(actual[0]-2)<1e-6f&&std::abs(actual[1]-.5f)<1e-6f&&std::abs(actual[2]-20)<1e-6f&&actual[3]>3);}
+  engine.parameters(adsr,false);check(engine.envelope(0)==native);check(engine.envelope(1)[2]==50.f);
   auto parameters=lp::Patch{}.parameters;parameters[0]=.5f;engine.parameters(parameters);engine.render(l,r,256);check(l[0]==.125f);
   engine.noteOn(60,0);engine.render(l,r,256);check(l[0]==0);
   engine.noteOn(60,100);engine.panic();engine.render(l,r,256);check(l[0]==0);

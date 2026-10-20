@@ -22,3 +22,7 @@ Keep accessibility: large controls, visible focus, keyboard arrows, ESC and E, t
 ## Favorite MIDI contract (user correction, 20 October 2026)
 
 Favorite N always corresponds to displayed Program Change N (1–20); MIDI wire values are N-1 (0–19). Right-click Favorite Learn accepts only the corresponding Program Change and records its MIDI channel in the manually saved show profile. Do not assign notes or CC to favorite selection. A wrong PC during learning must leave the binding untouched and show the expected PC. Knob MIDI Learn remains CC-based. Legacy reconstruction v2 note/CC favorite bindings are discarded on import while preserving sounds, parameters and knob mappings.
+
+## User validation and release gate (20 October 2026)
+
+The user confirmed that stage 4 audio/ASIO, effects, volumes, keyboard commands, scrolling and buttons work fluently on Windows. Preserve this behavior. The reported defect is reconnecting the selected ASIO automatically after reopening. Stage 5 implements native per-voice ADSR and dynamic Envelope Filter; the next task is layout. Do not generate/publish another test package, installer or Drive upload until the user requests the next release. Local compilation for verification remains authorized. Distinguish stage 4 hardware confirmation from stage 5 local/real-sfizz offline verification.

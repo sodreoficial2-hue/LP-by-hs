@@ -54,17 +54,18 @@ void AudioHost::controlPanel(int id,void* window){
  if(restart)open(oldDevice,oldBuffer);
  paCheck(result);
 }
-void AudioHost::load(const std::filesystem::path& path,const std::array<float,14>& parameters){
- auto candidate=std::make_unique<SfizzEngine>(library);candidate->load(path);candidate->parameters(parameters);
+void AudioHost::load(const std::filesystem::path& path,const std::array<float,14>& parameters,bool enabled){
+ auto candidate=std::make_unique<SfizzEngine>(library);candidate->load(path);candidate->parameters(parameters,enabled);
  bool restart=running();auto id=device;auto size=buffer;stop();
- auto previousInstrument=instrument;auto previousParameters=current;
- engine.swap(candidate);instrument=path;this->parameters(parameters);
- if(restart){try{open(id,size);}catch(...){engine.swap(candidate);instrument=previousInstrument;this->parameters(previousParameters);try{open(id,size);}catch(...){fault.store(true);}throw;}}
+ auto previousInstrument=instrument;auto previousParameters=current;bool previousAdsr=currentAdsr;
+ engine.swap(candidate);instrument=path;this->parameters(parameters,enabled);
+ if(restart){try{open(id,size);}catch(...){engine.swap(candidate);instrument=previousInstrument;this->parameters(previousParameters,previousAdsr);try{open(id,size);}catch(...){fault.store(true);}throw;}}
 }
 void AudioHost::unload(){bool restart=running();auto id=device;auto size=buffer;stop();engine->unload();instrument.clear();if(restart)open(id,size);}
-void AudioHost::parameters(const std::array<float,14>& params){
+void AudioHost::parameters(const std::array<float,14>& params,bool enabled){
  for(float v:params)if(!std::isfinite(v)||v<0||v>1)throw std::invalid_argument("Invalid audio parameter");
  revision.fetch_add(1,std::memory_order_seq_cst);
+ desiredAdsr.store(enabled,std::memory_order_seq_cst);
  for(std::size_t i=0;i<params.size();++i)values[i].store(params[i],std::memory_order_seq_cst);
  revision.fetch_add(1,std::memory_order_seq_cst);
 }
@@ -81,7 +82,8 @@ int AudioHost::render(float** output,unsigned long frames,PaStreamCallbackFlags 
  try{
   unsigned before=revision.load(std::memory_order_seq_cst);
   if(!(before&1)&&before!=applied){std::array<float,14> snapshot;for(std::size_t i=0;i<snapshot.size();++i)snapshot[i]=values[i].load(std::memory_order_seq_cst);
-   if(before==revision.load(std::memory_order_seq_cst)){engine->parameters(snapshot);current=snapshot;applied=before;}}
+   bool enabled=desiredAdsr.load(std::memory_order_seq_cst);
+   if(before==revision.load(std::memory_order_seq_cst)){engine->parameters(snapshot,enabled);current=snapshot;currentAdsr=enabled;applied=before;}}
   if(midi.takeOverflow()||panicRequested.exchange(false)){
    MidiMessage ignored;for(int i=0;i<1024&&midi.pop(ignored);++i){}engine->panic();
   }else{

@@ -37,8 +37,14 @@ Validação: testes locais com sinais numéricos e sfizz simulado; não são tes
 
 Saída PortAudio/ASIO ligada ao motor sfizz, com driver, buffer, ASIO Control, pânico e persistência automática exclusiva de áudio. Fila MIDI e parâmetros atômicos conectados ao callback; preparação SFZ fora do callback. Enter no catálogo permite tocar sem favoritar. Compilação Windows x64 com backend ASIO real concluída aqui, sem Actions. Ver [docs/RECONSTRUCAO-ETAPA-4.md](docs/RECONSTRUCAO-ETAPA-4.md).
 
-São quatro grupos de testes locais. Áudio real, interface e latência ainda não foram validados no Windows; o pacote portátil é experimental.
+Nesta etapa foram quatro grupos de testes locais. Posteriormente, o usuário confirmou áudio ASIO, efeitos, volumes e comandos funcionando com fluidez no Windows; persistência na reabertura ainda precisava de correção. O pacote permanece experimental.
+
+## Etapa 5
+
+O usuário validou a fluidez do ASIO, efeitos e comandos da etapa 4 no Windows. Esta etapa reforça a reconexão automática do último ASIO e implementa ADSR nativo por região/voz do sfizz e Envelope Filter dinâmico. Perfis v4 guardam o estado ADSR, com leitura das versões anteriores. Detalhes e limites: [docs/RECONSTRUCAO-ETAPA-5.md](docs/RECONSTRUCAO-ETAPA-5.md).
+
+Cinco grupos de testes locais, incluindo renderização real sfizz com as amostras recuperadas. As alterações da etapa 5 ainda exigem validação no Windows do usuário. Não foi publicado novo pacote: o próximo trabalho é o layout, conforme solicitado.
 
 ## Próximas etapas
 
-ADSR por voz e filtro de envelope; categorias e acabamento visual; compatibilidade dos perfis INI originais; validação de áudio/driver e uso prolongado no Windows. Os executáveis originais permanecem preservados.
+Layout acessível, categorias e acabamento visual; teste integrado das alterações no Windows; compatibilidade dos INI originais e troca de timbres sem interrupção. Os executáveis originais e o pacote da etapa 4 permanecem preservados.

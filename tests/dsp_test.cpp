@@ -5,9 +5,9 @@
 #include <vector>
 void check(bool condition,const char* message){if(!condition)throw std::runtime_error(message);}
 float rms(const std::vector<float>& x){double sum=0;for(std::size_t i=x.size()/2;i<x.size();++i)sum+=x[i]*x[i];return std::sqrt(sum/(x.size()-x.size()/2));}
-float tone(float hz,int parameter,float value){
+float tone(float hz,int parameter,float value,float amplitude=.4f){
  lp::Dsp dsp;auto p=lp::Patch{}.parameters;p[parameter]=value;dsp.parameters(p);
- std::vector<float> l(48000),r(48000);for(int i=0;i<48000;++i)l[i]=r[i]=.4f*std::sin(6.2831853f*hz*i/48000);
+ std::vector<float> l(48000),r(48000);for(int i=0;i<48000;++i)l[i]=r[i]=amplitude*std::sin(6.2831853f*hz*i/48000);
  dsp.process(l.data(),r.data(),48000);return rms(l);
 }
 int main(){
@@ -15,7 +15,8 @@ int main(){
  for(int i=0;i<48000;++i){l[i]=.25f;r[i]=-.125f;}
  dsp.process(l.data(),r.data(),48000);check(l[24000]==.25f&&r[24000]==-.125f,"Neutral DSP must preserve stereo samples");
  p[0]=.2f;dsp.parameters(p);dsp.process(l.data(),r.data(),48000);check(std::abs(l[0]-.05f)<1e-6f,"Volume gain");
- check(tone(10000,5,.1f)<tone(10000,5,1)*.1f,"Filter attenuates treble");
+ check(tone(10000,5,.1f,.0001f)<tone(10000,5,1,.0001f)*.02f,"Envelope filter closes on quiet signal");
+ check(tone(10000,5,.1f,.4f)/.4f>tone(10000,5,.1f,.0001f)/.0001f*20,"Envelope filter opens with playing intensity");
  for(int k=0;k<3;++k){float hz=k==0?120:k==1?1000:6000;check(tone(hz,11+k,1)>tone(hz,11+k,.5f)*2,"EQ boost");check(tone(hz,11+k,0)<tone(hz,11+k,.5f)*.5f,"EQ cut");}
  check(tone(1000,10,1)<tone(1000,10,0)*.4f,"Compressor reduces sustained loud signal");
  check(tone(1000,9,1)<tone(1000,9,0)*.8f,"Tremolo modulation");
@@ -26,6 +27,11 @@ int main(){
   for(float x:r)check(x==0,"No accidental cross-channel leakage");
   dsp.reset();l.assign(48000,0);dsp.process(l.data(),r.data(),48000);for(float x:l)check(x==0,"Reset clears tails");
  }
+ // At the same quiet input level, the filter closes after a preceding loud phrase.
+ dsp.reset();p=lp::Patch{}.parameters;p[5]=.05f;dsp.parameters(p);l.assign(72000,0);r.assign(72000,0);
+ for(int i=0;i<72000;++i)l[i]=r[i]=(i<24000?.4f:.002f)*std::sin(6.2831853f*6000*i/48000);
+ dsp.process(l.data(),r.data(),72000);double early=0,late=0;for(int i=25000;i<26000;++i)early+=l[i]*l[i];for(int i=65000;i<66000;++i)late+=l[i]*l[i];
+ check(early>late*10,"Envelope filter closes during recovery");
  // Processing blocks must not reset phases or delay memory.
  lp::Dsp whole,split;p.fill(1);whole.parameters(p);split.parameters(p);
  std::vector<float> a(20000),b(20000),c,d;for(int i=0;i<20000;++i)a[i]=b[i]=.3f*std::sin(i*.3f);c=a;d=b;

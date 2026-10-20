@@ -8,7 +8,7 @@ namespace lp {
 // audio callback is stopped. Loading and destruction are not realtime-safe.
 class SfizzEngine {
 public:
- explicit SfizzEngine(const std::filesystem::path& library, float sampleRate=48000, int maxBlock=256);
+ explicit SfizzEngine(const std::filesystem::path& library, float sampleRate=48000, int maxBlock=256,bool offline=false);
  ~SfizzEngine();
  SfizzEngine(const SfizzEngine&)=delete;
  SfizzEngine& operator=(const SfizzEngine&)=delete;
@@ -17,7 +17,8 @@ public:
  void noteOff(int note,int velocity=0);
  void cc(int number,int value);
  void panic();
- void parameters(const std::array<float,14>& values);
+ void parameters(const std::array<float,14>& values,bool adsrEnabled=false);
+ std::array<float,4> envelope(int region); // Readback: only on owner thread / stopped stream.
  void unload();
  void render(float* left,float* right,int frames);
  bool loaded() const noexcept;

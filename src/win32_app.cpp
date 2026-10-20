@@ -11,10 +11,11 @@
 #include <commctrl.h>
 #include <commdlg.h>
 #include <mmsystem.h>
+#include <shlobj.h>
 #include "session.hpp"
 #include "midi.hpp"
 #include "audio_host.hpp"
-#include "audio_settings.hpp"
+#include "audio_preferences.hpp"
 #include <memory>
 #include <string>
 
@@ -31,6 +32,7 @@ struct App {
  std::vector<lp::AudioDevice> audioDevices;
  const std::array<unsigned long,7> buffers{0,64,128,256,512,1024,2048};
  std::filesystem::path settingsPath;
+ bool pendingRestore=false;unsigned restoreAttempts=0;
  HMIDIIN midiHandle{};bool effects=false;
  std::filesystem::path base;
  ~App(){closeMidi();engine.reset();if(font)DeleteObject(font);DeleteObject(background);}
@@ -74,13 +76,18 @@ struct App {
   try{auto dll=base/L"sfizz.dll";if(!std::filesystem::exists(dll))dll=base/L"recovery/extracted/live/sfizz.dll";engine=std::make_unique<lp::AudioHost>(dll);
    audioDevices=engine->devices();for(const auto& device:audioDevices){auto text=std::filesystem::u8path(device.name).wstring();SendMessageW(audioDriver,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(text.c_str()));}
    if(audioDevices.empty())message(L"Nenhum driver ASIO estéreo encontrado. Instale ou habilite seu driver ASIO. Não há fallback Windows.");
-   wchar_t appdata[32768]{};auto length=GetEnvironmentVariableW(L"APPDATA",appdata,32768);
-   if(length&&length<32768){auto folder=std::filesystem::path(appdata)/L"Live Performance by Hugo Sodre";std::filesystem::create_directories(folder);settingsPath=folder/L"audio.settings";
-    if(std::filesystem::exists(settingsPath)){auto saved=lp::AudioSettings::load(settingsPath);int match=-1;for(std::size_t i=0;i<audioDevices.size();++i)if(audioDevices[i].name==saved.driver){if(match!=-1)throw std::runtime_error("Ambiguous saved ASIO driver name; select driver manually");match=static_cast<int>(i);}
-     if(match>=0){auto buffer=std::find(buffers.begin(),buffers.end(),saved.buffer);if(buffer==buffers.end())throw std::runtime_error("Saved buffer not in supported list");SendMessageW(audioDriver,CB_SETCURSEL,match+1,0);SendMessageW(audioBuffer,CB_SETCURSEL,buffer-buffers.begin(),0);engine->start(audioDevices[match].id,saved.buffer);audioStatus();}
-     else message(L"O driver ASIO salvo não está disponível. Selecione manualmente outro driver ASIO.");
-    }
-   }else message(L"Pasta de configurações indisponível. Selecione ASIO manualmente; salvamento automático indisponível.");}catch(const std::exception& e){error(e);message(L"Áudio não inicializado ou configurações não restauradas. Confira o driver ASIO e tente conectar.");}
+   PWSTR roaming=nullptr;auto folderResult=SHGetKnownFolderPath(FOLDERID_RoamingAppData,KF_FLAG_CREATE,nullptr,&roaming);
+   if(FAILED(folderResult)||!roaming){if(roaming)CoTaskMemFree(roaming);throw std::runtime_error("Pasta permanente de configurações de áudio indisponível");}
+   auto folder=std::filesystem::path(roaming)/L"Live Performance by Hugo Sodre";CoTaskMemFree(roaming);
+   std::filesystem::create_directories(folder);settingsPath=folder/L"audio.settings";
+   if(std::filesystem::exists(settingsPath)){
+    auto saved=lp::AudioSettings::load(settingsPath);int device=lp::resolveAsioDriver(audioDevices,saved.driver);
+    for(std::size_t i=0;i<audioDevices.size();++i)if(audioDevices[i].id==device)SendMessageW(audioDriver,CB_SETCURSEL,i+1,0);
+    auto buffer=std::find(buffers.begin(),buffers.end(),saved.buffer);if(buffer==buffers.end())throw std::runtime_error("Buffer ASIO salvo inválido");
+    SendMessageW(audioBuffer,CB_SETCURSEL,buffer-buffers.begin(),0);
+    pendingRestore=true;SetTimer(window,2,750,nullptr);message(L"Reconectando automaticamente o último driver ASIO...");
+   }
+  }catch(const std::exception& e){error(e);message(L"Áudio não inicializado ou configurações não restauradas. Confira o driver ASIO e tente conectar.");}
   layout();SetFocus(catalog);SetTimer(window,1,500,nullptr);
  }
  void layout(){RECT r{};GetClientRect(window,&r);int width=r.right,height=r.bottom,half=(width-48)/2;
@@ -99,19 +106,26 @@ struct App {
   }
   MoveWindow(status,16,height-78,width-32,70,TRUE);InvalidateRect(window,nullptr,TRUE);
  }
+ void cancelAudioRestore(){pendingRestore=false;KillTimer(window,2);}
+ void restoreAudio(){
+  if(!pendingRestore||!engine)return;
+  try{lp::restoreRememberedAudio(*engine,settingsPath);cancelAudioRestore();audioStatus();}
+  catch(const std::exception& e){if(++restoreAttempts>=3){cancelAudioRestore();error(e);message(L"Não foi possível reconectar o ASIO salvo. Confira seu driver e clique em Conectar ASIO.");}}
+ }
  void audioStatus(){if(engine&&engine->running())message(L"ASIO conectado — 48 kHz. Latência de saída informada pelo driver: "+std::to_wstring(static_cast<int>(engine->latency()*10000)/10.0)+L" ms. "+(engine->loaded()?L"Timbre carregado.":L"Selecione um timbre e pressione Enter."));else message(L"ASIO desconectado. Selecione o driver e clique em Conectar ASIO.");}
  int driverIndex(){auto selected=SendMessageW(audioDriver,CB_GETCURSEL,0,0);if(selected<1||static_cast<std::size_t>(selected)>audioDevices.size())throw std::runtime_error("Select an ASIO driver");return static_cast<int>(selected-1);}
  void audition(){try{auto selected=SendMessageW(catalog,LB_GETCURSEL,0,0);if(selected<0||static_cast<std::size_t>(selected)>=instruments.size())return;if(!engine)throw std::runtime_error("Audio engine unavailable");engine->load(instruments[selected],lp::Patch{}.parameters);show.current.reset();refreshParameters();audioStatus();}catch(const std::exception& e){error(e);}}
  void refreshCatalog(){SendMessageW(catalog,LB_RESETCONTENT,0,0);for(auto& p:instruments)SendMessageW(catalog,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(p.stem().c_str()));}
  void refreshFavorites(){SendMessageW(favorites,LB_RESETCONTENT,0,0);for(int i=0;i<20;++i){std::wstring name=std::to_wstring(i+1)+L". ";name+=show.favorites[i]?std::filesystem::u8path(show.favorites[i]->sfz).stem().wstring():L"Vazio";SendMessageW(favorites,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(name.c_str()));}refreshParameters();}
- void refreshParameters(){for(int i=0;i<14;++i){float value=show.current&&show.favorites[*show.current]?show.favorites[*show.current]->parameters[i]:0;auto text=std::wstring(lp::parameterNames[i],lp::parameterNames[i]+std::char_traits<char>::length(lp::parameterNames[i]))+L": "+std::to_wstring(static_cast<int>(value*100))+L"%";if(i>=1&&i<=4)text+=L" (aplicação pendente)";SetWindowTextW(labels[i],text.c_str());SendMessageW(sliders[i],TBM_SETPOS,TRUE,static_cast<int>(value*1000));EnableWindow(sliders[i],show.current.has_value());}}
- void applyParameters(){if(engine&&show.current&&show.favorites[*show.current])engine->parameters(show.favorites[*show.current]->parameters);}
- void activate(unsigned slot){if(slot>=20||!show.favorites[slot])return;try{if(!engine)throw std::runtime_error("Audio engine unavailable");engine->load(std::filesystem::u8path(show.favorites[slot]->sfz),show.favorites[slot]->parameters);router.cancelLearn();show.programChange(slot);applyParameters();SendMessageW(favorites,LB_SETCURSEL,slot,0);refreshParameters();audioStatus();}catch(const std::exception& e){error(e);}}
+ void refreshParameters(){for(int i=0;i<14;++i){float value=show.current&&show.favorites[*show.current]?show.favorites[*show.current]->parameters[i]:0;auto text=std::wstring(lp::parameterNames[i],lp::parameterNames[i]+std::char_traits<char>::length(lp::parameterNames[i]))+L": "+std::to_wstring(static_cast<int>(value*100))+L"%";if(i>=1&&i<=4&&show.current&&show.favorites[*show.current]&&!show.favorites[*show.current]->adsrEnabled)text+=L" (SFZ original)";SetWindowTextW(labels[i],text.c_str());SendMessageW(sliders[i],TBM_SETPOS,TRUE,static_cast<int>(value*1000));EnableWindow(sliders[i],show.current.has_value());}}
+ void applyParameters(){if(engine&&show.current&&show.favorites[*show.current])engine->parameters(show.favorites[*show.current]->parameters,show.favorites[*show.current]->adsrEnabled);}
+ void activate(unsigned slot){if(slot>=20||!show.favorites[slot])return;try{if(!engine)throw std::runtime_error("Audio engine unavailable");engine->load(std::filesystem::u8path(show.favorites[slot]->sfz),show.favorites[slot]->parameters,show.favorites[slot]->adsrEnabled);router.cancelLearn();show.programChange(slot);applyParameters();SendMessageW(favorites,LB_SETCURSEL,slot,0);refreshParameters();audioStatus();}catch(const std::exception& e){error(e);}}
  void favorite(){auto selected=SendMessageW(catalog,LB_GETCURSEL,0,0);if(selected<0||static_cast<std::size_t>(selected)>=instruments.size())return;auto path=instruments[selected].u8string();for(unsigned i=0;i<20;++i)if(show.favorites[i]&&show.favorites[i]->sfz==path){activate(i);return;}for(unsigned i=0;i<20;++i)if(!show.favorites[i]){show.favorites[i]=lp::Patch{};show.favorites[i]->sfz=path;refreshFavorites();activate(i);return;}message(L"Os 20 favoritos estão ocupados.");}
  bool fileDialog(bool saving,bool sfz,std::filesystem::path& path){wchar_t file[32768]{};OPENFILENAMEW dialog{};dialog.lStructSize=sizeof(dialog);dialog.hwndOwner=window;dialog.lpstrFile=file;dialog.nMaxFile=32768;dialog.lpstrFilter=sfz?L"Instrumento SFZ\0*.sfz\0\0":L"Perfil Live Performance\0*.lphs\0\0";dialog.lpstrDefExt=sfz?L"sfz":L"lphs";dialog.Flags=OFN_NOCHANGEDIR|OFN_PATHMUSTEXIST|(saving?OFN_OVERWRITEPROMPT:OFN_FILEMUSTEXIST);bool ok=saving?GetSaveFileNameW(&dialog):GetOpenFileNameW(&dialog);if(ok)path=file;else if(CommDlgExtendedError())throw std::runtime_error("File dialog failed");return ok;}
  void command(int id,int event){try{
-  if(id==AudioStart){if(!engine)throw std::runtime_error("Audio engine unavailable; check sfizz.dll and ASIO");auto index=driverIndex();auto selected=SendMessageW(audioBuffer,CB_GETCURSEL,0,0);if(selected<0||static_cast<std::size_t>(selected)>=buffers.size())throw std::runtime_error("Select ASIO buffer");engine->start(audioDevices[index].id,buffers[selected]);audioStatus();if(!settingsPath.empty())lp::AudioSettings{audioDevices[index].name,buffers[selected]}.save(settingsPath);}
-  if(id==AudioStop&&engine){engine->stop();audioStatus();}
+  if((id==AudioDriver||id==AudioBuffer)&&event==CBN_SELCHANGE&&SendMessageW(audioDriver,CB_GETCURSEL,0,0)<1)return;
+  if(id==AudioStart||((id==AudioDriver||id==AudioBuffer)&&event==CBN_SELCHANGE)){cancelAudioRestore();if(!engine)throw std::runtime_error("Audio engine unavailable; check sfizz.dll and ASIO");auto index=driverIndex();auto selected=SendMessageW(audioBuffer,CB_GETCURSEL,0,0);if(selected<0||static_cast<std::size_t>(selected)>=buffers.size())throw std::runtime_error("Select ASIO buffer");lp::connectAndRemember(*engine,audioDevices[index].id,buffers[selected],settingsPath);audioStatus();}
+  if(id==AudioStop&&engine){cancelAudioRestore();engine->stop();audioStatus();}
   if(id==AudioPanel){if(!engine)throw std::runtime_error("Audio engine unavailable");engine->controlPanel(audioDevices[driverIndex()].id,window);audioStatus();}
   if(id==Panic&&engine){engine->panic();message(L"Pânico: notas e caudas interrompidas.");}
   if(id==Effects){effects=!effects;layout();SetFocus(effects?sliders[0]:catalog);}
@@ -127,7 +141,7 @@ struct App {
 };
 LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){auto app=reinterpret_cast<App*>(GetWindowLongPtrW(w,GWLP_USERDATA));if(msg==WM_NCCREATE){app=static_cast<App*>(reinterpret_cast<CREATESTRUCTW*>(lp)->lpCreateParams);SetWindowLongPtrW(w,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(app));}if(!app)return DefWindowProcW(w,msg,wp,lp);
  switch(msg){case WM_CREATE:try{app->initialize(w);}catch(const std::exception& e){app->error(e);return -1;}return 0;
- case WM_TIMER:if(app->engine&&app->engine->takeFault()){try{app->engine->stop();}catch(const std::exception& e){app->error(e);}app->message(L"Falha no motor/driver. Áudio interrompido; reconecte ASIO.");}return 0;
+ case WM_TIMER:if(wp==2){app->restoreAudio();return 0;}if(app->engine&&app->engine->takeFault()){try{app->engine->stop();}catch(const std::exception& e){app->error(e);}app->message(L"Falha no motor/driver. Áudio interrompido; reconecte ASIO.");}return 0;
  case WM_SIZE:if(app->catalog)app->layout();return 0;
  case WM_COMMAND:app->command(LOWORD(wp),HIWORD(wp));return 0;
  case MM_MIM_DATA:if(reinterpret_cast<HMIDIIN>(wp)==app->midiHandle)app->midiEvent(static_cast<DWORD>(lp));return 0;
@@ -140,6 +154,7 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){auto app=reinterpret_
  case WM_CTLCOLORSTATIC:case WM_CTLCOLORLISTBOX:SetTextColor(reinterpret_cast<HDC>(wp),RGB(255,255,255));SetBkColor(reinterpret_cast<HDC>(wp),RGB(12,16,24));return reinterpret_cast<LRESULT>(app->background);
  case WM_ERASEBKGND:{RECT r{};GetClientRect(w,&r);FillRect(reinterpret_cast<HDC>(wp),&r,app->background);return 1;}
  case WM_GETMINMAXINFO:reinterpret_cast<MINMAXINFO*>(lp)->ptMinTrackSize={1000,900};return 0;
+ case WM_CLOSE:try{if(app->engine)lp::rememberConnectedAudio(*app->engine,app->settingsPath);}catch(const std::exception& e){app->error(e);}break;
  case WM_DESTROY:app->closeMidi();PostQuitMessage(0);return 0;}
  return DefWindowProcW(w,msg,wp,lp);
 }

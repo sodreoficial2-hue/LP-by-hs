@@ -19,9 +19,9 @@ public:
  void start(int device,unsigned long buffer=0);
  void stop();
  void controlPanel(int device,void* window);
- void load(const std::filesystem::path& sfz,const std::array<float,14>& parameters);
+ void load(const std::filesystem::path& sfz,const std::array<float,14>& parameters,bool adsrEnabled=false);
  void unload();
- void parameters(const std::array<float,14>& values);
+ void parameters(const std::array<float,14>& values,bool adsrEnabled=false);
  void send(MidiMessage message) noexcept;
  void panic() noexcept;
  bool running() const noexcept {return stream!=nullptr;}
@@ -44,6 +44,7 @@ private:
  std::atomic<unsigned long> underruns{0};
  std::array<std::atomic<float>,14> values;
  std::atomic<unsigned> revision{0};unsigned applied=0;
+ std::atomic<bool> desiredAdsr{false};bool currentAdsr=false;
  std::array<float,14> current=Patch{}.parameters;
 };
 }
