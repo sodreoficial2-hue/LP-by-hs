@@ -1,0 +1,766 @@
+Pianos ac
+sticos
+Pianos el
+tricos
+Strings
+Brass
+Synths
+Pads
+Baixos
+Guitarras
+Ventos
+Percuss
+Outros
+Volume do timbre
+Attack
+Decay
+Sustain
+Release
+Filtro
+Reverb
+Delay
+Chorus
+Tremolo
+Compressor
+EQ Graves
+EQ M
+dios
+EQ Agudos
+APPDATA
+Vision SFZ Native
+diagnostico.txt
+sfizz.dll
+SFZ DLL AUSENTE OU DEPENDENCIA INVALIDA
+SFZ DLL INCOMPATIVEL: FUNCOES NAO ENCONTRADAS
+SFZ NAO CRIOU SINTETIZADOR
+SFZ ENGINE CARREGADO
+Nenhum SFZ foi carregado.
+PORTAUDIO FALHOU AO INICIAR: 
+Biblioteca sfizz nao iniciou. Verifique sfizz.dll e dependencias.
+Instrumento nao encontrado ou caminho invalido: 
+sfizz falhou ao criar instrumento temporario.
+O SFZ usa #include; este instrumento ainda nao permite ADSR externo seguro.
+Nao foi possivel localizar regioes SFZ para habilitar o ADSR.
+O arquivo SFZ foi aberto, mas nao possui regioes validas de amostras.
+sfizz nao conseguiu carregar o SFZ ou as amostras referenciadas.
+ | arquivo=
+ regioes | 
+SFZ VALIDADO E TROCADO: 
+ASIO 
+WASAPI 
+Biblioteca sfizz nao foi carregada.
+PortAudio indisponivel.
+Dispositivo nao encontrado
+Permitidos somente ASIO e WASAPI
+Buffer invalido
+Falha no driver: 
+Falha ao iniciar stream: 
+ Hz, latencia estimada 
+AUDIO ATIVO: 
+AUDIO ASIO/WASAPI INICIADO
+ERRO AO ABRIR ENTRADA MIDI
+Segoe UI
+VISION SFZ NATIVE     
+     prot
+tipo 0.8
+STATIC
+da de 
+udio (somente ASIO / WASAPI):
+COMBOBOX
+Buffer:
+1024
+ATIVAR 
+UDIO
+BUTTON
+TESTAR SOM (C4)
+Entrada MIDI:
+ABRIR INSTRUMENTO SFZ
+TESTAR TOM 440 Hz
+CATEGORIAS
+INSTRUMENTOS SFZ
+FAVORITOS 
+LISTBOX
+ FAVORITO (ESPA
+MIDI LEARN FAVORITO
+SALVAR SHOW
+ABRIR SHOW
+DIAGN
+STICO
+MIDI LEARN KNOB
+ATUALIZAR DRIVERS
+VOLUME MASTER
+msctls_trackbar32
+MIDI Learn: selecione um knob e pressione MIDI LEARN KNOB.
+PAINEL DE 14 KNOBS (tecla E)
+Pronto para selecionar driver e instrumento SFZ.
+driver
+Audio
+Nenhum dispositivo ASIO/WASAPI encontrado; n
+o haver
+da alternativa.
+Sem entrada MIDI
+midi
+samples
+.sfz
+O driver ASIO/WASAPI anterior nao foi registrado.
+ASIO/WASAPI restaurado apos troca de SFZ
+Falha restauracao ASIO/WASAPI: 
+O driver anterior continua funcionando.
+Atencao: o driver nao reiniciou. 
+Ative a saida de audio depois de corrigir o instrumento.
+Falha ao carregar: 
+SFZ NAO CARREGADO: 
+Vision SFZ - Erro de instrumento
+Clique ATIVAR AUDIO.
+SFZ carregado, mas nao foi possivel reabrir o driver:
+Vision SFZ 0.8 - Driver
+Instrumento carregado, driver ASIO/WASAPI ativo: 
+. Clique ATIVAR AUDIO.
+Instrumento carregado: 
+Selecione ASIO ou WASAPI v
+lido.
+Erro de 
+udio
+buffer
+ | buffer 
+udio ativo: 
+Falha ao abrir entrada MIDI.
+MIDI selecionado.
+Instrumentos SFZ (*.sfz)
+*.sfz
+Adicionado aos favoritos.
+Removido dos favoritos.
+VisionSFZNative1
+format
+Metadata
+count
+Instrument
+path
+category
+favorite
+favoriteNote
+voiceADSR
+selected
+master
+Perfil de show aberto.
+Shows
+Meu Show.vshow.ini
+Perfis Vision (*.vshow.ini)
+*.vshow.ini
+Erro
+Perfil inv
+lido ou incompat
+vel.
+Perfil gravado. Feche e abra o aplicativo para verificar.
+FALHA 1: sfizz.dll nao foi carregada. Reinstale o programa.
+FALHA 2: PortAudio nao iniciou.
+FALHA 3: nao ha driver ASIO/WASAPI ativo. Selecione uma saida e clique ATIVAR AUDIO.
+FALHA 4: o driver informou stream inativo. Reinicie ASIO/WASAPI; feche outros aplicativos de audio.
+FALHA 5: driver abriu, mas nao chamou o processador de audio. Verifique driver e buffer.
+FALHA 6: arquivo SFZ carregado sem regioes.
+FALHA 7: SFZ nao produziu amostras. Verifique instrumento, caminhos e amostras. Tente o tom de 440 Hz.
+FALHA 8: SFZ produziu som, mas o ganho/efeitos zeraram a saida. Confira Master e Volume do timbre.
+FALHA 9: ate o tom puro gerou silencio; revisar callback e engine.
+SINAL PRESENTE NA SAIDA DO PROGRAMA. Se nao ouviu: verifique se o driver ASIO/WASAPI foi ligado a saida fisica correta, cabos, fones, alto-falantes e mapeamento ASIO4ALL.
+VISION SFZ NATIVE 0.8 - DIAGNOSTICO DE AUDIO
+FALHA
+PortAudio=
+  sfizz=
+  Regioes SFZ=
+Saidas ASIO/WASAPI encontradas=
+Saida selecionada=
+Audio ativo=
+  Stream realmente ativo=
+, latencia informada=
+  XRuns=
+  Frames=
+  Callbacks=
+Buffer escolhido=
+ / 1000000
+  Pico final=
+ / 1000000
+Pico de SFZ=
+ADSR voz habilitado=
+  Volume de timbre=
+Master=
+  Notas recebidas=
+MIDI conectado=
+SFZ C4
+TOM PURO
+NAO EXECUTADO
+Ultimo teste=
+CONCLUSAO: 
+DIAGNOSTICO 0.3: 
+Relatorio salvo automaticamente na pasta de dados do Vision SFZ Native.
+ | XRuns=
+ | Callbacks=
+ | Pico final=
+Resumo: Pico SFZ=
+Vision 0.6 - Diagnostico acessivel
+Diagnostico registrado sem exigir navegador ou GitHub.
+RESULTADO TESTE 
+Falhas de buffer: 
+Pico saida: 
+Pico SFZ: 
+Callbacks durante teste: 
+Vision 0.6 - Resultado do teste de som
+Audio ativo.
+Audio parado.
+ notas recebidas. 
+MIDI: 
+, CC 
+ atribuido ao canal 
+MIDI LEARN OK: 
+ADSR POR VOZ ATIVADO: novas notas usam Attack, Decay, Sustain e Release.
+NOTA
+ reservado e silenciado.
+MIDI LEARN FAVORITO OK: botao 
+Selecione um favorito antes de MIDI Learn.
+MIDI Learn favorito: pressione um botao MIDI (NOTA ou CC valor alto).
+Biblioteca SFZ relida.
+Vision - Ajuda para uso no palco
+VISION SFZ - COMANDOS ACESSIVEIS
+ESC: voltar para categorias / cancelar MIDI Learn
+ESPACO: adicionar/remover timbre destacado dos favoritos
+ENTER: carregar o timbre destacado
+E: acessar o painel de 14 controles
+SETAS: percorrer listas e ajustar sliders em foco
+PAGE UP / PAGE DOWN: rolar listas rapidamente
+HOME / END: primeiro ou ultimo item da lista
+F5: reler a biblioteca SFZ
+F1: mostrar esta ajuda
+MIDI LEARN KNOB: mova o slider desejado, pressione MIDI LEARN e depois um CC do teclado.
+MIDI LEARN FAVORITO: destaque um favorito, pressione Learn e depois uma nota ou botao CC.
+ADSR de cada nota ainda esta em desenvolvimento. O DSP de EQ e efeitos ja esta conectado.
+Categorias em foco; MIDI Learn cancelado.
+Painel de knobs em foco.
+TESTE C4 NAO INICIADO: 
+TESTE C4 IMPEDIDO: 
+Vision SFZ 0.8 
+ Teste C4
+Ative ASIO/WASAPI antes de testar o tom puro.
+TESTE TOM 440Hz EM ANDAMENTO: envia 
+udio sem depender de SFZ ou MIDI.
+Nenhum instrumento SFZ foi carregado.
+Selecione CP80 na lista e clique uma vez em TESTAR SOM (C4). O programa agora tentara abrir automaticamente o timbre destacado.
+Detalhe: 
+O SFZ nao possui regioes de amostras carregadas. Carregue outro instrumento e repita o teste.
+SFZ encontrado, mas o audio ASIO/WASAPI nao esta ativo. Clique ATIVAR AUDIO para iniciar a saida, depois repita o teste.
+ | Timbre=
+Os dados SFZ estao carregados, mas o volume MASTER ou do TIMBRE esta em ZERO.
+Master=
+A fila das notas de teste esta cheia. O SFZ nao recebeu a nota C4.
+Falha ao programar NOTE OFF do teste C4
+TESTE SFZ C4 em andamento: aguarde a janela do diagnostico.
+Carregue um timbre antes de MIDI Learn.
+. Mova um knob do controlador MIDI.
+MIDI Learn: selecionado 
+O SFZ nao suporta modulacao ADSR nesta versao. Timbre original preservado.
+ de 100. Clique MIDI LEARN KNOB para atribuir ao seu controlador.
+Biblioteca SFZ atualizada.
+--sfz-selftest 
+SFZ SELFTEST SILENCIO
+SFZ SELFTEST AUDIO REAL OK
+--callback-selftest 
+--callback-tone-selftest
+CALLBACK SELFTEST SFZ->PCM OK
+CALLBACK SELFTEST TONE->PCM OK
+--sfz-recovery-selftest 
+.MISSING
+sfz_recovery_invalid_test.sfz
+PASSOU: falhas de SFZ preservam motor; nova carga valida funciona
+--profile-state-selftest
+CP80.sfz
+CP80
+Unicode S
+o Paulo 
+\piano.sfz
+vision_profile_unit_test.vshow.ini
+TESTE PERSISTENCIA: favoritos, CC, knobs, volumes e caminho Unicode aprovados
+--adsr-callback-selftest 
+PASSOU: SFZ real + ADSR por nota + atualizacao durante stream sem reconstruir synth
+--stage-soak-selftest 
+Wurlitzer EP200.sfz
+Wurlitzer EP200
+Pianet T.sfz
+Pianet T
+.missing
+STAGE SOAK OK: 18 swaps, 54 notes, 14 controls, ADSR, FX, SFZ real, callbacks
+--midi-mapping-selftest
+TESTE MIDI: CC controla knob, aprende CC, favoritos nota/CC, nenhum disparo indevido
+--backends-selftest
+ABRINDO VISION SFZ NATIVE 0.8
+Windows ANSI codepage (esperada 65001 UTF-8): 
+VisionSFZNativeWindow
+VISION SFZ NATIVE 
+ Hugo Sodr
+ prot
+tipo 0.8
+settings.ini
+!x-sys-default-locale
+w+bx
+api-ms-win-core-fibers-l1-1-1
+api-ms-win-core-synch-l1-2-0
+kernel32
+api-ms-
+(null)
+         (((((                  H
+         (((((                  H
+      (                          
+mscoree.dll
+LC_ALL
+LC_COLLATE
+LC_CTYPE
+LC_MONETARY
+LC_NUMERIC
+LC_TIME
+Sunday
+Monday
+Tuesday
+Wednesday
+Thursday
+Friday
+Saturday
+January
+February
+March
+April
+June
+July
+August
+September
+October
+November
+December
+MM/dd/yy
+dddd, MMMM dd, yyyy
+HH:mm:ss
+en-US
+api-ms-win-core-datetime-l1-1-1
+api-ms-win-core-fibers-l1-1-2
+api-ms-win-core-file-l1-2-4
+api-ms-win-core-file-l1-2-2
+api-ms-win-core-file-l2-1-4
+api-ms-win-core-localization-l1-2-1
+api-ms-win-core-localization-obsolete-l1-2-0
+api-ms-win-core-processthreads-l1-1-2
+api-ms-win-core-string-l1-1-0
+api-ms-win-core-sysinfo-l1-2-1
+api-ms-win-core-winrt-l1-1-0
+api-ms-win-core-xstate-l2-1-0
+api-ms-win-rtcore-ntuser-window-l1-1-0
+api-ms-win-security-systemfunctions-l1-1-0
+ext-ms-win-ntuser-dialogbox-l1-1-0
+ext-ms-win-ntuser-windowstation-l1-1-0
+advapi32
+kernelbase
+ntdll
+api-ms-win-appmodel-runtime-l1-1-2
+user32
+ext-ms-
+UTF-8
+UTF-16LEUNICODE
+ja-JP
+zh-CN
+ko-KR
+zh-TW
+american
+american english
+american-english
+australian
+belgian
+canadian
+chinese
+chinese-hongkong
+chinese-simplified
+chinese-singapore
+chinese-traditional
+dutch-belgian
+english-american
+english-aus
+english-belize
+english-can
+english-caribbean
+english-ire
+english-jamaica
+english-nz
+english-south africa
+english-trinidad y tobago
+english-uk
+english-us
+english-usa
+french-belgian
+french-canadian
+french-luxembourg
+french-swiss
+german-austrian
+german-lichtenstein
+german-luxembourg
+german-swiss
+irish-english
+italian-swiss
+norwegian
+norwegian-bokmal
+norwegian-nynorsk
+portuguese-brazilian
+spanish-argentina
+spanish-bolivia
+spanish-chile
+spanish-colombia
+spanish-costa rica
+spanish-dominican republic
+spanish-ecuador
+spanish-el salvador
+spanish-guatemala
+spanish-honduras
+spanish-mexican
+spanish-modern
+spanish-nicaragua
+spanish-panama
+spanish-paraguay
+spanish-peru
+spanish-puerto rico
+spanish-uruguay
+spanish-venezuela
+swedish-finland
+swiss
+america
+britain
+china
+czech
+england
+great britain
+holland
+hong-kong
+new-zealand
+pr china
+pr-china
+puerto-rico
+slovak
+south africa
+south korea
+south-africa
+south-korea
+trinidad & tobago
+united-kingdom
+united-states
+utf8
+utf-8
+zh-CHS
+ar-SA
+bg-BG
+ca-ES
+cs-CZ
+da-DK
+de-DE
+el-GR
+fi-FI
+fr-FR
+he-IL
+hu-HU
+is-IS
+it-IT
+nl-NL
+nb-NO
+pl-PL
+pt-BR
+ro-RO
+ru-RU
+hr-HR
+sk-SK
+sq-AL
+sv-SE
+th-TH
+tr-TR
+ur-PK
+id-ID
+uk-UA
+be-BY
+sl-SI
+et-EE
+lv-LV
+lt-LT
+fa-IR
+vi-VN
+hy-AM
+az-AZ-Latn
+eu-ES
+mk-MK
+tn-ZA
+xh-ZA
+zu-ZA
+af-ZA
+ka-GE
+fo-FO
+hi-IN
+mt-MT
+se-NO
+ms-MY
+kk-KZ
+ky-KG
+sw-KE
+uz-UZ-Latn
+tt-RU
+bn-IN
+pa-IN
+gu-IN
+ta-IN
+te-IN
+kn-IN
+ml-IN
+mr-IN
+sa-IN
+mn-MN
+cy-GB
+gl-ES
+kok-IN
+syr-SY
+div-MV
+quz-BO
+ns-ZA
+mi-NZ
+ar-IQ
+de-CH
+en-GB
+es-MX
+fr-BE
+it-CH
+nl-BE
+nn-NO
+pt-PT
+sr-SP-Latn
+sv-FI
+az-AZ-Cyrl
+se-SE
+ms-BN
+uz-UZ-Cyrl
+quz-EC
+ar-EG
+zh-HK
+de-AT
+en-AU
+es-ES
+fr-CA
+sr-SP-Cyrl
+se-FI
+quz-PE
+ar-LY
+zh-SG
+de-LU
+en-CA
+es-GT
+fr-CH
+hr-BA
+smj-NO
+ar-DZ
+zh-MO
+de-LI
+en-NZ
+es-CR
+fr-LU
+bs-BA-Latn
+smj-SE
+ar-MA
+en-IE
+es-PA
+fr-MC
+sr-BA-Latn
+sma-NO
+ar-TN
+en-ZA
+es-DO
+sr-BA-Cyrl
+sma-SE
+ar-OM
+en-JM
+es-VE
+sms-FI
+ar-YE
+en-CB
+es-CO
+smn-FI
+ar-SY
+en-BZ
+es-PE
+ar-JO
+en-TT
+es-AR
+ar-LB
+en-ZW
+es-EC
+ar-KW
+en-PH
+es-CL
+ar-AE
+es-UY
+ar-BH
+es-PY
+ar-QA
+es-BO
+es-SV
+es-HN
+es-NI
+es-PR
+zh-CHT
+af-za
+ar-ae
+ar-bh
+ar-dz
+ar-eg
+ar-iq
+ar-jo
+ar-kw
+ar-lb
+ar-ly
+ar-ma
+ar-om
+ar-qa
+ar-sa
+ar-sy
+ar-tn
+ar-ye
+az-az-cyrl
+az-az-latn
+be-by
+bg-bg
+bn-in
+bs-ba-latn
+ca-es
+cs-cz
+cy-gb
+da-dk
+de-at
+de-ch
+de-de
+de-li
+de-lu
+div-mv
+el-gr
+en-au
+en-bz
+en-ca
+en-cb
+en-gb
+en-ie
+en-jm
+en-nz
+en-ph
+en-tt
+en-us
+en-za
+en-zw
+es-ar
+es-bo
+es-cl
+es-co
+es-cr
+es-do
+es-ec
+es-es
+es-gt
+es-hn
+es-mx
+es-ni
+es-pa
+es-pe
+es-pr
+es-py
+es-sv
+es-uy
+es-ve
+et-ee
+eu-es
+fa-ir
+fi-fi
+fo-fo
+fr-be
+fr-ca
+fr-ch
+fr-fr
+fr-lu
+fr-mc
+gl-es
+gu-in
+he-il
+hi-in
+hr-ba
+hr-hr
+hu-hu
+hy-am
+id-id
+is-is
+it-ch
+it-it
+ja-jp
+ka-ge
+kk-kz
+kn-in
+kok-in
+ko-kr
+ky-kg
+lt-lt
+lv-lv
+mi-nz
+mk-mk
+ml-in
+mn-mn
+mr-in
+ms-bn
+ms-my
+mt-mt
+nb-no
+nl-be
+nl-nl
+nn-no
+ns-za
+pa-in
+pl-pl
+pt-br
+pt-pt
+quz-bo
+quz-ec
+quz-pe
+ro-ro
+ru-ru
+sa-in
+se-fi
+se-no
+se-se
+sk-sk
+sl-si
+sma-no
+sma-se
+smj-no
+smj-se
+smn-fi
+sms-fi
+sq-al
+sr-ba-cyrl
+sr-ba-latn
+sr-sp-cyrl
+sr-sp-latn
+sv-fi
+sv-se
+sw-ke
+syr-sy
+ta-in
+te-in
+th-th
+tn-za
+tr-tr
+tt-ru
+uk-ua
+ur-pk
+uz-uz-cyrl
+uz-uz-latn
+vi-vn
+xh-za
+zh-chs
+zh-cht
+zh-cn
+zh-hk
+zh-mo
+zh-sg
+zh-tw
+zu-za
+CONOUT$

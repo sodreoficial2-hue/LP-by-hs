@@ -1,0 +1,11 @@
+EXTRACAO DOS INSTALADORES — 20/10/2026
+
+live/: 185 arquivos extraidos do instalador Live Performance.
+vision08-internal/: 184 arquivos extraidos do executavel dentro do ZIP Vision 0.8.
+analysis/: inventarios SHA-256, comparacao, strings ASCII/UTF-16, estrutura PE/importacoes e desmontagem dos dois programas.
+
+Ambos sao aplicativos Windows nativos x64. Os instaladores sao NSIS.
+Nao foram encontrados fontes C/C++, projeto de compilacao nem simbolos de depuracao no executavel principal. A desmontagem e codigo de maquina representado em assembly; nao e o codigo-fonte original nem projeto pronto para recompilar.
+O README original menciona interface Win32, PortAudio e motor sfizz. Foram extraidas DLLs sfizz, sndfile e SDL3, bibliotecas CP80, Pianet T e Wurlitzer EP200, licenca das amostras e foto do Live Performance.
+O README do Live Performance ainda usa o nome antigo: pode estar desatualizado.
+Nenhum programa Windows foi executado. Nenhuma alteracao funcional realizada. Nenhum envio ao GitHub nesta etapa.

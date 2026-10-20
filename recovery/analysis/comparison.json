@@ -1,0 +1,11 @@
+{
+  "only_live": [
+    "assets/hugo.jpg"
+  ],
+  "only_vision": [],
+  "changed": [
+    "Uninstall.exe",
+    "VisionSFZNative.exe"
+  ],
+  "identical_count": 182
+}
