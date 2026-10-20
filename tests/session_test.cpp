@@ -1,5 +1,6 @@
 #include "session.hpp"
 #include <iostream>
+#include <limits>
 void check(bool ok) { if(!ok) throw std::runtime_error("Regression failed"); }
 int main(int argc,char** argv) {
  const auto path=std::filesystem::temp_directory_path()/"lphs-regression.vshow";
@@ -10,6 +11,10 @@ int main(int argc,char** argv) {
  check(std::abs(s.favorites[0]->parameters[6]-0.17f)<0.0001f);
  check(!s.programChange(20)); check(!s.programChange(1));
  s.favorites[0]->cc[6]=91; s.save(path);
+ // A failed save must preserve the previous valid show.
+ s.favorites[0]->parameters[0]=std::numeric_limits<float>::quiet_NaN();
+ bool badSave=false; try{s.save(path);}catch(...){badSave=true;}check(badSave);
+ s.favorites[0]->parameters[0]=1;
  lp::Session restored; restored.load(path);
  check(restored.favorites[0]->sfz==s.favorites[0]->sfz);
  check(restored.favorites[0]->cc[6]==91); check(restored.favorites[19].has_value());

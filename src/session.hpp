@@ -1,5 +1,8 @@
 #pragma once
+#include "atomic_file.hpp"
 #include <array>
+#include <sstream>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -37,16 +40,19 @@ struct Session {
  }
  void save(const std::filesystem::path& path) const {
   // Caller chooses path; does not auto-save shows.
-  std::ofstream f(path,std::ios::binary|std::ios::trunc);
-  if(!f) throw std::runtime_error("Cannot open profile for writing");
+  std::ostringstream f;
   f << "LPHS_PROFILE 1\n" << std::setprecision(9);
   for(std::size_t i=0;i<favorites.size();++i) if(favorites[i]) {
-   auto& p=*favorites[i]; f << i << ' ' << std::quoted(p.sfz);
+   auto& p=*favorites[i];
+   if(p.sfz.empty() || p.sfz.size()>32768) throw std::runtime_error("Invalid SFZ path");
+   for(auto value:p.parameters) if(!std::isfinite(value) || value<0 || value>1) throw std::runtime_error("Invalid parameter value");
+   for(auto cc:p.cc) if(cc < -1 || cc >127) throw std::runtime_error("Invalid MIDI CC");
+   f << i << ' ' << std::quoted(p.sfz);
    for(auto v:p.parameters) f << ' ' << v;
    for(auto v:p.cc) f << ' ' << v;
    f << '\n';
   }
-  f.flush(); if(!f) throw std::runtime_error("Profile write failed");
+  atomicWrite(path,f.str());
  }
  void load(const std::filesystem::path& path) {
   std::ifstream f(path,std::ios::binary); std::string magic; int version=0;

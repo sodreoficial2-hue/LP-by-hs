@@ -18,6 +18,15 @@ C++17: catálogo SFZ, 20 slots de favoritos, parâmetros independentes por timbr
 Compilar: `cmake -S . -B build`, `cmake --build build`, `ctest --test-dir build --output-on-failure`.
 Sem CMake: `g++ -std=c++17 -Isrc tests/session_test.cpp -o /tmp/lp_test` e executar `/tmp/lp_test recovery/extracted/live/samples`.
 
+## Etapa 2
+
+Integração dinâmica sfizz, roteador MIDI com MIDI Learn de CC, fila de eventos e primeira interface Win32 implementados. A interface apresenta explicitamente que a saída ASIO está pendente. Os parâmetros são armazenados no perfil; aplicação de DSP ainda pendente.
+
+Detalhes e limites de validação: [docs/RECONSTRUCAO-ETAPA-2.md](docs/RECONSTRUCAO-ETAPA-2.md).
+
+Testes Linux sem GitHub: `bash scripts/verify_local.sh`.
+No Windows, o projeto CMake também gera o alvo `LivePerformance`. As DLLs reais sfizz e dependências devem ficar junto ao executável. Não substituir o programa original por esta reconstrução ainda.
+
 ## Próximas etapas
 
-Reconstruir interface Win32 acessível, integração sfizz, stream PortAudio/ASIO, MIDI WinMM, MIDI Learn, efeitos e diálogos Salvar/Abrir. A nova base ainda não produz áudio, não inclui instalador novo e não foi homologada no Windows. Os executáveis originais permanecem separados dela.
+Integrar stream PortAudio/ASIO, seleção/persistência de driver e ASIO Control; aplicar DSP/ADSR; finalizar categorias, perfis e MIDI Learn de botões. A nova base ainda não abre saída de áudio, não inclui instalador novo e não foi homologada em hardware Windows. Os executáveis originais permanecem separados dela.
