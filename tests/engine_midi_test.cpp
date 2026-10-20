@@ -18,6 +18,7 @@ int main(int argc,char** argv) {
    check(rejected && engine.loaded() && engine.regions()==3);
    engine.render(l,r,256);check(l[0]==0.25f);
   }
+  auto parameters=lp::Patch{}.parameters;parameters[0]=.5f;engine.parameters(parameters);engine.render(l,r,256);check(l[0]==.125f);
   engine.noteOn(60,0);engine.render(l,r,256);check(l[0]==0);
   engine.noteOn(60,100);engine.panic();engine.render(l,r,256);check(l[0]==0);
   bool rejected=false;try{engine.render(l,r,257);}catch(...){rejected=true;}check(rejected);
@@ -36,6 +37,19 @@ int main(int argc,char** argv) {
  check(router.route({0xb0,91,32}).action==lp::MidiAction::Parameter);
  check(std::abs(s.favorites[0]->parameters[6]-32/127.f)<0.00001f);
  router.learn(7);router.route({0xb0,91,0});check(s.favorites[0]->cc[6]==-1 && s.favorites[0]->cc[7]==91);
+ // Buttons are channel-specific; consume reserved note releases and CC edges.
+ router.learnFavorite(19);check(router.route({0x92,48,100}).action==lp::MidiAction::Learned);
+ check(router.route({0x92,48,100}).action==lp::MidiAction::Ignore);
+ check(router.route({0x82,48,64}).action==lp::MidiAction::Ignore);
+ check(router.route({0x92,48,100}).action==lp::MidiAction::Favorite);
+ check(router.route({0x91,48,100}).action==lp::MidiAction::NoteOn);
+ router.learnFavorite(0);router.route({0xb3,22,127});
+ check(router.route({0xb3,22,127}).action==lp::MidiAction::Ignore);
+ check(router.route({0xb3,22,0}).action==lp::MidiAction::Ignore);
+ check(router.route({0xb3,22,127}).action==lp::MidiAction::Favorite);
+ router.learnFavorite(19);router.route({0xb3,22,127});check(s.favorites[0]->button.kind==0);
+ router.resetButtons();check(router.route({0xb3,22,127}).index==19);
+ router.learnFavorite(0);router.cancelLearn();check(router.route({0x90,65,100}).action==lp::MidiAction::NoteOn);
  lp::MidiQueue<4> small;check(small.push({0x90,1,1}));check(small.push({0x90,2,2}));
  check(small.push({0x90,3,3}));check(!small.push({0x90,4,4}));check(small.takeOverflow());check(!small.takeOverflow());
  lp::MidiQueue<> queue;

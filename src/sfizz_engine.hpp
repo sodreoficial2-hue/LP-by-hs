@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <memory>
 #include <cstddef>
+#include <array>
 namespace lp {
 // Owns one sfizz instance. All methods must run on one thread, or while the
 // audio callback is stopped. Loading and destruction are not realtime-safe.
@@ -16,6 +17,7 @@ public:
  void noteOff(int note,int velocity=0);
  void cc(int number,int value);
  void panic();
+ void parameters(const std::array<float,14>& values);
  void unload();
  void render(float* left,float* right,int frames);
  bool loaded() const noexcept;

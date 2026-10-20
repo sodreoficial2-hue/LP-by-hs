@@ -34,18 +34,39 @@ enum class MidiAction { Ignore,NoteOn,NoteOff,Control,Favorite,Parameter,Learned
 struct MidiResult { MidiAction action=MidiAction::Ignore;int index=0,value=0; };
 class MidiRouter {
  Session& session;
- std::optional<std::size_t> learnParameter;
+ std::optional<std::size_t> learnParameter,learnSlot;
+ std::array<std::array<bool,256>,16> pressed{};
 public:
  explicit MidiRouter(Session& s):session(s) {}
  void learn(std::size_t parameter) {
   if(parameter>=parameterNames.size() || !session.current || !session.favorites[*session.current])
    throw std::invalid_argument("Select favorite before MIDI Learn");
-  learnParameter=parameter;
+  learnSlot.reset();learnParameter=parameter;
  }
- void cancelLearn() {learnParameter.reset();}
+ void learnFavorite(std::size_t slot) {
+  if(slot>=20||!session.favorites[slot])throw std::invalid_argument("Choose occupied favorite for MIDI Learn");
+  learnParameter.reset();learnSlot=slot;
+ }
+ void cancelLearn() {learnParameter.reset();learnSlot.reset();}
+ void resetButtons() {for(auto& channel:pressed)channel.fill(false);}
  MidiResult route(MidiMessage m) {
   if(!m.valid()) return {};
   auto kind=m.status&0xf0;
+  bool buttonMessage=kind==0x90||kind==0x80||kind==0xb0;
+  bool down=kind==0x90?m.data2>0:kind==0xb0&&m.data2>=64;
+  ButtonBinding binding{kind==0x80?0x90:kind,m.status&15,m.data1};
+  if(learnSlot&&buttonMessage&&down){
+   auto slot=*learnSlot;learnSlot.reset();
+   if(!session.favorites[slot])return {};
+   for(auto& patch:session.favorites)if(patch&&patch->button.same(binding))patch->button={};
+   session.favorites[slot]->button=binding;pressed[binding.channel][binding.number+(binding.kind==0xb0?128:0)]=true;
+   return {MidiAction::Learned,static_cast<int>(slot),m.data1};
+  }
+  if(buttonMessage)for(std::size_t slot=0;slot<20;++slot)if(session.favorites[slot]&&session.favorites[slot]->button.same(binding)){
+   bool was=pressed[binding.channel][binding.number+(binding.kind==0xb0?128:0)];pressed[binding.channel][binding.number+(binding.kind==0xb0?128:0)]=down;
+   if(down&&!was)return {MidiAction::Favorite,static_cast<int>(slot),0};
+   return {}; // Reserved note and its release must not reach the synthesizer.
+  }
   if(kind==0xc0) {
    if(m.data1<20 && session.favorites[m.data1]) return {MidiAction::Favorite,m.data1,0};
    return {};

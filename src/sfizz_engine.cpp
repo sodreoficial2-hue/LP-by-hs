@@ -1,4 +1,5 @@
 #include "sfizz_engine.hpp"
+#include "dsp.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -58,6 +59,7 @@ void midiValue(int value) { if(value<0 || value>127) throw std::invalid_argument
 }
 struct SfizzEngine::Impl {
  Module module;
+ Dsp dsp;
  sfizz_synth_t* (*create)();
  void (*freeSynth)(sfizz_synth_t*);
  bool (*loadFile)(sfizz_synth_t*,const char*);
@@ -71,7 +73,7 @@ struct SfizzEngine::Impl {
  int (*numRegions)(sfizz_synth_t*);
  float rate; int block;
  sfizz_synth_t* synth{};
- Impl(const std::filesystem::path& library,float r,int b):module(library),rate(r),block(b) {
+ Impl(const std::filesystem::path& library,float r,int b):module(library),dsp(r),rate(r),block(b) {
 #define LP_BIND(member,name) member=module.symbol<decltype(member)>(name)
   LP_BIND(create,"sfizz_create_synth"); LP_BIND(freeSynth,"sfizz_free");
   LP_BIND(loadFile,"sfizz_load_file"); LP_BIND(setRate,"sfizz_set_sample_rate");
@@ -98,10 +100,11 @@ void SfizzEngine::load(const std::filesystem::path& path) {
  const auto utf8=std::filesystem::absolute(path).u8string();
  if(!a.loadFile(candidate.get(),utf8.c_str()) || a.numRegions(candidate.get())<=0)
   throw std::runtime_error("SFZ failed to load or has no regions");
- auto previous=a.synth; a.synth=candidate.release();
+ auto previous=a.synth; a.synth=candidate.release(); a.dsp.reset();
  if(previous) a.freeSynth(previous);
 }
-void SfizzEngine::unload() {if(impl->synth){impl->freeSynth(impl->synth);impl->synth=nullptr;}}
+void SfizzEngine::parameters(const std::array<float,14>& values) {impl->dsp.parameters(values);}
+void SfizzEngine::unload() {impl->dsp.reset();if(impl->synth){impl->freeSynth(impl->synth);impl->synth=nullptr;}}
 bool SfizzEngine::loaded() const noexcept { return impl->synth!=nullptr; }
 int SfizzEngine::regions() const { return loaded()?impl->numRegions(impl->synth):0; }
 void SfizzEngine::noteOn(int note,int velocity) {
@@ -110,10 +113,11 @@ void SfizzEngine::noteOn(int note,int velocity) {
 }
 void SfizzEngine::noteOff(int note,int velocity) { midiValue(note); midiValue(velocity); if(loaded()) impl->off(impl->synth,0,note,velocity); }
 void SfizzEngine::cc(int number,int value) { midiValue(number); midiValue(value); if(loaded()) impl->control(impl->synth,0,number,value); }
-void SfizzEngine::panic() { if(loaded()) impl->silence(impl->synth); }
+void SfizzEngine::panic() { if(loaded()) impl->silence(impl->synth); impl->dsp.reset(); }
 void SfizzEngine::render(float* left,float* right,int frames) {
  if(!left || !right || left==right || frames<1 || frames>impl->block) throw std::invalid_argument("Invalid stereo render block");
  if(!loaded()) {std::fill_n(left,frames,0);std::fill_n(right,frames,0);return;}
  float* channels[]{left,right}; impl->renderBlock(impl->synth,channels,2,frames);
+ impl->dsp.process(left,right,frames);
 }
 }
