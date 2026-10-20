@@ -1,0 +1,3 @@
+Live Performance — adaptações de performance MIDI, etapa 8.
+Leads curados FreePats: CC1 vibrato, 5 Hz e profundidade máxima 35 cents.
+Sax soprano e alto MTG: sustain/sostenuto habilitados; legato transferido de CC64 para CC68 para liberar o pedal. Créditos e licença CC-BY-4.0 originais mantidos. Áudio original inalterado.

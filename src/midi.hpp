@@ -8,6 +8,7 @@ struct MidiMessage {
  static MidiMessage packed(std::uint32_t value) {
   return {static_cast<std::uint8_t>(value),static_cast<std::uint8_t>(value>>8),static_cast<std::uint8_t>(value>>16)};
  }
+ int pitchBend() const noexcept {return (static_cast<int>(data2)*128+data1)-8192;}
  bool valid() const { return status>=0x80 && status<0xf0 && data1<128 && data2<128; }
 };
 // One producer, one consumer. Overflow requests panic so lost note-offs cannot
@@ -30,8 +31,11 @@ public:
  }
  bool takeOverflow() noexcept { return overflow.exchange(false,std::memory_order_acq_rel); }
 };
-enum class MidiAction { Ignore,NoteOn,NoteOff,Control,Favorite,Parameter,Learned,FavoriteLearned,WrongProgram };
+enum class MidiAction { Ignore,NoteOn,NoteOff,Control,PitchBend,Favorite,Parameter,Learned,FavoriteLearned,WrongProgram };
 struct MidiResult { MidiAction action=MidiAction::Ignore;int index=0,value=0; };
+inline bool forwardsToEngine(const MidiResult& result,MidiMessage message){
+ return result.action==MidiAction::NoteOn||result.action==MidiAction::NoteOff||result.action==MidiAction::Control||result.action==MidiAction::PitchBend||(message.valid()&&(message.status&0xf0)==0xb0&&message.data1==1);
+}
 class MidiRouter {
  Session& session;
  struct ParameterLearn {std::size_t slot,parameter;};
@@ -71,6 +75,9 @@ public:
    }
    return {};
   }
+  // Pedal and channel-mode messages must never be captured by knob Learn.
+  if(kind==0xb0&&(m.data1==64||m.data1>=120))return {MidiAction::Control,m.data1,m.data2};
+  if(kind==0xe0)return {MidiAction::PitchBend,0,m.pitchBend()};
   if(kind==0xb0 && learnParameter) {
    auto index=learnParameter->parameter;learnParameter.reset();
    if(!session.current || !session.favorites[*session.current]) return {};

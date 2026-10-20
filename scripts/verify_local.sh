@@ -19,6 +19,12 @@ g++ -std=c++17 -Wall -Wextra -Werror -pthread -Isrc -Ithird_party/portaudio src/
 if [[ -n "${LP_REAL_SFIZZ_LIBRARY:-}" ]]; then
  g++ -std=c++17 -Wall -Wextra -Werror -Isrc src/sfizz_engine.cpp src/dsp.cpp tests/real_sfizz_envelope_test.cpp -ldl -o "$lp_build_dir/real_envelope_test"
  "$lp_build_dir/real_envelope_test" "$LP_REAL_SFIZZ_LIBRARY" recovery/extracted/live/samples
+ g++ -std=c++17 -Wall -Wextra -Werror -Isrc src/sfizz_engine.cpp src/dsp.cpp tests/real_performance_test.cpp -ldl -o "$lp_build_dir/real_performance_test"
+ if [[ -n "${LP_BANK_TEST_ROOT:-}" ]]; then
+  "$lp_build_dir/real_performance_test" "$LP_REAL_SFIZZ_LIBRARY" "$LP_BANK_TEST_ROOT"
+ else
+  "$lp_build_dir/real_performance_test" "$LP_REAL_SFIZZ_LIBRARY"
+ fi
 fi
 
 g++ -std=c++17 -Wall -Wextra -Werror -Isrc tests/instrument_catalog_test.cpp -o "$lp_build_dir/catalog_test"

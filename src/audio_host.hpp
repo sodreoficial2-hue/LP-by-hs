@@ -36,6 +36,12 @@ private:
  int render(float**,unsigned long,PaStreamCallbackFlags) noexcept;
  void open(int,unsigned long);
  void clearQueue() noexcept;
+ void restorePerformance();
+ void resetPerformance() noexcept;
+ // Latest physical controls survive instrument/ASIO changes, even when queued
+ // events are discarded. -1 leaves an untouched SFZ controller default alone.
+ std::atomic<int> modulation{-1},sustain{-1},bend{0};
+ std::atomic<bool> bendSeen{false};
  std::filesystem::path library,instrument;
  std::unique_ptr<SfizzEngine> engine;
  PaStream* stream{};int device=-1;unsigned long buffer=0;

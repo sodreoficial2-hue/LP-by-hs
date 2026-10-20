@@ -33,6 +33,7 @@ void AudioHost::open(int id,unsigned long size){
  out.suggestedLatency=info->defaultLowOutputLatency;
  paCheck(Pa_IsFormatSupported(nullptr,&out,48000));
  PaStream* candidate=nullptr;paCheck(Pa_OpenStream(&candidate,nullptr,&out,48000,size,paNoFlag,callback,this));
+ restorePerformance();
  auto result=Pa_StartStream(candidate);
  if(result<0){Pa_CloseStream(candidate);paCheck(result);}
  stream=candidate;device=id;buffer=size;
@@ -58,7 +59,7 @@ void AudioHost::load(const std::filesystem::path& path,const std::array<float,14
  auto candidate=std::make_unique<SfizzEngine>(library);candidate->load(path);candidate->parameters(parameters,enabled);
  bool restart=running();auto id=device;auto size=buffer;stop();
  auto previousInstrument=instrument;auto previousParameters=current;bool previousAdsr=currentAdsr;
- engine.swap(candidate);instrument=path;this->parameters(parameters,enabled);
+ engine.swap(candidate);restorePerformance();instrument=path;this->parameters(parameters,enabled);
  if(restart){try{open(id,size);}catch(...){engine.swap(candidate);instrument=previousInstrument;this->parameters(previousParameters,previousAdsr);try{open(id,size);}catch(...){fault.store(true);}throw;}}
 }
 void AudioHost::unload(){bool restart=running();auto id=device;auto size=buffer;stop();engine->unload();instrument.clear();if(restart)open(id,size);}
@@ -69,8 +70,16 @@ void AudioHost::parameters(const std::array<float,14>& params,bool enabled){
  for(std::size_t i=0;i<params.size();++i)values[i].store(params[i],std::memory_order_seq_cst);
  revision.fetch_add(1,std::memory_order_seq_cst);
 }
-void AudioHost::send(MidiMessage message) noexcept {if(stream)midi.push(message);}
-void AudioHost::panic() noexcept {panicRequested.store(true,std::memory_order_release);}
+void AudioHost::resetPerformance() noexcept {modulation.store(0);sustain.store(0);bend.store(0);bendSeen.store(true);}
+void AudioHost::restorePerformance(){auto mod=modulation.load(),pedal=sustain.load();if(mod>=0)engine->cc(1,mod);if(pedal>=0)engine->cc(64,pedal);if(bendSeen.load())engine->pitchBend(bend.load());}
+void AudioHost::send(MidiMessage message) noexcept {
+ if(!message.valid())return;
+ auto kind=message.status&0xf0;
+ if(kind==0xe0){bend.store(message.pitchBend());bendSeen.store(true);}
+ if(kind==0xb0){if(message.data1==1)modulation.store(message.data2);if(message.data1==64)sustain.store(message.data2);if(message.data1==121)resetPerformance();}
+ if(stream)midi.push(message);
+}
+void AudioHost::panic() noexcept {resetPerformance();panicRequested.store(true,std::memory_order_release);}
 void AudioHost::clearQueue() noexcept {MidiMessage m;for(int i=0;i<1024&&midi.pop(m);++i){}midi.takeOverflow();panicRequested.store(false);}
 double AudioHost::latency() const noexcept {auto info=stream?Pa_GetStreamInfo(stream):nullptr;return info?info->outputLatency:0;}
 int AudioHost::callback(const void*,void* output,unsigned long frames,const PaStreamCallbackTimeInfo*,PaStreamCallbackFlags flags,void* user) noexcept {
@@ -85,10 +94,10 @@ int AudioHost::render(float** output,unsigned long frames,PaStreamCallbackFlags 
    bool enabled=desiredAdsr.load(std::memory_order_seq_cst);
    if(before==revision.load(std::memory_order_seq_cst)){engine->parameters(snapshot,enabled);current=snapshot;currentAdsr=enabled;applied=before;}}
   if(midi.takeOverflow()||panicRequested.exchange(false)){
-   MidiMessage ignored;for(int i=0;i<1024&&midi.pop(ignored);++i){}engine->panic();
+   MidiMessage ignored;for(int i=0;i<1024&&midi.pop(ignored);++i){}engine->panic();resetPerformance();restorePerformance();
   }else{
    MidiMessage m;for(int i=0;i<1024&&midi.pop(m);++i){auto kind=m.status&0xf0;
-    if(kind==0x90)engine->noteOn(m.data1,m.data2);else if(kind==0x80)engine->noteOff(m.data1,m.data2);else if(kind==0xb0)engine->cc(m.data1,m.data2);}
+    if(kind==0x90)engine->noteOn(m.data1,m.data2);else if(kind==0x80)engine->noteOff(m.data1,m.data2);else if(kind==0xb0){engine->cc(m.data1,m.data2);if(m.data1==121){engine->cc(1,0);engine->cc(64,0);engine->pitchBend(0);}}else if(kind==0xe0)engine->pitchBend(m.pitchBend());}
   }
   for(unsigned long i=0;i<frames;){int size=static_cast<int>(std::min<unsigned long>(256,frames-i));engine->render(output[0]+i,output[1]+i,size);i+=size;}
   return paContinue;

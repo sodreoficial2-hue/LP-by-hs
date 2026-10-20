@@ -91,6 +91,7 @@ struct SfizzEngine::Impl {
  void (*off)(sfizz_synth_t*,int,int,int);
  void (*control)(sfizz_synth_t*,int,int,int);
  void (*silence)(sfizz_synth_t*);
+ void (*bend)(sfizz_synth_t*,int,int);
  void (*enableOffline)(sfizz_synth_t*);
  bool offline=false;
  void (*renderBlock)(sfizz_synth_t*,float**,int,int);
@@ -106,7 +107,7 @@ struct SfizzEngine::Impl {
   LP_BIND(setBlock,"sfizz_set_samples_per_block"); LP_BIND(on,"sfizz_send_note_on");
   LP_BIND(off,"sfizz_send_note_off"); LP_BIND(control,"sfizz_send_cc");
   LP_BIND(enableOffline,"sfizz_enable_freewheeling"); LP_BIND(silence,"sfizz_all_sound_off"); LP_BIND(renderBlock,"sfizz_render_block");
-  LP_BIND(numRegions,"sfizz_get_num_regions");
+  LP_BIND(numRegions,"sfizz_get_num_regions");LP_BIND(bend,"sfizz_send_pitch_wheel");
 #undef LP_BIND
   client=createClient(this);if(!client)throw std::runtime_error("sfizz messaging client unavailable");
   receiveCallback(client,receive);
@@ -159,7 +160,8 @@ void SfizzEngine::noteOn(int note,int velocity) {
  if(loaded()) { if(velocity) impl->on(impl->synth,0,note,velocity); else impl->off(impl->synth,0,note,0); }
 }
 void SfizzEngine::noteOff(int note,int velocity) { midiValue(note); midiValue(velocity); if(loaded()) impl->off(impl->synth,0,note,velocity); }
-void SfizzEngine::cc(int number,int value) { midiValue(number); midiValue(value); if(loaded()) impl->control(impl->synth,0,number,value); }
+void SfizzEngine::cc(int number,int value) { midiValue(number); midiValue(value); if(loaded()) impl->control(impl->synth,0,number,number==64?(value>=64?127:0):value); }
+void SfizzEngine::pitchBend(int value) {if(value< -8192||value>8191)throw std::invalid_argument("Invalid signed MIDI pitch bend");if(loaded())impl->bend(impl->synth,0,value);}
 void SfizzEngine::panic() { if(loaded()) impl->silence(impl->synth); impl->dsp.reset(); }
 void SfizzEngine::render(float* left,float* right,int frames) {
  if(!left || !right || left==right || frames<1 || frames>impl->block) throw std::invalid_argument("Invalid stereo render block");

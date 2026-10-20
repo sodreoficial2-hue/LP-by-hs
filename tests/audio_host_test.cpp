@@ -31,6 +31,19 @@ int main(int argc,char** argv){
  host.send({0x90,60,100});fakePump(left,right,2048);host.panic();fakePump(left,right,2048);check(left[0]==0);
  fakePump(left,right,2048,paOutputUnderflow);check(host.xruns()==1);
  host.controlPanel(1,nullptr);check(host.running()&&host.bufferSize()==128);
+ // Performance survives an instrument swap before the old queue is consumed.
+ p[0]=1;host.parameters(p);host.send({0xb0,64,127});host.send({0xb0,1,127});host.send({0xe0,0,96});
+ host.load(dir/"good.sfz",p);host.send({0x90,60,100});host.send({0x80,60,0});fakePump(left,right,2048);check(left[0]==.75f);
+ host.send({0xb0,64,0});fakePump(left,right,2048);check(left[0]==0);
+ host.send({0xe0,0,64});host.send({0xb0,1,0});host.send({0x90,60,100});fakePump(left,right,2048);check(left[0]==.25f);
+ host.send({0xe0,0,0});fakePump(left,right,2048);check(left[0]==0); // Fake's encoded -8192 endpoint.
+ host.send({0xe0,127,127});fakePump(left,right,2048);check(std::abs(left[0]-(.25f+8191/32768.f))<1e-6f);
+ host.send({0xb0,64,127});host.send({0xb0,1,127});host.send({0xb0,121,0});fakePump(left,right,2048);check(left[0]==.25f);
+ host.send({0x80,60,0});fakePump(left,right,2048);check(left[0]==0);
+ host.stop();host.send({0xb0,64,127});host.send({0xb0,1,127});host.send({0xe0,0,96});host.start(1,128);
+ host.send({0x90,60,100});host.send({0x80,60,0});fakePump(left,right,2048);check(left[0]==.75f);
+ host.panic();fakePump(left,right,2048);host.load(dir/"good.sfz",p);host.send({0x90,60,100});host.send({0x80,60,0});fakePump(left,right,2048);check(left[0]==0);
+ host.send({0x90,60,100});fakePump(left,right,2048);check(left[0]==.25f);host.send({0x80,60,0});fakePump(left,right,2048);check(left[0]==0);
  host.unload();check(!host.loaded()&&host.running());fakePump(left,right,2048);check(left[0]==0);host.stop();check(!host.running());
  }
  {lp::AudioHost reopened(argv[1]);auto saved=lp::restoreRememberedAudio(reopened,preferences);check(reopened.running()&&reopened.selectedDevice()==1&&reopened.bufferSize()==128&&saved.driver=="ASIO4ALL");lp::connectAndRemember(reopened,3,256,preferences);}

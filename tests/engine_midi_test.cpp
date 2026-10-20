@@ -73,6 +73,15 @@ int main(int argc,char** argv) {
  check(router.route({0xc1,19,0}).action==lp::MidiAction::Ignore);
  router.learnFavorite(0);router.cancelLearn();check(router.route({0xc3,0,0}).action==lp::MidiAction::Favorite);
  check(s.favorites[0]->button.kind==0);
+ // Pedal and reset stay native during Learn; bend preserves every MIDI bit.
+ router.learn(6);check(router.route({0xb0,64,127}).action==lp::MidiAction::Control&&router.learning());
+ check(router.route({0xe7,0,0}).value==-8192&&router.learning());
+ check(router.route({0xe7,127,127}).value==8191);check(router.route({0xe7,1,64}).value==1);
+ check(router.route({0xe7,0,64}).action==lp::MidiAction::PitchBend);
+ check(router.route({0xb0,121,0}).action==lp::MidiAction::Control&&router.learning());
+ s.favorites[0]->cc[6]=64;check(router.route({0xb0,64,0}).action==lp::MidiAction::Control);
+ auto mod=router.route({0xb0,1,100});check(mod.action==lp::MidiAction::Learned&&lp::forwardsToEngine(mod,{0xb0,1,100}));
+ mod=router.route({0xb0,1,50});check(mod.action==lp::MidiAction::Parameter&&lp::forwardsToEngine(mod,{0xb0,1,50}));
  lp::MidiQueue<4> small;check(small.push({0x90,1,1}));check(small.push({0x90,2,2}));
  check(small.push({0x90,3,3}));check(!small.push({0x90,4,4}));check(small.takeOverflow());check(!small.takeOverflow());
  lp::MidiQueue<> queue;
