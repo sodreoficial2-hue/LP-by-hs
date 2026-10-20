@@ -1,0 +1,49 @@
+#pragma once
+#include "sfizz_engine.hpp"
+#include "midi.hpp"
+#include "portaudio.h"
+#include <atomic>
+#include <memory>
+#include <vector>
+namespace lp {
+struct AudioDevice {int id;std::string name;};
+// All public calls on UI thread; callback exclusively owns the active synth
+// while stream runs. SFZ preparation and destruction never run in callback.
+class AudioHost {
+public:
+ explicit AudioHost(const std::filesystem::path& sfizz);
+ ~AudioHost();
+ AudioHost(const AudioHost&)=delete;
+ AudioHost& operator=(const AudioHost&)=delete;
+ std::vector<AudioDevice> devices() const;
+ void start(int device,unsigned long buffer=0);
+ void stop();
+ void controlPanel(int device,void* window);
+ void load(const std::filesystem::path& sfz,const std::array<float,14>& parameters);
+ void unload();
+ void parameters(const std::array<float,14>& values);
+ void send(MidiMessage message) noexcept;
+ void panic() noexcept;
+ bool running() const noexcept {return stream!=nullptr;}
+ bool loaded() const noexcept {return !instrument.empty();}
+ int selectedDevice() const noexcept {return device;}
+ unsigned long bufferSize() const noexcept {return buffer;}
+ double latency() const noexcept;
+ bool takeFault() noexcept {return fault.exchange(false);}
+ unsigned long xruns() const noexcept {return underruns.load();}
+private:
+ static int callback(const void*,void*,unsigned long,const PaStreamCallbackTimeInfo*,PaStreamCallbackFlags,void*) noexcept;
+ int render(float**,unsigned long,PaStreamCallbackFlags) noexcept;
+ void open(int,unsigned long);
+ void clearQueue() noexcept;
+ std::filesystem::path library,instrument;
+ std::unique_ptr<SfizzEngine> engine;
+ PaStream* stream{};int device=-1;unsigned long buffer=0;
+ MidiQueue<> midi;
+ std::atomic<bool> panicRequested{false},fault{false};
+ std::atomic<unsigned long> underruns{0};
+ std::array<std::atomic<float>,14> values;
+ std::atomic<unsigned> revision{0};unsigned applied=0;
+ std::array<float,14> current=Patch{}.parameters;
+};
+}

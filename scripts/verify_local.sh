@@ -12,3 +12,6 @@ g++ -std=c++17 -Wall -Wextra -Werror -pthread -Isrc src/sfizz_engine.cpp src/dsp
 
 g++ -std=c++17 -Wall -Wextra -Werror -Isrc src/dsp.cpp tests/dsp_test.cpp -o "$lp_build_dir/dsp_test"
 "$lp_build_dir/dsp_test"
+
+g++ -std=c++17 -Wall -Wextra -Werror -pthread -Isrc -Ithird_party/portaudio src/audio_host.cpp src/sfizz_engine.cpp src/dsp.cpp tests/fake_portaudio.cpp tests/audio_host_test.cpp -ldl -o "$lp_build_dir/audio_test"
+"$lp_build_dir/audio_test" "$lp_build_dir/fake_sfizz.so"

@@ -1,6 +1,6 @@
 # Live Performance by Hugo Sodré
 
-Reconstrução iniciada em 20/10/2026. O programa original continua preservado em `recovery/extracted/live`; esta base nova ainda não o substitui.
+Reconstrução iniciada em 20/10/2026. O programa original continua preservado em `recovery/extracted/live`; a nova base já compila com saída ASIO, mas ainda não substitui o programa original em uso de palco.
 
 ## Material recuperado
 
@@ -20,19 +20,25 @@ Sem CMake: `g++ -std=c++17 -Isrc tests/session_test.cpp -o /tmp/lp_test` e execu
 
 ## Etapa 2
 
-Integração dinâmica sfizz, roteador MIDI com MIDI Learn de CC, fila de eventos e primeira interface Win32 implementados. A interface apresenta explicitamente que a saída ASIO está pendente. Os parâmetros são armazenados no perfil. A aplicação de DSP foi implementada na etapa 3 descrita abaixo.
+Integração dinâmica sfizz, roteador MIDI com MIDI Learn de CC, fila de eventos e primeira interface Win32 implementados. Nesta etapa histórica, a saída ASIO ainda estava pendente (implementada na etapa 4). Os parâmetros são armazenados no perfil. A aplicação de DSP foi implementada na etapa 3 descrita abaixo.
 
 Detalhes e limites de validação: [docs/RECONSTRUCAO-ETAPA-2.md](docs/RECONSTRUCAO-ETAPA-2.md).
 
 Testes Linux sem GitHub: `bash scripts/verify_local.sh`.
-No Windows, o projeto CMake também gera o alvo `LivePerformance`. As DLLs reais sfizz e dependências devem ficar junto ao executável. Não substituir o programa original por esta reconstrução ainda.
+No Windows, o projeto CMake gera o alvo `LivePerformance`; a etapa 4 requer os diretórios de PortAudio e do SDK ASIO na configuração. As DLLs reais sfizz e dependências devem ficar junto ao executável. Não substituir o programa original por esta reconstrução ainda.
 
 ## Etapa 3
 
 Processador estéreo conectado ao renderizador sfizz: volume, filtro passa-baixas, EQ de três bandas, compressor estéreo, tremolo, reverb, delay e chorus. MIDI Learn dos favoritos exclusivamente por Program Change: favorito 1 → PC 1 até favorito 20 → PC 20. O clique direito aprende o canal do PC correspondente; nota/CC não trocam favoritos. Perfis `.lphs` v3 preservam esses vínculos; leitura v1/v2 mantida, descartando apenas vínculos antigos de nota/CC nos favoritos.
 
-Validação: testes locais com sinais numéricos e sfizz simulado; não são testes auditivos nem de hardware. ADSR por voz, Envelope Filter dinâmico, stream ASIO e painel do driver continuam pendentes. Ver [docs/RECONSTRUCAO-ETAPA-3.md](docs/RECONSTRUCAO-ETAPA-3.md).
+Validação: testes locais com sinais numéricos e sfizz simulado; não são testes auditivos nem de hardware. Nesta etapa histórica, ASIO e painel ainda estavam pendentes (implementados na etapa 4). ADSR por voz e Envelope Filter dinâmico continuam pendentes. Ver [docs/RECONSTRUCAO-ETAPA-3.md](docs/RECONSTRUCAO-ETAPA-3.md).
+
+## Etapa 4
+
+Saída PortAudio/ASIO ligada ao motor sfizz, com driver, buffer, ASIO Control, pânico e persistência automática exclusiva de áudio. Fila MIDI e parâmetros atômicos conectados ao callback; preparação SFZ fora do callback. Enter no catálogo permite tocar sem favoritar. Compilação Windows x64 com backend ASIO real concluída aqui, sem Actions. Ver [docs/RECONSTRUCAO-ETAPA-4.md](docs/RECONSTRUCAO-ETAPA-4.md).
+
+São quatro grupos de testes locais. Áudio real, interface e latência ainda não foram validados no Windows; o pacote portátil é experimental.
 
 ## Próximas etapas
 
-Integrar stream PortAudio/ASIO, seleção/persistência de driver e ASIO Control; aplicar ADSR por voz e filtro de envelope; finalizar categorias e compatibilidade dos perfis INI originais. A nova base ainda não abre saída de áudio, não inclui instalador novo e não foi homologada em hardware Windows. Os executáveis originais permanecem separados dela.
+ADSR por voz e filtro de envelope; categorias e acabamento visual; compatibilidade dos perfis INI originais; validação de áudio/driver e uso prolongado no Windows. Os executáveis originais permanecem preservados.
