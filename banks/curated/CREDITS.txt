@@ -1,0 +1,97 @@
+Live Performance by Hugo Sodré — banco curado inicial
+
+salamander: Alexander Holm; tuning Markus Fiedler; SFZ kinwie
+https://github.com/sfzinstruments/SalamanderGrandPiano
+Licença: CC-BY-3.0; avisos originais na pasta sources/salamander
+
+vcsl-keys: Sam Gossner / Versilian Studios
+https://versilian-studios.com/vcsl-keys/
+Licença: CC0-1.0; avisos originais na pasta sources/vcsl-keys
+
+greg-ep: Greg Sullivan; SFZ kinwie
+https://github.com/sfzinstruments/GregSullivan.E-Pianos
+Licença: CC-BY-3.0; avisos originais na pasta sources/greg-ep
+
+discord: See individual SFZ headers; curated CC0 subset only
+https://github.com/sfzinstruments/Discord-SFZ-GM-Bank
+Licença: per-instrument; avisos originais na pasta sources/discord
+
+Drawbar: FreePats contributors; original readme retained
+https://freepats.zenvoid.org/Organ/electric-organ.html
+Licença: CC0-1.0; avisos originais na pasta sources/Drawbar
+
+PercOrgan: FreePats contributors; original readme retained
+https://freepats.zenvoid.org/Organ/electric-organ.html
+Licença: CC0-1.0; avisos originais na pasta sources/PercOrgan
+
+RockOrgan: FreePats contributors; original readme retained
+https://freepats.zenvoid.org/Organ/electric-organ.html
+Licença: CC0-1.0; avisos originais na pasta sources/RockOrgan
+
+Tenor: FreePats contributors; original readme retained
+https://freepats.zenvoid.org/Reed/saxophone.html
+Licença: CC0-1.0; avisos originais na pasta sources/Tenor
+
+Accordion: FreePats contributors; original readme retained
+https://freepats.zenvoid.org/Organ/accordion.html
+Licença: CC0-1.0; avisos originais na pasta sources/Accordion
+
+vsco: Sam Gossner / Versilian Studios; Simon Dalzell / Ivy Audio
+https://github.com/sgossner/VSCO-2-CE/releases/tag/1.1.0
+Licença: CC0-1.0; avisos originais na pasta sources/vsco
+
+BearSax: Karoryfer Samples / bigcat instruments
+https://github.com/sfzinstruments/karoryfer.bear-sax
+Licença: CC0-1.0; avisos originais na pasta sources/BearSax
+
+Guitar: Karoryfer Samples / bigcat instruments
+https://github.com/sfzinstruments/karoryfer.emilyguitar
+Licença: CC0-1.0; avisos originais na pasta sources/Guitar
+
+mtg-sax: Music Technology Group / Universitat Pompeu Fabra (MTG), samples; SFZ kinwie
+https://github.com/sfzinstruments/MTG.SoloSax
+Licença: CC-BY-4.0; avisos originais na pasta sources/mtg-sax
+
+synth-square: FreePats contributors; original README retained
+https://github.com/freepats/synth-square
+Licença: CC0-1.0; avisos originais na pasta sources/synth-square
+
+synth-fifths: FreePats contributors; original README retained
+https://github.com/freepats/synth-fifths
+Licença: CC0-1.0; avisos originais na pasta sources/synth-fifths
+
+synth-bass-lead: FreePats contributors; original README retained
+https://github.com/freepats/synth-bass-lead
+Licença: CC0-1.0; avisos originais na pasta sources/synth-bass-lead
+
+synth-calliope: FreePats contributors; original README retained
+https://github.com/freepats/synth-calliope
+Licença: CC0-1.0; avisos originais na pasta sources/synth-calliope
+
+new-age: FreePats contributors; original README retained
+https://github.com/freepats/new-age
+Licença: CC0-1.0; avisos originais na pasta sources/new-age
+
+sweep-pad: FreePats contributors; original README retained
+https://github.com/freepats/sweep-pad
+Licença: CC0-1.0; avisos originais na pasta sources/sweep-pad
+
+synth-pad-choir: FreePats contributors; original README retained
+https://github.com/freepats/synth-pad-choir
+Licença: CC0-1.0; avisos originais na pasta sources/synth-pad-choir
+
+synth-pad-bowed: FreePats contributors; original README retained
+https://github.com/freepats/synth-pad-bowed
+Licença: CC0-1.0; avisos originais na pasta sources/synth-pad-bowed
+
+sonor: Sam Greene; SFZ kinwie; unmodified kit and samples
+https://github.com/sfzinstruments/SamsSonor
+Licença: CC-BY-SA-4.0; avisos originais na pasta sources/sonor
+
+vcsl: Sam Gossner / Versilian Studios and VCSL contributors
+https://github.com/sgossner/VCSL/tree/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e
+Licença: CC0-1.0; avisos originais na pasta sources/vcsl
+
+Licenças: https://creativecommons.org/publicdomain/zero/1.0/ ; https://creativecommons.org/licenses/by/3.0/ ; https://creativecommons.org/licenses/by/4.0/ ; https://creativecommons.org/licenses/by-sa/4.0/ .
+
+Alterações: seleção de patches; mapeamento SFZ do subconjunto VCSL; layers de cordas e brass; cabeçalhos globais de Rhodes, violão Martin e sitar para sfizz; variantes mono dos leads e filtro do baixo sintetizado. Áudio sem reamostragem. Banco Sonor preservado sob CC-BY-SA-4.0, incluindo SFZ e amostras. Instrumentos e licenças independentes do host.

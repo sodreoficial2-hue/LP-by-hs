@@ -1,0 +1,117 @@
+{
+  "salamander": {
+    "url": "https://github.com/sfzinstruments/SalamanderGrandPiano",
+    "license": "CC-BY-3.0",
+    "author": "Alexander Holm; tuning Markus Fiedler; SFZ kinwie"
+  },
+  "vcsl-keys": {
+    "url": "https://versilian-studios.com/vcsl-keys/",
+    "license": "CC0-1.0",
+    "author": "Sam Gossner / Versilian Studios"
+  },
+  "greg-ep": {
+    "url": "https://github.com/sfzinstruments/GregSullivan.E-Pianos",
+    "license": "CC-BY-3.0",
+    "author": "Greg Sullivan; SFZ kinwie"
+  },
+  "discord": {
+    "url": "https://github.com/sfzinstruments/Discord-SFZ-GM-Bank",
+    "license": "per-instrument",
+    "author": "See individual SFZ headers; curated CC0 subset only"
+  },
+  "Drawbar": {
+    "url": "https://freepats.zenvoid.org/Organ/electric-organ.html",
+    "license": "CC0-1.0",
+    "author": "FreePats contributors; original readme retained"
+  },
+  "PercOrgan": {
+    "url": "https://freepats.zenvoid.org/Organ/electric-organ.html",
+    "license": "CC0-1.0",
+    "author": "FreePats contributors; original readme retained"
+  },
+  "RockOrgan": {
+    "url": "https://freepats.zenvoid.org/Organ/electric-organ.html",
+    "license": "CC0-1.0",
+    "author": "FreePats contributors; original readme retained"
+  },
+  "Tenor": {
+    "url": "https://freepats.zenvoid.org/Reed/saxophone.html",
+    "license": "CC0-1.0",
+    "author": "FreePats contributors; original readme retained"
+  },
+  "Accordion": {
+    "url": "https://freepats.zenvoid.org/Organ/accordion.html",
+    "license": "CC0-1.0",
+    "author": "FreePats contributors; original readme retained"
+  },
+  "vsco": {
+    "url": "https://github.com/sgossner/VSCO-2-CE/releases/tag/1.1.0",
+    "license": "CC0-1.0",
+    "author": "Sam Gossner / Versilian Studios; Simon Dalzell / Ivy Audio"
+  },
+  "BearSax": {
+    "url": "https://github.com/sfzinstruments/karoryfer.bear-sax",
+    "license": "CC0-1.0",
+    "author": "Karoryfer Samples / bigcat instruments"
+  },
+  "Guitar": {
+    "url": "https://github.com/sfzinstruments/karoryfer.emilyguitar",
+    "license": "CC0-1.0",
+    "author": "Karoryfer Samples / bigcat instruments"
+  },
+  "mtg-sax": {
+    "url": "https://github.com/sfzinstruments/MTG.SoloSax",
+    "license": "CC-BY-4.0",
+    "author": "Music Technology Group / Universitat Pompeu Fabra (MTG), samples; SFZ kinwie"
+  },
+  "synth-square": {
+    "url": "https://github.com/freepats/synth-square",
+    "license": "CC0-1.0",
+    "author": "FreePats contributors; original README retained"
+  },
+  "synth-fifths": {
+    "url": "https://github.com/freepats/synth-fifths",
+    "license": "CC0-1.0",
+    "author": "FreePats contributors; original README retained"
+  },
+  "synth-bass-lead": {
+    "url": "https://github.com/freepats/synth-bass-lead",
+    "license": "CC0-1.0",
+    "author": "FreePats contributors; original README retained"
+  },
+  "synth-calliope": {
+    "url": "https://github.com/freepats/synth-calliope",
+    "license": "CC0-1.0",
+    "author": "FreePats contributors; original README retained"
+  },
+  "new-age": {
+    "url": "https://github.com/freepats/new-age",
+    "license": "CC0-1.0",
+    "author": "FreePats contributors; original README retained"
+  },
+  "sweep-pad": {
+    "url": "https://github.com/freepats/sweep-pad",
+    "license": "CC0-1.0",
+    "author": "FreePats contributors; original README retained"
+  },
+  "synth-pad-choir": {
+    "url": "https://github.com/freepats/synth-pad-choir",
+    "license": "CC0-1.0",
+    "author": "FreePats contributors; original README retained"
+  },
+  "synth-pad-bowed": {
+    "url": "https://github.com/freepats/synth-pad-bowed",
+    "license": "CC0-1.0",
+    "author": "FreePats contributors; original README retained"
+  },
+  "sonor": {
+    "url": "https://github.com/sfzinstruments/SamsSonor",
+    "license": "CC-BY-SA-4.0",
+    "author": "Sam Greene; SFZ kinwie; unmodified kit and samples"
+  },
+  "vcsl": {
+    "url": "https://github.com/sgossner/VCSL/tree/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+    "license": "CC0-1.0",
+    "author": "Sam Gossner / Versilian Studios and VCSL contributors"
+  }
+}

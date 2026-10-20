@@ -13,6 +13,7 @@
 #include <mmsystem.h>
 #include <shlobj.h>
 #include "session.hpp"
+#include "instrument_catalog.hpp"
 #include "midi.hpp"
 #include "audio_host.hpp"
 #include "audio_preferences.hpp"
@@ -20,7 +21,7 @@
 #include <string>
 
 namespace {
-constexpr int Catalog=100,Favorites=101,Save=102,Open=103,Midi=104,Effects=105,Import=106,AudioDriver=107,AudioBuffer=108,AudioStart=109,AudioStop=110,AudioPanel=111,Panic=112,Knob=200;
+constexpr int Catalog=100,Favorites=101,Save=102,Open=103,Midi=104,Effects=105,Import=106,AudioDriver=107,AudioBuffer=108,AudioStart=109,AudioStop=110,AudioPanel=111,Panic=112,Category=113,Knob=200;
 constexpr UINT BeginParameterLearn=WM_APP+40;
 // Do not rely on a native trackbar forwarding its mouse context request.
 LRESULT CALLBACK parameterProc(HWND control,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR parameter,DWORD_PTR){
@@ -36,11 +37,12 @@ LRESULT CALLBACK parameterProc(HWND control,UINT msg,WPARAM wp,LPARAM lp,UINT_PT
  return DefSubclassProc(control,msg,wp,lp);
 }
 struct App {
- HWND window{},catalog{},favorites{},status{},midi{},effectsButton{};
+ HWND window{},catalog{},favorites{},status{},midi{},effectsButton{},category{};
  std::array<HWND,14> sliders{},labels{};
  HFONT font{}; HBRUSH background=CreateSolidBrush(RGB(12,16,24));
  lp::Session show; lp::MidiRouter router{show};
- std::vector<std::filesystem::path> instruments;
+ std::vector<lp::Instrument> instruments;
+ std::vector<std::size_t> visibleInstruments;
  std::unique_ptr<lp::AudioHost> engine;
  HWND audioDriver{},audioBuffer{};
  std::vector<lp::AudioDevice> audioDevices;
@@ -65,6 +67,9 @@ struct App {
   control(L"BUTTON",L"Salvar perfil",BS_PUSHBUTTON|WS_TABSTOP,Save);
   control(L"BUTTON",L"Importar SFZ",BS_PUSHBUTTON|WS_TABSTOP,Import);
   effectsButton=control(L"BUTTON",L"Parâmetros (E)",BS_PUSHBUTTON|WS_TABSTOP,Effects);
+  category=control(L"COMBOBOX",L"",CBS_DROPDOWNLIST|WS_VSCROLL|WS_TABSTOP,Category);
+  for(const auto* name:lp::instrumentCategories){auto text=std::filesystem::u8path(name).wstring();SendMessageW(category,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(text.c_str()));}
+  SendMessageW(category,CB_SETCURSEL,0,0);
   catalog=control(L"LISTBOX",L"",LBS_NOTIFY|WS_VSCROLL|WS_TABSTOP,Catalog);
   favorites=control(L"LISTBOX",L"",LBS_NOTIFY|WS_VSCROLL|WS_TABSTOP,Favorites);
   midi=control(L"COMBOBOX",L"",CBS_DROPDOWNLIST|WS_VSCROLL|WS_TABSTOP,Midi);
@@ -87,7 +92,10 @@ struct App {
   auto samples=base/L"samples";
   if(!std::filesystem::is_directory(samples))samples=base/L"recovery/extracted/live/samples";
   if(!std::filesystem::is_directory(samples))samples=std::filesystem::current_path()/L"recovery/extracted/live/samples";
-  instruments=lp::catalog(samples);refreshCatalog();refreshFavorites();
+  if(std::filesystem::exists(base/L"soundbank/catalog.txt"))instruments=lp::loadInstrumentBank(base/L"soundbank");
+  else for(const auto& path:lp::catalog(samples)){lp::Instrument p;p.sfz=path;p.name=path.stem().u8string();p.category=1;instruments.push_back(p);}
+  if(!instruments.empty())SendMessageW(category,CB_SETCURSEL,instruments.front().category,0);
+  refreshCatalog();refreshFavorites();
   try{auto dll=base/L"sfizz.dll";if(!std::filesystem::exists(dll))dll=base/L"recovery/extracted/live/sfizz.dll";engine=std::make_unique<lp::AudioHost>(dll);
    audioDevices=engine->devices();for(const auto& device:audioDevices){auto text=std::filesystem::u8path(device.name).wstring();SendMessageW(audioDriver,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(text.c_str()));}
    if(audioDevices.empty())message(L"Nenhum driver ASIO estéreo encontrado. Instale ou habilite seu driver ASIO. Não há fallback Windows.");
@@ -113,7 +121,9 @@ struct App {
   MoveWindow(audioDriver,16,170,half,320,TRUE);MoveWindow(audioBuffer,32+half,170,half,320,TRUE);
   MoveWindow(GetDlgItem(window,AudioStart),16,224,210,44,TRUE);MoveWindow(GetDlgItem(window,AudioStop),234,224,190,44,TRUE);
   MoveWindow(GetDlgItem(window,AudioPanel),432,224,200,44,TRUE);MoveWindow(GetDlgItem(window,Panic),640,224,210,44,TRUE);
-  MoveWindow(catalog,16,284,half,height-374,TRUE);MoveWindow(favorites,32+half,284,half,height-374,TRUE);
+  MoveWindow(category,16,284,half,350,TRUE);
+  MoveWindow(catalog,16,338,half,height-428,TRUE);MoveWindow(favorites,32+half,284,half,height-374,TRUE);
+  ShowWindow(category,effects?SW_HIDE:SW_SHOW);
   ShowWindow(catalog,effects?SW_HIDE:SW_SHOW);ShowWindow(favorites,effects?SW_HIDE:SW_SHOW);
   for(int i=0;i<14;++i){int col=i/7,row=i%7;int x=16+col*(half+16),y=284+row*((height-384)/7);
    MoveWindow(labels[i],x,y,half,30,TRUE);MoveWindow(sliders[i],x,y+30,half,32,TRUE);
@@ -129,7 +139,7 @@ struct App {
  }
  void audioStatus(){if(engine&&engine->running())message(L"ASIO conectado — 48 kHz. Latência de saída informada pelo driver: "+std::to_wstring(static_cast<int>(engine->latency()*10000)/10.0)+L" ms. "+(engine->loaded()?L"Timbre carregado.":L"Selecione um timbre e pressione Enter."));else message(L"ASIO desconectado. Selecione o driver e clique em Conectar ASIO.");}
  int driverIndex(){auto selected=SendMessageW(audioDriver,CB_GETCURSEL,0,0);if(selected<1||static_cast<std::size_t>(selected)>audioDevices.size())throw std::runtime_error("Select an ASIO driver");return static_cast<int>(selected-1);}
- void audition(){try{auto selected=SendMessageW(catalog,LB_GETCURSEL,0,0);if(selected<0||static_cast<std::size_t>(selected)>=instruments.size())return;if(!engine)throw std::runtime_error("Audio engine unavailable");engine->load(instruments[selected],lp::Patch{}.parameters);router.cancelLearn();show.current.reset();refreshParameters();audioStatus();}catch(const std::exception& e){error(e);}}
+ void audition(){try{auto selected=SendMessageW(catalog,LB_GETCURSEL,0,0);if(selected<0||static_cast<std::size_t>(selected)>=visibleInstruments.size())return;if(!engine)throw std::runtime_error("Audio engine unavailable");engine->load(instruments[visibleInstruments[selected]].sfz,lp::Patch{}.parameters);router.cancelLearn();show.current.reset();refreshParameters();audioStatus();}catch(const std::exception& e){error(e);}}
  std::wstring parameterName(int index){return std::wstring(lp::parameterNames[index],lp::parameterNames[index]+std::char_traits<char>::length(lp::parameterNames[index]));}
  void beginParameterLearn(std::size_t index){
   if(index>=sliders.size())return;
@@ -138,14 +148,14 @@ struct App {
   try{router.learn(index);refreshParameters();SetFocus(sliders[index]);message(L"MIDI Learn — "+parameterName(static_cast<int>(index))+L": mova o fader ou knob físico do teclado que envia CC. ESC cancela.");}catch(const std::exception& e){error(e);}
  }
  void cancelMidiLearn(){bool wasLearning=router.learning();router.cancelLearn();refreshParameters();if(wasLearning)message(L"MIDI Learn cancelado.");}
- void refreshCatalog(){SendMessageW(catalog,LB_RESETCONTENT,0,0);for(auto& p:instruments)SendMessageW(catalog,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(p.stem().c_str()));}
- void refreshFavorites(){SendMessageW(favorites,LB_RESETCONTENT,0,0);for(int i=0;i<20;++i){std::wstring name=std::to_wstring(i+1)+L". ";name+=show.favorites[i]?std::filesystem::u8path(show.favorites[i]->sfz).stem().wstring():L"Vazio";SendMessageW(favorites,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(name.c_str()));}refreshParameters();}
+ void refreshCatalog(){SendMessageW(catalog,LB_RESETCONTENT,0,0);visibleInstruments.clear();auto selected=SendMessageW(category,CB_GETCURSEL,0,0);for(std::size_t i=0;i<instruments.size();++i){const auto& p=instruments[i];if(selected<0||p.category!=static_cast<unsigned>(selected))continue;visibleInstruments.push_back(i);auto name=std::filesystem::u8path(p.name).wstring();SendMessageW(catalog,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(name.c_str()));}if(!visibleInstruments.empty())SendMessageW(catalog,LB_SETCURSEL,0,0);}
+ void refreshFavorites(){SendMessageW(favorites,LB_RESETCONTENT,0,0);for(int i=0;i<20;++i){std::wstring name=std::to_wstring(i+1)+L". ";name+=show.favorites[i]?std::filesystem::u8path(lp::instrumentName(show.favorites[i]->sfz,instruments)).wstring():L"Vazio";SendMessageW(favorites,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(name.c_str()));}refreshParameters();}
  void refreshParameters(){for(int i=0;i<14;++i){float value=show.current&&show.favorites[*show.current]?show.favorites[*show.current]->parameters[i]:0;auto text=std::wstring(lp::parameterNames[i],lp::parameterNames[i]+std::char_traits<char>::length(lp::parameterNames[i]))+L": "+std::to_wstring(static_cast<int>(value*100))+L"%";if(i>=1&&i<=4&&show.current&&show.favorites[*show.current]&&!show.favorites[*show.current]->adsrEnabled)text+=L" (SFZ original)";if(show.current&&show.favorites[*show.current]){int cc=show.favorites[*show.current]->cc[i];if(cc>=0)text+=L" — CC "+std::to_wstring(cc);}
   if(router.pendingParameter()==static_cast<std::size_t>(i))text+=L" — aguardando CC";
   SetWindowTextW(labels[i],text.c_str());SendMessageW(sliders[i],TBM_SETPOS,TRUE,static_cast<int>(value*1000));EnableWindow(sliders[i],show.current.has_value());}}
  void applyParameters(){if(engine&&show.current&&show.favorites[*show.current])engine->parameters(show.favorites[*show.current]->parameters,show.favorites[*show.current]->adsrEnabled);}
- void activate(unsigned slot){if(slot>=20||!show.favorites[slot])return;try{if(!engine)throw std::runtime_error("Audio engine unavailable");engine->load(std::filesystem::u8path(show.favorites[slot]->sfz),show.favorites[slot]->parameters,show.favorites[slot]->adsrEnabled);router.cancelLearn();show.programChange(slot);applyParameters();SendMessageW(favorites,LB_SETCURSEL,slot,0);refreshParameters();audioStatus();}catch(const std::exception& e){error(e);}}
- void favorite(){auto selected=SendMessageW(catalog,LB_GETCURSEL,0,0);if(selected<0||static_cast<std::size_t>(selected)>=instruments.size())return;auto path=instruments[selected].u8string();for(unsigned i=0;i<20;++i)if(show.favorites[i]&&show.favorites[i]->sfz==path){activate(i);return;}for(unsigned i=0;i<20;++i)if(!show.favorites[i]){show.favorites[i]=lp::Patch{};show.favorites[i]->sfz=path;refreshFavorites();activate(i);return;}message(L"Os 20 favoritos estão ocupados.");}
+ void activate(unsigned slot){if(slot>=20||!show.favorites[slot])return;try{if(!engine)throw std::runtime_error("Audio engine unavailable");engine->load(lp::resolveInstrument(show.favorites[slot]->sfz,instruments),show.favorites[slot]->parameters,show.favorites[slot]->adsrEnabled);router.cancelLearn();show.programChange(slot);applyParameters();SendMessageW(favorites,LB_SETCURSEL,slot,0);refreshParameters();audioStatus();}catch(const std::exception& e){error(e);}}
+ void favorite(){auto selected=SendMessageW(catalog,LB_GETCURSEL,0,0);if(selected<0||static_cast<std::size_t>(selected)>=visibleInstruments.size())return;auto path=lp::instrumentReference(instruments[visibleInstruments[selected]]);for(unsigned i=0;i<20;++i)if(show.favorites[i]&&show.favorites[i]->sfz==path){activate(i);return;}for(unsigned i=0;i<20;++i)if(!show.favorites[i]){show.favorites[i]=lp::Patch{};show.favorites[i]->sfz=path;refreshFavorites();activate(i);return;}message(L"Os 20 favoritos estão ocupados.");}
  bool fileDialog(bool saving,bool sfz,std::filesystem::path& path){wchar_t file[32768]{};OPENFILENAMEW dialog{};dialog.lStructSize=sizeof(dialog);dialog.hwndOwner=window;dialog.lpstrFile=file;dialog.nMaxFile=32768;dialog.lpstrFilter=sfz?L"Instrumento SFZ\0*.sfz\0\0":L"Perfil Live Performance\0*.lphs\0\0";dialog.lpstrDefExt=sfz?L"sfz":L"lphs";dialog.Flags=OFN_NOCHANGEDIR|OFN_PATHMUSTEXIST|(saving?OFN_OVERWRITEPROMPT:OFN_FILEMUSTEXIST);bool ok=saving?GetSaveFileNameW(&dialog):GetOpenFileNameW(&dialog);if(ok)path=file;else if(CommDlgExtendedError())throw std::runtime_error("File dialog failed");return ok;}
  void command(int id,int event){try{
   if((id==AudioDriver||id==AudioBuffer)&&event==CBN_SELCHANGE&&SendMessageW(audioDriver,CB_GETCURSEL,0,0)<1)return;
@@ -155,7 +165,8 @@ struct App {
   if(id==Panic&&engine){engine->panic();message(L"Pânico: notas e caudas interrompidas.");}
   if(id==Effects){effects=!effects;if(!effects)cancelMidiLearn();layout();SetFocus(effects?sliders[0]:catalog);}
   if(id==Save||id==Open){std::filesystem::path path;if(fileDialog(id==Save,false,path)){if(id==Save)show.save(path);else{show.load(path);router.cancelLearn();if(engine)engine->unload();refreshFavorites();}message(L"Perfil processado. Formato novo .lphs; INI antigo ainda não é compatível.");}}
-  if(id==Import){std::filesystem::path path;if(fileDialog(false,true,path)){instruments.push_back(path);refreshCatalog();}}
+  if(id==Import){std::filesystem::path path;if(fileDialog(false,true,path)){lp::Instrument p;p.sfz=path;p.name=path.stem().u8string();p.category=10;instruments.push_back(p);SendMessageW(category,CB_SETCURSEL,10,0);refreshCatalog();SendMessageW(catalog,LB_SETCURSEL,visibleInstruments.size()-1,0);}}
+  if(id==Category&&event==CBN_SELCHANGE)refreshCatalog();
   if(id==Catalog&&event==LBN_DBLCLK)audition();
   if(id==Favorites&&event==LBN_SELCHANGE){auto slot=SendMessageW(favorites,LB_GETCURSEL,0,0);if(slot>=0)activate(static_cast<unsigned>(slot));}
   if(id==Midi&&event==CBN_SELCHANGE){cancelMidiLearn();closeMidi();auto index=SendMessageW(midi,CB_GETCURSEL,0,0);if(index>0){auto result=midiInOpen(&midiHandle,static_cast<UINT>(index-1),reinterpret_cast<DWORD_PTR>(window),0,CALLBACK_WINDOW);if(result!=MMSYSERR_NOERROR)throw std::runtime_error("Cannot open MIDI input");if(midiInStart(midiHandle)!=MMSYSERR_NOERROR){closeMidi();throw std::runtime_error("Cannot start MIDI input");}}}

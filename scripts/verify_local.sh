@@ -20,3 +20,11 @@ if [[ -n "${LP_REAL_SFIZZ_LIBRARY:-}" ]]; then
  g++ -std=c++17 -Wall -Wextra -Werror -Isrc src/sfizz_engine.cpp src/dsp.cpp tests/real_sfizz_envelope_test.cpp -ldl -o "$lp_build_dir/real_envelope_test"
  "$lp_build_dir/real_envelope_test" "$LP_REAL_SFIZZ_LIBRARY" recovery/extracted/live/samples
 fi
+
+g++ -std=c++17 -Wall -Wextra -Werror -Isrc tests/instrument_catalog_test.cpp -o "$lp_build_dir/catalog_test"
+"$lp_build_dir/catalog_test"
+if [[ -n "${LP_REAL_SFIZZ_LIBRARY:-}" && -n "${LP_BANK_TEST_ROOT:-}" ]]; then
+ g++ -std=c++17 -Wall -Wextra -Werror -Isrc src/sfizz_engine.cpp src/dsp.cpp tests/bank_render_test.cpp -ldl -o "$lp_build_dir/bank_test"
+ "$lp_build_dir/bank_test" "$LP_REAL_SFIZZ_LIBRARY" "$LP_BANK_TEST_ROOT"
+ python3 tests/bank_mono_test.py "$LP_REAL_SFIZZ_LIBRARY" "$LP_BANK_TEST_ROOT"
+fi

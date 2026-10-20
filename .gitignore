@@ -3,3 +3,7 @@
 *.obj
 *.lphs
 *.tmp.*
+
+# Curated sample assets are restored separately, never committed as blobs.
+/soundbank/
+/bank-assets/
