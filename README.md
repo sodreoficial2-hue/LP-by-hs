@@ -45,6 +45,12 @@ O usuário validou a fluidez do ASIO, efeitos e comandos da etapa 4 no Windows. 
 
 Cinco grupos de testes locais, incluindo renderização real sfizz com as amostras recuperadas. As alterações da etapa 5 ainda exigem validação no Windows do usuário. Não foi publicado novo pacote: o próximo trabalho é o layout, conforme solicitado.
 
+## Etapa 6
+
+MIDI Learn dos 14 faders revisado: captura direta do clique direito no fader/rótulo, alternativa por Shift+F10, indicação do CC aprendido e aplicação já no primeiro movimento. Testes incluem os 14 parâmetros, Salvar/Abrir e alteração do áudio sem reabrir ASIO. O clique físico no Windows ainda precisa de confirmação. Ver [docs/RECONSTRUCAO-ETAPA-6.md](docs/RECONSTRUCAO-ETAPA-6.md).
+
+Nenhum pacote novo publicado; seguimos para o layout após esta verificação.
+
 ## Próximas etapas
 
 Layout acessível, categorias e acabamento visual; teste integrado das alterações no Windows; compatibilidade dos INI originais e troca de timbres sem interrupção. Os executáveis originais e o pacote da etapa 4 permanecem preservados.

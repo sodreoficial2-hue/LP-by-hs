@@ -21,6 +21,20 @@
 
 namespace {
 constexpr int Catalog=100,Favorites=101,Save=102,Open=103,Midi=104,Effects=105,Import=106,AudioDriver=107,AudioBuffer=108,AudioStart=109,AudioStop=110,AudioPanel=111,Panic=112,Knob=200;
+constexpr UINT BeginParameterLearn=WM_APP+40;
+// Do not rely on a native trackbar forwarding its mouse context request.
+LRESULT CALLBACK parameterProc(HWND control,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR parameter,DWORD_PTR){
+ switch(msg){
+ case WM_RBUTTONDOWN:return 0;
+ case WM_RBUTTONUP:case WM_CONTEXTMENU:
+  SendMessageW(GetParent(control),BeginParameterLearn,parameter,0);return 0;
+ case WM_KEYDOWN:case WM_SYSKEYDOWN:
+  if(wp==VK_APPS||(wp==VK_F10&&(GetKeyState(VK_SHIFT)&0x8000))){SendMessageW(GetParent(control),BeginParameterLearn,parameter,0);return 0;}break;
+ case WM_KEYUP:case WM_SYSKEYUP:if(wp==VK_APPS||wp==VK_F10)return 0;break;
+ case WM_NCDESTROY:RemoveWindowSubclass(control,parameterProc,parameter);break;
+ }
+ return DefSubclassProc(control,msg,wp,lp);
+}
 struct App {
  HWND window{},catalog{},favorites{},status{},midi{},effectsButton{};
  std::array<HWND,14> sliders{},labels{};
@@ -36,7 +50,7 @@ struct App {
  HMIDIIN midiHandle{};bool effects=false;
  std::filesystem::path base;
  ~App(){closeMidi();engine.reset();if(font)DeleteObject(font);DeleteObject(background);}
- void closeMidi(){if(engine)engine->panic();if(midiHandle){midiInStop(midiHandle);midiInReset(midiHandle);midiInClose(midiHandle);midiHandle=nullptr;}}
+ void closeMidi(){router.cancelLearn();if(engine)engine->panic();if(midiHandle){midiInStop(midiHandle);midiInReset(midiHandle);midiInClose(midiHandle);midiHandle=nullptr;}}
  void message(const std::wstring& text){SetWindowTextW(status,text.c_str());}
  void error(const std::exception& e){auto s=std::string(e.what());std::wstring text(s.begin(),s.end());MessageBoxW(window,text.c_str(),L"Live Performance",MB_OK|MB_ICONERROR);}
  HWND control(const wchar_t* kind,const wchar_t* text,DWORD style,int id){
@@ -68,7 +82,8 @@ struct App {
   SendMessageW(audioDriver,CB_SETCURSEL,0,0);
   for(auto size:buffers){auto text=size?L"Buffer "+std::to_wstring(size):L"Buffer do driver";SendMessageW(audioBuffer,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(text.c_str()));}
   SendMessageW(audioBuffer,CB_SETCURSEL,0,0);
-  for(int i=0;i<14;++i){labels[i]=control(L"STATIC",L"",SS_LEFT,Knob+100+i);sliders[i]=control(TRACKBAR_CLASSW,L"",TBS_HORZ|WS_TABSTOP,Knob+i);SendMessageW(sliders[i],TBM_SETRANGE,TRUE,MAKELPARAM(0,1000));}
+  for(int i=0;i<14;++i){labels[i]=control(L"STATIC",L"",SS_LEFT|SS_NOTIFY,Knob+100+i);sliders[i]=control(TRACKBAR_CLASSW,L"",TBS_HORZ|WS_TABSTOP,Knob+i);SendMessageW(sliders[i],TBM_SETRANGE,TRUE,MAKELPARAM(0,1000));
+   if(!SetWindowSubclass(sliders[i],parameterProc,i,0)||!SetWindowSubclass(labels[i],parameterProc,i,0))throw std::runtime_error("Não foi possível habilitar o clique direito dos parâmetros");}
   auto samples=base/L"samples";
   if(!std::filesystem::is_directory(samples))samples=base/L"recovery/extracted/live/samples";
   if(!std::filesystem::is_directory(samples))samples=std::filesystem::current_path()/L"recovery/extracted/live/samples";
@@ -114,10 +129,20 @@ struct App {
  }
  void audioStatus(){if(engine&&engine->running())message(L"ASIO conectado — 48 kHz. Latência de saída informada pelo driver: "+std::to_wstring(static_cast<int>(engine->latency()*10000)/10.0)+L" ms. "+(engine->loaded()?L"Timbre carregado.":L"Selecione um timbre e pressione Enter."));else message(L"ASIO desconectado. Selecione o driver e clique em Conectar ASIO.");}
  int driverIndex(){auto selected=SendMessageW(audioDriver,CB_GETCURSEL,0,0);if(selected<1||static_cast<std::size_t>(selected)>audioDevices.size())throw std::runtime_error("Select an ASIO driver");return static_cast<int>(selected-1);}
- void audition(){try{auto selected=SendMessageW(catalog,LB_GETCURSEL,0,0);if(selected<0||static_cast<std::size_t>(selected)>=instruments.size())return;if(!engine)throw std::runtime_error("Audio engine unavailable");engine->load(instruments[selected],lp::Patch{}.parameters);show.current.reset();refreshParameters();audioStatus();}catch(const std::exception& e){error(e);}}
+ void audition(){try{auto selected=SendMessageW(catalog,LB_GETCURSEL,0,0);if(selected<0||static_cast<std::size_t>(selected)>=instruments.size())return;if(!engine)throw std::runtime_error("Audio engine unavailable");engine->load(instruments[selected],lp::Patch{}.parameters);router.cancelLearn();show.current.reset();refreshParameters();audioStatus();}catch(const std::exception& e){error(e);}}
+ std::wstring parameterName(int index){return std::wstring(lp::parameterNames[index],lp::parameterNames[index]+std::char_traits<char>::length(lp::parameterNames[index]));}
+ void beginParameterLearn(std::size_t index){
+  if(index>=sliders.size())return;
+  if(!show.current||!show.favorites[*show.current]){message(L"Selecione um timbre nos Favoritos antes de mapear os parâmetros MIDI.");return;}
+  if(!midiHandle){message(L"Selecione a entrada MIDI do seu teclado antes de iniciar o MIDI Learn.");return;}
+  try{router.learn(index);refreshParameters();SetFocus(sliders[index]);message(L"MIDI Learn — "+parameterName(static_cast<int>(index))+L": mova o fader ou knob físico do teclado que envia CC. ESC cancela.");}catch(const std::exception& e){error(e);}
+ }
+ void cancelMidiLearn(){bool wasLearning=router.learning();router.cancelLearn();refreshParameters();if(wasLearning)message(L"MIDI Learn cancelado.");}
  void refreshCatalog(){SendMessageW(catalog,LB_RESETCONTENT,0,0);for(auto& p:instruments)SendMessageW(catalog,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(p.stem().c_str()));}
  void refreshFavorites(){SendMessageW(favorites,LB_RESETCONTENT,0,0);for(int i=0;i<20;++i){std::wstring name=std::to_wstring(i+1)+L". ";name+=show.favorites[i]?std::filesystem::u8path(show.favorites[i]->sfz).stem().wstring():L"Vazio";SendMessageW(favorites,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(name.c_str()));}refreshParameters();}
- void refreshParameters(){for(int i=0;i<14;++i){float value=show.current&&show.favorites[*show.current]?show.favorites[*show.current]->parameters[i]:0;auto text=std::wstring(lp::parameterNames[i],lp::parameterNames[i]+std::char_traits<char>::length(lp::parameterNames[i]))+L": "+std::to_wstring(static_cast<int>(value*100))+L"%";if(i>=1&&i<=4&&show.current&&show.favorites[*show.current]&&!show.favorites[*show.current]->adsrEnabled)text+=L" (SFZ original)";SetWindowTextW(labels[i],text.c_str());SendMessageW(sliders[i],TBM_SETPOS,TRUE,static_cast<int>(value*1000));EnableWindow(sliders[i],show.current.has_value());}}
+ void refreshParameters(){for(int i=0;i<14;++i){float value=show.current&&show.favorites[*show.current]?show.favorites[*show.current]->parameters[i]:0;auto text=std::wstring(lp::parameterNames[i],lp::parameterNames[i]+std::char_traits<char>::length(lp::parameterNames[i]))+L": "+std::to_wstring(static_cast<int>(value*100))+L"%";if(i>=1&&i<=4&&show.current&&show.favorites[*show.current]&&!show.favorites[*show.current]->adsrEnabled)text+=L" (SFZ original)";if(show.current&&show.favorites[*show.current]){int cc=show.favorites[*show.current]->cc[i];if(cc>=0)text+=L" — CC "+std::to_wstring(cc);}
+  if(router.pendingParameter()==static_cast<std::size_t>(i))text+=L" — aguardando CC";
+  SetWindowTextW(labels[i],text.c_str());SendMessageW(sliders[i],TBM_SETPOS,TRUE,static_cast<int>(value*1000));EnableWindow(sliders[i],show.current.has_value());}}
  void applyParameters(){if(engine&&show.current&&show.favorites[*show.current])engine->parameters(show.favorites[*show.current]->parameters,show.favorites[*show.current]->adsrEnabled);}
  void activate(unsigned slot){if(slot>=20||!show.favorites[slot])return;try{if(!engine)throw std::runtime_error("Audio engine unavailable");engine->load(std::filesystem::u8path(show.favorites[slot]->sfz),show.favorites[slot]->parameters,show.favorites[slot]->adsrEnabled);router.cancelLearn();show.programChange(slot);applyParameters();SendMessageW(favorites,LB_SETCURSEL,slot,0);refreshParameters();audioStatus();}catch(const std::exception& e){error(e);}}
  void favorite(){auto selected=SendMessageW(catalog,LB_GETCURSEL,0,0);if(selected<0||static_cast<std::size_t>(selected)>=instruments.size())return;auto path=instruments[selected].u8string();for(unsigned i=0;i<20;++i)if(show.favorites[i]&&show.favorites[i]->sfz==path){activate(i);return;}for(unsigned i=0;i<20;++i)if(!show.favorites[i]){show.favorites[i]=lp::Patch{};show.favorites[i]->sfz=path;refreshFavorites();activate(i);return;}message(L"Os 20 favoritos estão ocupados.");}
@@ -128,16 +153,16 @@ struct App {
   if(id==AudioStop&&engine){cancelAudioRestore();engine->stop();audioStatus();}
   if(id==AudioPanel){if(!engine)throw std::runtime_error("Audio engine unavailable");engine->controlPanel(audioDevices[driverIndex()].id,window);audioStatus();}
   if(id==Panic&&engine){engine->panic();message(L"Pânico: notas e caudas interrompidas.");}
-  if(id==Effects){effects=!effects;layout();SetFocus(effects?sliders[0]:catalog);}
+  if(id==Effects){effects=!effects;if(!effects)cancelMidiLearn();layout();SetFocus(effects?sliders[0]:catalog);}
   if(id==Save||id==Open){std::filesystem::path path;if(fileDialog(id==Save,false,path)){if(id==Save)show.save(path);else{show.load(path);router.cancelLearn();if(engine)engine->unload();refreshFavorites();}message(L"Perfil processado. Formato novo .lphs; INI antigo ainda não é compatível.");}}
   if(id==Import){std::filesystem::path path;if(fileDialog(false,true,path)){instruments.push_back(path);refreshCatalog();}}
   if(id==Catalog&&event==LBN_DBLCLK)audition();
   if(id==Favorites&&event==LBN_SELCHANGE){auto slot=SendMessageW(favorites,LB_GETCURSEL,0,0);if(slot>=0)activate(static_cast<unsigned>(slot));}
-  if(id==Midi&&event==CBN_SELCHANGE){closeMidi();auto index=SendMessageW(midi,CB_GETCURSEL,0,0);if(index>0){auto result=midiInOpen(&midiHandle,static_cast<UINT>(index-1),reinterpret_cast<DWORD_PTR>(window),0,CALLBACK_WINDOW);if(result!=MMSYSERR_NOERROR)throw std::runtime_error("Cannot open MIDI input");if(midiInStart(midiHandle)!=MMSYSERR_NOERROR){closeMidi();throw std::runtime_error("Cannot start MIDI input");}}}
+  if(id==Midi&&event==CBN_SELCHANGE){cancelMidiLearn();closeMidi();auto index=SendMessageW(midi,CB_GETCURSEL,0,0);if(index>0){auto result=midiInOpen(&midiHandle,static_cast<UINT>(index-1),reinterpret_cast<DWORD_PTR>(window),0,CALLBACK_WINDOW);if(result!=MMSYSERR_NOERROR)throw std::runtime_error("Cannot open MIDI input");if(midiInStart(midiHandle)!=MMSYSERR_NOERROR){closeMidi();throw std::runtime_error("Cannot start MIDI input");}}}
  }catch(const std::exception& e){error(e);}}
  void midiEvent(DWORD packed){try{auto result=router.route(lp::MidiMessage::packed(packed));if(result.action==lp::MidiAction::WrongProgram){message(L"Aguardando PC "+std::to_wstring(result.index+1)+L". Recebido PC "+std::to_wstring(result.value+1)+L". Configure o botão do controlador para o número do favorito.");}
  else if(result.action==lp::MidiAction::FavoriteLearned){message(L"Program Change "+std::to_wstring(result.index+1)+L" aprendido. Use Salvar perfil para guardar o vínculo.");}
- else if(result.action==lp::MidiAction::Favorite)activate(result.index);else if(result.action==lp::MidiAction::Parameter||result.action==lp::MidiAction::Learned){applyParameters();refreshParameters();}else if(engine){if(result.action==lp::MidiAction::NoteOn||result.action==lp::MidiAction::NoteOff||result.action==lp::MidiAction::Control)engine->send(lp::MidiMessage::packed(packed));}}catch(const std::exception& e){error(e);}}
+ else if(result.action==lp::MidiAction::Favorite)activate(result.index);else if(result.action==lp::MidiAction::Parameter||result.action==lp::MidiAction::Learned){applyParameters();refreshParameters();if(result.action==lp::MidiAction::Learned)message(L"CC "+std::to_wstring(result.value)+L" aprendido para "+parameterName(result.index)+L". O controle já está ativo. Use Salvar perfil para guardar o mapeamento.");}else if(engine){if(result.action==lp::MidiAction::NoteOn||result.action==lp::MidiAction::NoteOff||result.action==lp::MidiAction::Control)engine->send(lp::MidiMessage::packed(packed));}}catch(const std::exception& e){error(e);}}
 };
 LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){auto app=reinterpret_cast<App*>(GetWindowLongPtrW(w,GWLP_USERDATA));if(msg==WM_NCCREATE){app=static_cast<App*>(reinterpret_cast<CREATESTRUCTW*>(lp)->lpCreateParams);SetWindowLongPtrW(w,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(app));}if(!app)return DefWindowProcW(w,msg,wp,lp);
  switch(msg){case WM_CREATE:try{app->initialize(w);}catch(const std::exception& e){app->error(e);return -1;}return 0;
@@ -145,12 +170,17 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){auto app=reinterpret_
  case WM_SIZE:if(app->catalog)app->layout();return 0;
  case WM_COMMAND:app->command(LOWORD(wp),HIWORD(wp));return 0;
  case MM_MIM_DATA:if(reinterpret_cast<HMIDIIN>(wp)==app->midiHandle)app->midiEvent(static_cast<DWORD>(lp));return 0;
+ case BeginParameterLearn:app->beginParameterLearn(static_cast<std::size_t>(wp));return 0;
  case WM_HSCROLL:for(int i=0;i<14;++i)if(reinterpret_cast<HWND>(lp)==app->sliders[i]&&app->show.current){app->show.parameter(i,static_cast<float>(SendMessageW(app->sliders[i],TBM_GETPOS,0,0))/1000);app->applyParameters();app->refreshParameters();}return 0;
  case WM_CONTEXTMENU:if(reinterpret_cast<HWND>(wp)==app->favorites){
   auto slot=SendMessageW(app->favorites,LB_GETCURSEL,0,0);
   if(lp!=-1){POINT pt{static_cast<short>(LOWORD(lp)),static_cast<short>(HIWORD(lp))};ScreenToClient(app->favorites,&pt);auto hit=SendMessageW(app->favorites,LB_ITEMFROMPOINT,0,MAKELPARAM(pt.x,pt.y));slot=HIWORD(hit)?-1:LOWORD(hit);}
   if(slot>=0){try{app->router.learnFavorite(static_cast<std::size_t>(slot));app->message(L"MIDI Learn: pressione o botão Program Change correspondente ao favorito (1 a 20). ESC cancela.");}catch(const std::exception& e){app->error(e);}}return 0;
- }for(int i=0;i<14;++i)if(reinterpret_cast<HWND>(wp)==app->sliders[i]){try{app->router.learn(i);app->message(L"MIDI Learn: mova um controle CC no teclado. ESC cancela.");}catch(const std::exception& e){app->error(e);}return 0;}break;
+ }for(int i=0;i<14;++i){bool match=reinterpret_cast<HWND>(wp)==app->sliders[i]||reinterpret_cast<HWND>(wp)==app->labels[i];
+  // Disabled trackbars route mouse requests to their parent: explain the prerequisite.
+  if(!match&&lp!=-1&&app->effects){POINT pt{static_cast<short>(LOWORD(lp)),static_cast<short>(HIWORD(lp))};RECT slider{},label{};GetWindowRect(app->sliders[i],&slider);GetWindowRect(app->labels[i],&label);match=PtInRect(&slider,pt)||PtInRect(&label,pt);}
+  if(match){app->beginParameterLearn(i);return 0;}
+ }break;
  case WM_CTLCOLORSTATIC:case WM_CTLCOLORLISTBOX:SetTextColor(reinterpret_cast<HDC>(wp),RGB(255,255,255));SetBkColor(reinterpret_cast<HDC>(wp),RGB(12,16,24));return reinterpret_cast<LRESULT>(app->background);
  case WM_ERASEBKGND:{RECT r{};GetClientRect(w,&r);FillRect(reinterpret_cast<HDC>(wp),&r,app->background);return 1;}
  case WM_GETMINMAXINFO:reinterpret_cast<MINMAXINFO*>(lp)->ptMinTrackSize={1000,900};return 0;
@@ -159,4 +189,4 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){auto app=reinterpret_
  return DefWindowProcW(w,msg,wp,lp);
 }
 }
-int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show){INITCOMMONCONTROLSEX common{sizeof(common),ICC_BAR_CLASSES};InitCommonControlsEx(&common);App app;WNDCLASSW cls{};cls.lpfnWndProc=proc;cls.hInstance=instance;cls.lpszClassName=L"LPbyHSReconstruction";cls.hCursor=LoadCursorW(nullptr,IDC_ARROW);RegisterClassW(&cls);auto w=CreateWindowW(cls.lpszClassName,L"Live Performance by Hugo Sodré",WS_OVERLAPPEDWINDOW,CW_USEDEFAULT,CW_USEDEFAULT,1200,940,nullptr,nullptr,instance,&app);if(!w)return 1;ShowWindow(w,show);MSG msg{};while(GetMessageW(&msg,nullptr,0,0)>0){if(msg.message==WM_KEYDOWN){if(msg.wParam==VK_ESCAPE){app.router.cancelLearn();app.effects=false;app.layout();SetFocus(app.catalog);continue;}if(msg.wParam==VK_F12){app.command(Panic,0);continue;}if(msg.wParam==VK_RETURN&&GetFocus()==app.catalog){app.audition();continue;}if(msg.wParam=='E'){app.command(Effects,0);continue;}if(msg.wParam==VK_SPACE&&GetFocus()==app.catalog){app.favorite();continue;}}if(!IsDialogMessageW(w,&msg)){TranslateMessage(&msg);DispatchMessageW(&msg);}}return static_cast<int>(msg.wParam);}
+int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show){INITCOMMONCONTROLSEX common{sizeof(common),ICC_BAR_CLASSES};InitCommonControlsEx(&common);App app;WNDCLASSW cls{};cls.lpfnWndProc=proc;cls.hInstance=instance;cls.lpszClassName=L"LPbyHSReconstruction";cls.hCursor=LoadCursorW(nullptr,IDC_ARROW);RegisterClassW(&cls);auto w=CreateWindowW(cls.lpszClassName,L"Live Performance by Hugo Sodré",WS_OVERLAPPEDWINDOW,CW_USEDEFAULT,CW_USEDEFAULT,1200,940,nullptr,nullptr,instance,&app);if(!w)return 1;ShowWindow(w,show);MSG msg{};while(GetMessageW(&msg,nullptr,0,0)>0){if(msg.message==WM_KEYDOWN){if(msg.wParam==VK_ESCAPE){app.cancelMidiLearn();app.effects=false;app.layout();SetFocus(app.catalog);continue;}if(msg.wParam==VK_F12){app.command(Panic,0);continue;}if(msg.wParam==VK_RETURN&&GetFocus()==app.catalog){app.audition();continue;}if(msg.wParam=='E'){app.command(Effects,0);continue;}if(msg.wParam==VK_SPACE&&GetFocus()==app.catalog){app.favorite();continue;}}if(!IsDialogMessageW(w,&msg)){TranslateMessage(&msg);DispatchMessageW(&msg);}}return static_cast<int>(msg.wParam);}

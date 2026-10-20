@@ -34,21 +34,26 @@ enum class MidiAction { Ignore,NoteOn,NoteOff,Control,Favorite,Parameter,Learned
 struct MidiResult { MidiAction action=MidiAction::Ignore;int index=0,value=0; };
 class MidiRouter {
  Session& session;
- std::optional<std::size_t> learnParameter,learnSlot;
+ struct ParameterLearn {std::size_t slot,parameter;};
+ std::optional<ParameterLearn> learnParameter;
+ std::optional<std::size_t> learnSlot;
 public:
  explicit MidiRouter(Session& s):session(s) {}
  void learn(std::size_t parameter) {
   if(parameter>=parameterNames.size() || !session.current || !session.favorites[*session.current])
    throw std::invalid_argument("Select favorite before MIDI Learn");
-  learnSlot.reset();learnParameter=parameter;
+  learnSlot.reset();learnParameter=ParameterLearn{*session.current,parameter};
  }
  void learnFavorite(std::size_t slot) {
   if(slot>=20||!session.favorites[slot])throw std::invalid_argument("Choose occupied favorite for MIDI Learn");
   learnParameter.reset();learnSlot=slot;
  }
+ bool learning() const {return learnParameter.has_value()||learnSlot.has_value();}
+ std::optional<std::size_t> pendingParameter() const {return learnParameter?std::optional<std::size_t>(learnParameter->parameter):std::nullopt;}
  void cancelLearn() {learnParameter.reset();learnSlot.reset();}
  MidiResult route(MidiMessage m) {
   if(!m.valid()) return {};
+  if(learnParameter&&(!session.current||*session.current!=learnParameter->slot||!session.favorites[learnParameter->slot]))learnParameter.reset();
   auto kind=m.status&0xf0;
   if(kind==0xc0) {
    if(learnSlot) {
@@ -62,17 +67,18 @@ public:
    }
    if(m.data1<20 && session.favorites[m.data1]) {
     const auto& binding=session.favorites[m.data1]->button;
-    if(binding.kind==0 || binding.channel==(m.status&15))return {MidiAction::Favorite,m.data1,0};
+    if(binding.kind==0 || binding.channel==(m.status&15)){learnParameter.reset();return {MidiAction::Favorite,m.data1,0};}
    }
    return {};
   }
   if(kind==0xb0 && learnParameter) {
-   auto index=*learnParameter;learnParameter.reset();
+   auto index=learnParameter->parameter;learnParameter.reset();
    if(!session.current || !session.favorites[*session.current]) return {};
    // One CC maps to one knob per favorite, avoiding accidental double edits.
    auto& mapping=session.favorites[*session.current]->cc;
    for(auto& cc:mapping) if(cc==m.data1) cc=-1;
    mapping[index]=m.data1;
+   session.parameter(index,m.data2/127.f); // The first movement also controls the sound.
    return {MidiAction::Learned,static_cast<int>(index),m.data1};
   }
   if(kind==0xb0 && session.current && session.favorites[*session.current]) {

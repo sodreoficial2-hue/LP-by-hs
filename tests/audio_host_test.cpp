@@ -15,6 +15,13 @@ int main(int argc,char** argv){
  host.load(dir/"good.sfz",p);check(host.loaded()&&host.running()&&host.bufferSize()==128&&fakeDevice()==1);
  host.send({0x90,60,100});fakePump(left,right,2048);check(left[0]==.25f&&right[2047]==.25f);
  p[0]=.5f;int before=fakeStarts();host.parameters(p);fakePump(left,right,2048);check(left[0]==.125f&&fakeStarts()==before);
+ // MIDI Learn -> session value -> audio snapshot -> rendered volume on first CC.
+ lp::Session show;show.favorites[0]=lp::Patch{};show.favorites[0]->sfz=(dir/"good.sfz").u8string();show.programChange(0);lp::MidiRouter learn(show);
+ learn.learn(0);check(learn.route({0xb0,21,32}).action==lp::MidiAction::Learned);
+ host.parameters(show.favorites[0]->parameters,show.favorites[0]->adsrEnabled);fakePump(left,right,2048);
+ check(std::abs(left[0]-.25f*32/127)<1e-6f&&fakeStarts()==before);
+ check(learn.route({0xb0,21,127}).action==lp::MidiAction::Parameter);host.parameters(show.favorites[0]->parameters);fakePump(left,right,2048);check(left[0]==.25f&&fakeStarts()==before);
+ host.parameters(p);fakePump(left,right,2048);check(left[0]==.125f);
  for(auto path:{dir/"broken.sfz",dir/"missing.sfz"}){bool rejected=false;try{host.load(path,p);}catch(...){rejected=true;}check(rejected&&host.loaded()&&host.running()&&fakeStarts()==before);fakePump(left,right,2048);check(left[0]==.125f);}
  bool rejected=false;try{host.start(0,128);}catch(...){rejected=true;}check(rejected&&host.running());
  fakeFailOpen();rejected=false;try{host.start(1,256);}catch(...){rejected=true;}check(rejected&&host.running()&&host.bufferSize()==128);

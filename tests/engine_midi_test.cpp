@@ -40,6 +40,22 @@ int main(int argc,char** argv) {
  check(router.route({0xb0,91,32}).action==lp::MidiAction::Parameter);
  check(std::abs(s.favorites[0]->parameters[6]-32/127.f)<0.00001f);
  router.learn(7);router.route({0xb0,91,0});check(s.favorites[0]->cc[6]==-1 && s.favorites[0]->cc[7]==91);
+ // All 14 panel faders learn CC, apply the very first value, and persist per favorite.
+ for(int parameter=0;parameter<14;++parameter){
+  router.learn(parameter);check(router.learning()&&router.pendingParameter()==static_cast<std::size_t>(parameter));
+  check(router.route({0x90,60,100}).action==lp::MidiAction::NoteOn);check(router.pendingParameter().has_value());
+  auto cc=static_cast<std::uint8_t>(10+parameter);
+  auto learned=router.route({0xb4,cc,96});check(learned.action==lp::MidiAction::Learned&&learned.index==parameter&&learned.value==cc&&!router.learning());
+  check(s.favorites[0]->cc[parameter]==cc&&std::abs(s.favorites[0]->parameters[parameter]-96/127.f)<1e-6f);
+  check(router.route({0xb4,cc,0}).action==lp::MidiAction::Parameter);check(s.favorites[0]->parameters[parameter]==0);
+  check(router.route({0xb4,cc,127}).action==lp::MidiAction::Parameter);check(s.favorites[0]->parameters[parameter]==1);
+ }
+ auto profile=std::filesystem::temp_directory_path()/"lp-panel-midi-learn.lphs";s.favorites[19]->sfz="strings.sfz";s.save(profile);
+ lp::Session restored;restored.load(profile);restored.programChange(0);lp::MidiRouter restoredRouter(restored);
+ check(restoredRouter.route({0xb4,16,32}).action==lp::MidiAction::Parameter);check(std::abs(restored.favorites[0]->parameters[6]-32/127.f)<1e-6f);std::filesystem::remove(profile);
+ router.learn(6);router.cancelLearn();auto previous=s.favorites[0]->cc[6];router.route({0xb4,90,1});check(s.favorites[0]->cc[6]==previous&&!router.learning());
+ router.learn(6);s.programChange(19);router.route({0xb4,90,1});check(!router.learning()&&s.favorites[19]->cc[6]==-1);s.programChange(0);
+ router.learn(6);check(router.route({0xc0,19,0}).action==lp::MidiAction::Favorite&&!router.learning());
  // Favorite Learn accepts PC only and preserves exact slot numbering.
  for(int slot=0;slot<20;++slot){s.favorites[slot]=lp::Patch{};s.favorites[slot]->sfz="piano.sfz";}
  for(int slot=0;slot<20;++slot){auto pc=static_cast<std::uint8_t>(slot);auto result=router.route({0xc0,pc,0});check(result.action==lp::MidiAction::Favorite&&result.index==slot);}
