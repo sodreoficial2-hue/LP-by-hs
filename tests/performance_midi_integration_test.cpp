@@ -39,11 +39,11 @@ int main(){
  // Full profile roundtrip: named Performance, split zones, per-part ADSR/EQ/FX/CC.
  Performance saved;saved.name="Piano + Strings / Bass";saved.mode=PerformanceMode::Split;
  for(int i=0;i<4;++i){auto& part=saved.parts[i];part.enabled=true;part.instrument="part"+std::to_string(i)+".sfz";part.low=i<2?0:64;part.high=i<2?63:127;part.patch.parameters[6]=.1f*(i+1);part.patch.parameters[11]=.2f*(i+1);part.patch.adsrEnabled=true;part.patch.cc[6]=70+i;}
- session.performances[0]=savePerformance(saved);
+ session.performanceLibrary.push_back(savePerformance(saved));
  const auto file=std::filesystem::temp_directory_path()/"lphs-performance-roundtrip.lphs";
  session.save(file);Session loaded;loaded.load(file);std::filesystem::remove(file);
- require(loaded.performances[0].has_value(),"performance saved in profile");
- auto restored=restorePerformance(*loaded.performances[0]);
+ require(loaded.performanceLibrary.size()==1,"performance saved independently in show profile");
+ auto restored=restorePerformance(loaded.performanceLibrary[0]);
  require(restored.name==saved.name&&restored.mode==PerformanceMode::Split,"performance name and mode");
  for(int i=0;i<4;++i){require(restored.parts[i].instrument==saved.parts[i].instrument,"instrument roundtrip");require(restored.parts[i].patch.cc[6]==70+i,"per part CC roundtrip");require(std::abs(restored.parts[i].patch.parameters[6]-.1f*(i+1))<.0001f,"per part FX roundtrip");require(restored.parts[i].patch.adsrEnabled,"per part ADSR roundtrip");}
  std::cout<<"PASS: 4 layer/split configurations, MIDI knob CC learn, sustain exclusion, cancel"<<std::endl;
