@@ -18,7 +18,7 @@ int main(){
  auto unicodeBank=lp::loadInstrumentBank(unicode);
  check(unicodeBank.size()==1 && std::filesystem::exists(unicodeBank[0].sfz),"Unicode directory support");check(lp::resolveInstrument(restored.favorites[19]->sfz,relocated)==std::filesystem::absolute(moved/"tone.sfz"),"Portable favorite after moving bank");check(restored.programChange(19),"Favorite 20 remains PC 20");
  check(lp::resolveInstrument("legacy.sfz",bank)=="legacy.sfz","Legacy reference compatibility");
- for(auto line:{"\"x\" 11 \"Name\" \"tone.sfz\" 60 \"poly\" \"CC0\"","\"x\" 0 \"Name\" \"../tone.sfz\" 60 \"poly\" \"CC0\"","\"x\" 0 \"Name\" \"missing.sfz\" 60 \"poly\" \"CC0\"","\"x\" 0 \"Name\" \"tone.sfz\" 128 \"poly\" \"CC0\""}){
+ for(auto line:{"\"x\" 15 \"Name\" \"tone.sfz\" 60 \"poly\" \"CC0\"","\"x\" 0 \"Name\" \"../tone.sfz\" 60 \"poly\" \"CC0\"","\"x\" 0 \"Name\" \"missing.sfz\" 60 \"poly\" \"CC0\"","\"x\" 0 \"Name\" \"tone.sfz\" 128 \"poly\" \"CC0\""}){
   write(line);bool rejected=false;try{lp::loadInstrumentBank(root);}catch(const std::exception&){rejected=true;}check(rejected,"Malformed bank must fail visibly");
  }
  std::filesystem::remove_all(root);std::cout<<"PASS: catalog categories, UTF-8, portable favorites, legacy paths, invalid bank rejection\n";
