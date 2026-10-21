@@ -31,22 +31,11 @@ public:
  }
  bool takeOverflow() noexcept { return overflow.exchange(false,std::memory_order_acq_rel); }
 };
-// Extended knob binding: CC 0..127, channel pressure 128, poly pressure 129..256, pitch bend 257.
+// Knob MIDI Learn accepts CC only. Sustain and channel-mode controls remain native.
 inline int knobBinding(MidiMessage m){
- auto kind=m.status&0xf0;
- if(kind==0xb0&&m.data1!=64&&m.data1<120)return m.data1;
- if(kind==0xd0)return 128;
- if(kind==0xa0)return 129+m.data1;
- if(kind==0xe0)return 257;
- return -1;
+ return (m.status&0xf0)==0xb0&&m.data1!=64&&m.data1<120?m.data1:-1;
 }
-inline float knobValue(MidiMessage m){
- switch(m.status&0xf0){
- case 0xd0:return m.data1/127.f;
- case 0xe0:return (m.pitchBend()+8192)/16383.f;
- default:return m.data2/127.f;
- }
-}
+inline float knobValue(MidiMessage m){return m.data2/127.f;}
 enum class MidiAction { Ignore,NoteOn,NoteOff,Control,PitchBend,Favorite,Parameter,Learned,FavoriteLearned,WrongProgram };
 struct MidiResult { MidiAction action=MidiAction::Ignore;int index=0,value=0; };
 inline bool forwardsToEngine(const MidiResult& result,MidiMessage message){
