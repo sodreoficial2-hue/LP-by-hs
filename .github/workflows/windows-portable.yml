@@ -3,6 +3,9 @@ name: Windows portable ASIO build
 # favorite/profile roundtrip and full Windows audio integration are validated.
 on:
   workflow_dispatch:
+  push:
+    branches: [feature/sf2-engine]
+    paths: [.github/portable-build-request.txt]
 jobs:
   portable:
     runs-on: windows-2022
