@@ -30,12 +30,13 @@ jobs:
         with:
           msystem: MINGW64
           update: false
-          install: mingw-w64-x86_64-fluidsynth
+          install: mingw-w64-x86_64-fluidsynth mingw-w64-x86_64-binutils
       - name: Locate actual MSYS2 FluidSynth runtime
         shell: msys2 {0}
         run: |
           set -e
           test -f /mingw64/bin/libfluidsynth-3.dll
+          test -f /mingw64/bin/objdump.exe
           cygpath -w /mingw64/bin > fluidsynth-bin-path.txt
           ls -l /mingw64/bin/libfluidsynth-3.dll
       - name: Download evaluated SF2 banks
@@ -48,7 +49,8 @@ jobs:
           New-Item -ItemType Directory -Force $dest | Out-Null
           Copy-Item 'build-portable/Release/LivePerformance.exe' $dest
           foreach($dll in @('sfizz.dll','sndfile.dll','SDL3.dll')) { Copy-Item "recovery/extracted/live/$dll" $dest }
-          foreach($name in @('CP80','Pianet T','Wurlitzer EP200')) { Copy-Item "recovery/extracted/live/samples/$name" "$dest/$name" -Recurse }
+          New-Item -ItemType Directory -Force "$dest/samples" | Out-Null
+          foreach($name in @('CP80','Pianet T','Wurlitzer EP200')) { Copy-Item "recovery/extracted/live/samples/$name" "$dest/samples/$name" -Recurse }
           New-Item -ItemType Directory -Force "$dest/soundbank" | Out-Null
           Copy-Item 'soundbank/sf2' "$dest/soundbank/sf2" -Recurse
           $dllroot=(Get-Content 'fluidsynth-bin-path.txt' -Raw).Trim()
