@@ -82,8 +82,8 @@ int main(int argc,char** argv) {
  s.favorites[0]->cc[6]=64;check(router.route({0xb0,64,0}).action==lp::MidiAction::Control);
  auto mod=router.route({0xb0,1,100});check(mod.action==lp::MidiAction::Learned&&lp::forwardsToEngine(mod,{0xb0,1,100}));
  mod=router.route({0xb0,1,50});check(mod.action==lp::MidiAction::Parameter&&lp::forwardsToEngine(mod,{0xb0,1,50}));
- lp::MidiQueue<4> small;check(small.push({0x90,1,1}));check(small.push({0x90,2,2}));
- check(small.push({0x90,3,3}));check(!small.push({0x90,4,4}));check(small.takeOverflow());check(!small.takeOverflow());
+ lp::MidiQueue<4> smallQueue;check(smallQueue.push({0x90,1,1}));check(smallQueue.push({0x90,2,2}));
+ check(smallQueue.push({0x90,3,3}));check(!smallQueue.push({0x90,4,4}));check(smallQueue.takeOverflow());check(!smallQueue.takeOverflow());
  lp::MidiQueue<> queue;
  std::thread producer([&]{for(unsigned i=0;i<100000;++i)while(!queue.push({0x90,static_cast<std::uint8_t>(i%128),0}))std::this_thread::yield();});
  for(unsigned i=0;i<100000;++i){lp::MidiMessage m;while(!queue.pop(m))std::this_thread::yield();check(m.data1==i%128);}
