@@ -31,6 +31,22 @@ public:
  }
  bool takeOverflow() noexcept { return overflow.exchange(false,std::memory_order_acq_rel); }
 };
+// Extended knob binding: CC 0..127, channel pressure 128, poly pressure 129..256, pitch bend 257.
+inline int knobBinding(MidiMessage m){
+ auto kind=m.status&0xf0;
+ if(kind==0xb0&&m.data1!=64&&m.data1<120)return m.data1;
+ if(kind==0xd0)return 128;
+ if(kind==0xa0)return 129+m.data1;
+ if(kind==0xe0)return 257;
+ return -1;
+}
+inline float knobValue(MidiMessage m){
+ switch(m.status&0xf0){
+ case 0xd0:return m.data1/127.f;
+ case 0xe0:return (m.pitchBend()+8192)/16383.f;
+ default:return m.data2/127.f;
+ }
+}
 enum class MidiAction { Ignore,NoteOn,NoteOff,Control,PitchBend,Favorite,Parameter,Learned,FavoriteLearned,WrongProgram };
 struct MidiResult { MidiAction action=MidiAction::Ignore;int index=0,value=0; };
 inline bool forwardsToEngine(const MidiResult& result,MidiMessage message){
@@ -77,26 +93,27 @@ public:
   }
   // Pedal and channel-mode messages must never be captured by knob Learn.
   if(kind==0xb0&&(m.data1==64||m.data1>=120))return {MidiAction::Control,m.data1,m.data2};
-  if(kind==0xe0)return {MidiAction::PitchBend,0,m.pitchBend()};
-  if(kind==0xb0 && learnParameter) {
+
+  if(knobBinding(m)>=0 && learnParameter) {
    auto index=learnParameter->parameter;learnParameter.reset();
    if(!session.current || !session.favorites[*session.current]) return {};
    // One CC maps to one knob per favorite, avoiding accidental double edits.
    auto& mapping=session.favorites[*session.current]->cc;
-   for(auto& cc:mapping) if(cc==m.data1) cc=-1;
-   mapping[index]=m.data1;
-   session.parameter(index,m.data2/127.f); // The first movement also controls the sound.
-   return {MidiAction::Learned,static_cast<int>(index),m.data1};
+   for(auto& cc:mapping) if(cc==knobBinding(m)) cc=-1;
+   mapping[index]=knobBinding(m);
+   session.parameter(index,knobValue(m)); // The first movement also controls the sound.
+   return {MidiAction::Learned,static_cast<int>(index),knobBinding(m)};
   }
-  if(kind==0xb0 && session.current && session.favorites[*session.current]) {
+  if(knobBinding(m)>=0 && session.current && session.favorites[*session.current]) {
    auto& p=*session.favorites[*session.current];
-   for(std::size_t i=0;i<p.cc.size();++i) if(p.cc[i]==m.data1) {
-    session.parameter(i,m.data2/127.0f);return {MidiAction::Parameter,static_cast<int>(i),m.data2};
+   for(std::size_t i=0;i<p.cc.size();++i) if(p.cc[i]==knobBinding(m)) {
+    session.parameter(i,knobValue(m));return {MidiAction::Parameter,static_cast<int>(i),m.data2};
    }
   }
   if(kind==0x90 && m.data2) return {MidiAction::NoteOn,m.data1,m.data2};
   if(kind==0x80 || kind==0x90) return {MidiAction::NoteOff,m.data1,m.data2};
   if(kind==0xb0) return {MidiAction::Control,m.data1,m.data2};
+  if(kind==0xe0)return {MidiAction::PitchBend,0,m.pitchBend()};
   return {};
  }
 };
