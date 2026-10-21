@@ -59,15 +59,15 @@ void AudioHost::controlPanel(int id,void* window){
 void AudioHost::load(const std::filesystem::path& path,const std::array<float,14>& parameters,bool enabled){
  auto candidate=std::make_unique<SfizzEngine>(library);candidate->load(path);candidate->parameters(parameters,enabled);
  bool restart=running();auto id=device;auto size=buffer;stop();
- auto previousInstrument=instrument;auto previousParameters=current;bool previousAdsr=currentAdsr;
+ auto previousInstrument=instrument;auto previousParameters=current;bool previousAdsr=currentAdsr;bool previousSf2=sf2Active;
  engine.swap(candidate);sf2Active=false;restorePerformance();instrument=path;this->parameters(parameters,enabled);
- if(restart){try{open(id,size);}catch(...){engine.swap(candidate);sf2Active=false;instrument=previousInstrument;this->parameters(previousParameters,previousAdsr);try{open(id,size);}catch(...){fault.store(true);}throw;}}
+ if(restart){try{open(id,size);}catch(...){engine.swap(candidate);sf2Active=previousSf2;instrument=previousInstrument;this->parameters(previousParameters,previousAdsr);try{open(id,size);}catch(...){fault.store(true);}throw;}}
 }
 void AudioHost::loadSf2(const std::filesystem::path& path,int bank,int program,const std::array<float,14>& params){
  auto candidate=std::make_unique<Sf2Engine>(fluidLibrary);candidate->load(path);candidate->select(bank,program);
  bool restart=running();auto id=device;auto size=buffer;stop();
  auto old=std::move(sf2);bool wasSf2=sf2Active;auto oldPath=instrument;
- sf2=std::move(candidate);sf2Active=true;instrument=path;this->parameters(params,false);restorePerformance();
+ sf2=std::move(candidate);sf2Active=true;instrument=path;this->parameters(params,true);restorePerformance();
  if(restart){try{open(id,size);}catch(...){sf2=std::move(old);sf2Active=wasSf2;instrument=oldPath;try{open(id,size);}catch(...){fault.store(true);}throw;}}
 }
 std::vector<Sf2Preset> AudioHost::sf2Presets(const std::filesystem::path& path) const{
@@ -103,7 +103,7 @@ int AudioHost::render(float** output,unsigned long frames,PaStreamCallbackFlags 
   unsigned before=revision.load(std::memory_order_seq_cst);
   if(!(before&1)&&before!=applied){std::array<float,14> snapshot;for(std::size_t i=0;i<snapshot.size();++i)snapshot[i]=values[i].load(std::memory_order_seq_cst);
    bool enabled=desiredAdsr.load(std::memory_order_seq_cst);
-   if(before==revision.load(std::memory_order_seq_cst)){if(!sf2Active)engine->parameters(snapshot,enabled);current=snapshot;currentAdsr=enabled;applied=before;}}
+   if(before==revision.load(std::memory_order_seq_cst)){if(sf2Active)sf2->parameters(snapshot,enabled);else engine->parameters(snapshot,enabled);current=snapshot;currentAdsr=enabled;applied=before;}}
   if(midi.takeOverflow()||panicRequested.exchange(false)){
    MidiMessage ignored;for(int i=0;i<1024&&midi.pop(ignored);++i){}if(sf2Active)sf2->panic();else engine->panic();resetPerformance();restorePerformance();
   }else{
