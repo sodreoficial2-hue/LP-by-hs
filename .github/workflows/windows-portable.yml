@@ -54,9 +54,7 @@ jobs:
           $dllroot=(Get-Content 'fluidsynth-bin-path.txt' -Raw).Trim()
           if(-not (Test-Path (Join-Path $dllroot 'libfluidsynth-3.dll'))){throw "FluidSynth missing at actual MSYS2 location: $dllroot"}
           $queue=[System.Collections.Generic.Queue[string]]::new()
-          $fluid=Get-Item (Join-Path $dllroot 'libfluidsynth-3.dll')
-          if(-not $fluid){throw 'FluidSynth DLL missing'}
-          $queue.Enqueue($fluid.Name)
+          $queue.Enqueue('libfluidsynth-3.dll')
           $seen=[System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
           while($queue.Count -gt 0) {
             $dll=$queue.Dequeue()
@@ -64,35 +62,19 @@ jobs:
             $source=Join-Path $dllroot $dll
             if(-not (Test-Path $source)){throw "FluidSynth dependency missing: $dll"}
             Copy-Item $source $dest
-            $deps=& (Join-Path $dllroot 'objdump.exe') -p $source | Select-String 'DLL Name: (.+)
-            foreach($match in $deps){
-              $dependency=$match.Matches[0].Groups[1].Value.Trim()
-              if(Test-Path (Join-Path $dllroot $dependency)){$queue.Enqueue($dependency)}
+            $output=& (Join-Path $dllroot 'objdump.exe') -p $source
+            foreach($line in $output){
+              if($line -match 'DLL Name: *([^ ]+)'){
+                $dependency=$Matches[1].Trim()
+                if(Test-Path (Join-Path $dllroot $dependency)){$queue.Enqueue($dependency)}
+              }
             }
           }
-          if($fluid.Name -ne 'libfluidsynth-3.dll'){Copy-Item (Join-Path $dllroot $fluid.Name) "$dest/libfluidsynth-3.dll"}
           if(-not (Test-Path "$dest/libfluidsynth-3.dll")){throw 'Missing FluidSynth runtime'}
-          Set-Content -Path "$dest/LEIA-ME.txt" -Value 'Teste Windows ASIO: abra LivePerformance.exe. Inclui CP80, Pianet T e Wurlitzer SFZ recuperados, cinco bancos SF2 FreePats CC0 e FluidSynth. Os demais SFZ aprovados ainda precisam de suas amostras originais.' -Encoding UTF8
+          Set-Content -Path "$dest/LEIA-ME.txt" -Value 'Teste Windows ASIO: LivePerformance.exe com cinco bancos SF2 e tres SFZ recuperados. Outros SFZ aguardam amostras.' -Encoding UTF8
           Compress-Archive -Path "$dest/*" -DestinationPath 'LivePerformance-Windows-x64-ASIO-Teste.zip'
       - uses: actions/upload-artifact@v4
         with:
           name: LivePerformance-Windows-x64-ASIO-Teste
           path: LivePerformance-Windows-x64-ASIO-Teste.zip
           retention-days: 7
-
-
-            foreach($match in $deps){
-              $dependency=$match.Matches[0].Groups[1].Value.Trim()
-              if(Test-Path (Join-Path $dllroot $dependency)){$queue.Enqueue($dependency)}
-            }
-          }
-          if($fluid.Name -ne 'libfluidsynth-3.dll'){Copy-Item (Join-Path $dllroot $fluid.Name) "$dest/libfluidsynth-3.dll"}
-          if(-not (Test-Path "$dest/libfluidsynth-3.dll")){throw 'Missing FluidSynth runtime'}
-          Set-Content -Path "$dest/LEIA-ME.txt" -Value 'Teste Windows ASIO: abra LivePerformance.exe. Inclui CP80, Pianet T e Wurlitzer SFZ recuperados, cinco bancos SF2 FreePats CC0 e FluidSynth. Os demais SFZ aprovados ainda precisam de suas amostras originais.' -Encoding UTF8
-          Compress-Archive -Path "$dest/*" -DestinationPath 'LivePerformance-Windows-x64-ASIO-Teste.zip'
-      - uses: actions/upload-artifact@v4
-        with:
-          name: LivePerformance-Windows-x64-ASIO-Teste
-          path: LivePerformance-Windows-x64-ASIO-Teste.zip
-          retention-days: 7
-
