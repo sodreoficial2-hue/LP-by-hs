@@ -75,14 +75,13 @@ int main(int argc,char** argv) {
  check(s.favorites[0]->button.kind==0);
  // Pedal and reset stay native during Learn; bend preserves every MIDI bit.
  router.learn(6);check(router.route({0xb0,64,127}).action==lp::MidiAction::Control&&router.learning());
- // Pitch bend is now an eligible knob source, so Learn captures it.
- auto bendLearn=router.route({0xe7,0,0});
- check(bendLearn.action==lp::MidiAction::Learned&&bendLearn.value==257&&!router.learning());
- check(s.favorites[0]->cc[6]==257&&s.favorites[0]->parameters[6]==0.f);
- check(router.route({0xe7,127,127}).action==lp::MidiAction::Parameter);
- check(std::abs(s.favorites[0]->parameters[6]-1.f)<1e-6f);
- check(router.route({0xe7,1,64}).action==lp::MidiAction::Parameter);
- router.learn(6);check(router.route({0xb0,121,0}).action==lp::MidiAction::Control&&router.learning());
+ // Pitch bend, notes, PC and aftertouch must not be captured by CC-only Learn.
+ check(router.route({0xe7,0,0}).action==lp::MidiAction::PitchBend&&router.learning());
+ check(router.route({0xe7,127,127}).value==8191&&router.learning());
+ check(router.route({0xe7,1,64}).value==1&&router.learning());
+ check(router.route({0xa0,60,100}).action==lp::MidiAction::Ignore&&router.learning());
+ check(router.route({0xd0,100,0}).action==lp::MidiAction::Ignore&&router.learning());
+ check(router.route({0xb0,121,0}).action==lp::MidiAction::Control&&router.learning());
  s.favorites[0]->cc[6]=64;check(router.route({0xb0,64,0}).action==lp::MidiAction::Control);
  auto mod=router.route({0xb0,1,100});check(mod.action==lp::MidiAction::Learned&&lp::forwardsToEngine(mod,{0xb0,1,100}));
  mod=router.route({0xb0,1,50});check(mod.action==lp::MidiAction::Parameter&&lp::forwardsToEngine(mod,{0xb0,1,50}));
