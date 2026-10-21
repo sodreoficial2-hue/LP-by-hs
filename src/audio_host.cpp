@@ -98,17 +98,25 @@ void AudioHost::loadPerformance(const Performance& selected){
  }
  bool restart=running();auto id=device;auto size=buffer;stop();
  partSynths=std::move(prepared);performance=selected;activePerformance=true;
+ for(std::size_t i=0;i<4;++i){auto& control=partControls[i];control.revision.fetch_add(1,std::memory_order_seq_cst);for(std::size_t j=0;j<14;++j)control.values[j].store(selected.parts[i].patch.parameters[j],std::memory_order_seq_cst);control.adsr.store(selected.parts[i].patch.adsrEnabled,std::memory_order_seq_cst);control.revision.fetch_add(1,std::memory_order_seq_cst);control.applied=control.revision.load();}
  restorePartControls();instrument=std::filesystem::u8path(selected.parts[0].instrument);
  if(restart)open(id,size);
 }
 void AudioHost::setPerformancePartParameters(std::size_t index,const std::array<float,14>& params,bool enabled){
  if(!activePerformance||index>=4||!performance.parts[index].enabled)throw std::invalid_argument("Inactive Performance part");
  for(float value:params)if(!std::isfinite(value)||value<0||value>1)throw std::invalid_argument("Invalid parameter");
- bool restart=running();auto id=device;auto size=buffer;stop();
- performance.parts[index].patch.parameters=params;performance.parts[index].patch.adsrEnabled=enabled;
- if(partSynths[index].sf2)partSynths[index].sf2->parameters(params,enabled);
- else partSynths[index].sfz->parameters(params,enabled);
- if(restart)open(id,size);
+ // The callback is the only owner of live synth parameters. Never restart ASIO
+ // when adjusting a knob; publish a consistent atomic snapshot instead.
+ auto& control=partControls[index];
+ control.revision.fetch_add(1,std::memory_order_seq_cst);
+ for(std::size_t j=0;j<14;++j)control.values[j].store(params[j],std::memory_order_seq_cst);
+ control.adsr.store(enabled,std::memory_order_seq_cst);
+ control.revision.fetch_add(1,std::memory_order_seq_cst);
+ if(!running()){
+  if(partSynths[index].sf2)partSynths[index].sf2->parameters(params,enabled);
+  else partSynths[index].sfz->parameters(params,enabled);
+  control.applied=control.revision.load(std::memory_order_seq_cst);
+ }
 }
 void AudioHost::parameters(const std::array<float,14>& params,bool enabled){
  for(float v:params)if(!std::isfinite(v)||v<0||v>1)throw std::invalid_argument("Invalid audio parameter");
@@ -140,6 +148,18 @@ int AudioHost::render(float** output,unsigned long frames,PaStreamCallbackFlags 
   if(!(before&1)&&before!=applied){std::array<float,14> snapshot;for(std::size_t i=0;i<snapshot.size();++i)snapshot[i]=values[i].load(std::memory_order_seq_cst);
    bool enabled=desiredAdsr.load(std::memory_order_seq_cst);
    if(before==revision.load(std::memory_order_seq_cst)){if(!activePerformance){if(sf2Active)sf2->parameters(snapshot,enabled);else engine->parameters(snapshot,enabled);}current=snapshot;currentAdsr=enabled;applied=before;}}
+  if(activePerformance)for(std::size_t part=0;part<4;++part)if(performance.parts[part].enabled){
+   auto& control=partControls[part];unsigned before=control.revision.load(std::memory_order_seq_cst);
+   if((before&1)||before==control.applied)continue;
+   std::array<float,14> snapshot{};
+   for(std::size_t j=0;j<14;++j)snapshot[j]=control.values[j].load(std::memory_order_seq_cst);
+   bool enabled=control.adsr.load(std::memory_order_seq_cst);
+   if(before==control.revision.load(std::memory_order_seq_cst)){
+    if(partSynths[part].sf2)partSynths[part].sf2->parameters(snapshot,enabled);
+    else if(partSynths[part].sfz)partSynths[part].sfz->parameters(snapshot,enabled);
+    control.applied=before;
+   }
+  }
   if(midi.takeOverflow()||panicRequested.exchange(false)){
    MidiMessage ignored;for(int i=0;i<1024&&midi.pop(ignored);++i){}panicAll();resetPerformance();restorePerformance();
   }else{
