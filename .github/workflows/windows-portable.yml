@@ -1,0 +1,42 @@
+name: Windows portable ASIO build
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/sf2-engine]
+    paths: ['.github/workflows/windows-portable.yml']
+jobs:
+  portable:
+    runs-on: windows-2022
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch PortAudio and Steinberg SDK
+        shell: pwsh
+        run: |
+          git clone --quiet --depth 1 --branch v19.7.0 https://github.com/PortAudio/portaudio.git "$env:RUNNER_TEMP/portaudio"
+          Invoke-WebRequest -Uri 'https://www.steinberg.net/asiosdk' -OutFile "$env:RUNNER_TEMP/asiosdk.zip"
+          Expand-Archive -Path "$env:RUNNER_TEMP/asiosdk.zip" -DestinationPath "$env:RUNNER_TEMP/asiosdk" -Force
+          $asio = Get-ChildItem "$env:RUNNER_TEMP/asiosdk" -Recurse -Filter asio.h | Where-Object { $_.Directory.Name -eq 'common' } | Select-Object -First 1
+          if (-not $asio) { throw 'Steinberg ASIO SDK common/asio.h unavailable' }
+          "ASIOSDK_ROOT=$($asio.Directory.Parent.FullName)" >> $env:GITHUB_ENV
+      - name: Configure Windows ASIO executable
+        shell: pwsh
+        run: |
+          cmake -S . -B build-portable -A x64 "-DLP_PORTAUDIO_SOURCE=$env:RUNNER_TEMP/portaudio" "-DASIOSDK_ROOT_DIR=$env:ASIOSDK_ROOT" -DLP_COPY_RECOVERED_ASSETS=ON
+      - name: Compile full application
+        run: cmake --build build-portable --config Release --target LivePerformance --parallel 2
+      - name: Prepare small Windows portable
+        shell: pwsh
+        run: |
+          $dest='portable/LivePerformance'
+          New-Item -ItemType Directory -Force $dest | Out-Null
+          Copy-Item 'build-portable/Release/LivePerformance.exe' $dest
+          foreach($dll in @('sfizz.dll','sndfile.dll','SDL3.dll')) { Copy-Item "recovery/extracted/live/$dll" $dest }
+          foreach($name in @('CP80','Pianet T','Wurlitzer EP200')) { Copy-Item "recovery/extracted/live/samples/$name" "$dest/$name" -Recurse }
+          Set-Content -Path "$dest/LEIA-ME.txt" -Value 'Teste Windows ASIO: abra LivePerformance.exe. Bibliotecas completas selecionadas ainda devem ser adicionadas. FluidSynth DLL/SF2 devem ser instalados ao lado do EXE para importar SF2.' -Encoding UTF8
+          Compress-Archive -Path "$dest/*" -DestinationPath 'LivePerformance-Windows-x64-ASIO-Teste.zip'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LivePerformance-Windows-x64-ASIO-Teste
+          path: LivePerformance-Windows-x64-ASIO-Teste.zip
+          retention-days: 7
