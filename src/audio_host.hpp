@@ -21,7 +21,7 @@ public:
  void stop();
  void controlPanel(int device,void* window);
  void load(const std::filesystem::path& sfz,const std::array<float,14>& parameters,bool adsrEnabled=false);
- void loadSf2(const std::filesystem::path& sf2,int bank,int program,const std::array<float,14>& parameters);
+ void loadSf2(const std::filesystem::path& sf2,int bank,int program,const std::array<float,14>& parameters,bool adsrEnabled=false);
  std::vector<Sf2Preset> sf2Presets(const std::filesystem::path& sf2) const;
  void unload();
  void parameters(const std::array<float,14>& values,bool adsrEnabled=false);
