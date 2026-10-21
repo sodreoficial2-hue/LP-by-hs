@@ -83,7 +83,7 @@ struct Session {
     if(p.instrument.empty()||p.instrument.size()>32768||p.low<0||p.high>127||p.low>p.high||p.transpose< -48||p.transpose>48)throw std::runtime_error("Invalid Performance zone");
     f<<"PART "<<slot<<' '<<part<<' '<<std::quoted(p.instrument)<<' '<<p.low<<' '<<p.high<<' '<<p.transpose<<' '<<(p.patch.adsrEnabled?1:0);
     for(float v:p.patch.parameters){if(!std::isfinite(v)||v<0||v>1)throw std::runtime_error("Invalid Performance parameter");f<<' '<<v;}
-    for(int cc:p.patch.cc){if(cc< -1||cc>257)throw std::runtime_error("Invalid Performance MIDI CC");f<<' '<<cc;}
+    for(int cc:p.patch.cc){if(cc< -1||cc>127)throw std::runtime_error("Invalid Performance MIDI CC");f<<' '<<cc;}
     f<<'\n';
    }
    if(active==0)throw std::runtime_error("Empty Performance");
@@ -112,7 +112,7 @@ struct Session {
      if(p.enabled||!(record>>std::quoted(p.instrument)>>p.low>>p.high>>p.transpose>>adsr)||p.instrument.empty()||p.low<0||p.high>127||p.low>p.high||p.transpose< -48||p.transpose>48||(adsr!=0&&adsr!=1))throw std::runtime_error("Invalid Performance part");
      p.enabled=true;p.patch.adsrEnabled=adsr!=0;
      for(auto& value:p.patch.parameters)if(!(record>>value)||!std::isfinite(value)||value<0||value>1)throw std::runtime_error("Invalid Performance parameter");
-     for(auto& cc:p.patch.cc)if(!(record>>cc)||cc< -1||cc>257)throw std::runtime_error("Invalid Performance CC");
+     for(auto& cc:p.patch.cc)if(!(record>>cc)||cc< -1||cc>127)throw std::runtime_error("Invalid Performance CC");
      std::string extra;if(record>>extra)throw std::runtime_error("Trailing Performance data");
      continue;
     }
@@ -121,7 +121,7 @@ struct Session {
     std::istringstream favorite(rest);
     Patch p;if(!(favorite>>std::quoted(p.sfz))||p.sfz.empty()||p.sfz.size()>32768)throw std::runtime_error("Invalid favorite reference");
     for(auto& v:p.parameters)if(!(favorite>>v)||!std::isfinite(v)||v<0||v>1)throw std::runtime_error("Invalid parameter value");
-    for(auto& v:p.cc)if(!(favorite>>v)||v< -1||v>257)throw std::runtime_error("Invalid MIDI CC");
+    for(auto& v:p.cc)if(!(favorite>>v)||v< -1||v>127)throw std::runtime_error("Invalid MIDI CC");
     int adsr=-1;if(!(favorite>>p.button.kind>>p.button.channel>>p.button.number>>adsr)||!p.button.valid()||(p.button.kind&&p.button.number!=static_cast<int>(slot))||(adsr!=0&&adsr!=1))throw std::runtime_error("Invalid favorite button");
     p.adsrEnabled=adsr!=0;
     candidate.favorites[slot]=std::move(p);continue;
@@ -131,7 +131,7 @@ struct Session {
     throw std::runtime_error("Invalid SFZ path");
    for(auto& v:p.parameters) if(!(f>>v) || !std::isfinite(v) || v<0 || v>1)
     throw std::runtime_error("Invalid parameter value");
-   for(auto& v:p.cc) if(!(f>>v) || v < -1 || v >257) throw std::runtime_error("Invalid MIDI CC");
+   for(auto& v:p.cc) if(!(f>>v) || v < -1 || v >127) throw std::runtime_error("Invalid MIDI CC");
    if(version>=2) {
     if(!(f>>p.button.kind>>p.button.channel>>p.button.number))throw std::runtime_error("Invalid MIDI button");
     if(version==2) {
