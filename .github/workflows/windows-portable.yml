@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [feature/sf2-engine]
-    paths: ['.github/workflows/windows-portable.yml']
+    paths: ['.github/workflows/windows-portable.yml', 'CMakeLists.txt']
 jobs:
   portable:
     runs-on: windows-2022
