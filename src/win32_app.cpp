@@ -22,7 +22,7 @@
 #include <string>
 
 namespace {
-constexpr int Catalog=100,Favorites=101,Save=102,Open=103,Midi=104,Effects=105,Import=106,ImportSf2=114,AudioDriver=107,AudioBuffer=108,AudioStart=109,AudioStop=110,AudioPanel=111,Panic=112,Category=113,Knob=200,MidiLearnKnob=115;
+constexpr int Catalog=100,Favorites=101,Save=102,Open=103,Midi=104,Effects=105,Import=106,ImportSf2=114,AudioDriver=107,AudioBuffer=108,AudioStart=109,AudioStop=110,AudioPanel=111,Panic=112,Category=113,Knob=200,MidiLearnKnob=115,PerformanceButton=116,PerformanceModeControl=117,PerformancePartBase=118,PerformancePlay=122;
 constexpr UINT BeginParameterLearn=WM_APP+40;
 // Do not rely on a native trackbar forwarding its mouse context request.
 LRESULT CALLBACK parameterProc(HWND control,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR parameter,DWORD_PTR){
@@ -45,7 +45,9 @@ struct App {
  std::vector<lp::Instrument> instruments;
  std::vector<std::size_t> visibleInstruments;
  std::unique_ptr<lp::AudioHost> engine;
- HWND audioDriver{},audioBuffer{};
+ HWND audioDriver{},audioBuffer{},performanceMode{},performancePlay{};
+ std::array<HWND,4> performancePartControls{};
+ bool performanceVisible=false;
  std::vector<lp::AudioDevice> audioDevices;
  const std::array<unsigned long,7> buffers{0,64,128,256,512,1024,2048};
  std::filesystem::path settingsPath;
@@ -88,6 +90,16 @@ struct App {
   control(L"BUTTON",L"Desconectar",BS_PUSHBUTTON|WS_TABSTOP,AudioStop);
   control(L"BUTTON",L"ASIO Control",BS_PUSHBUTTON|WS_TABSTOP,AudioPanel);
   control(L"BUTTON",L"MIDI Learn knob (Ctrl+L)",BS_PUSHBUTTON|WS_TABSTOP,MidiLearnKnob);
+  control(L"BUTTON",L"Performance (P)",BS_PUSHBUTTON|WS_TABSTOP,PerformanceButton);
+  performanceMode=control(L"COMBOBOX",L"",CBS_DROPDOWNLIST|WS_TABSTOP,PerformanceModeControl);
+  SendMessageW(performanceMode,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Camadas: quatro timbres em todo teclado"));
+  SendMessageW(performanceMode,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Dividir: duas partes (2 + 2)"));
+  SendMessageW(performanceMode,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Dividir: duas partes (3 + 1)"));
+  SendMessageW(performanceMode,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Dividir: três partes (2 + 1 + 1)"));
+  SendMessageW(performanceMode,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Dividir: quatro partes (1 + 1 + 1 + 1)"));
+  SendMessageW(performanceMode,CB_SETCURSEL,0,0);
+  for(int i=0;i<4;++i)performancePartControls[i]=control(L"COMBOBOX",L"",CBS_DROPDOWNLIST|WS_VSCROLL|WS_TABSTOP,PerformancePartBase+i);
+  performancePlay=control(L"BUTTON",L"Ativar Performance",BS_PUSHBUTTON|WS_TABSTOP,PerformancePlay);
   control(L"BUTTON",L"Pânico (F12)",BS_PUSHBUTTON|WS_TABSTOP,Panic);
   SendMessageW(audioDriver,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Selecione driver ASIO"));
   SendMessageW(audioDriver,CB_SETCURSEL,0,0);
@@ -102,6 +114,7 @@ struct App {
   else for(const auto& path:lp::catalog(samples)){lp::Instrument p;p.sfz=path;p.name=path.stem().u8string();p.category=1;instruments.push_back(p);}
   if(!instruments.empty())SendMessageW(category,CB_SETCURSEL,instruments.front().category,0);
   refreshCatalog();refreshFavorites();
+  for(int i=0;i<4;++i){SendMessageW(performancePartControls[i],CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Desativado"));SendMessageW(performancePartControls[i],CB_SETCURSEL,0,0);}
   try{auto dll=base/L"sfizz.dll";if(!std::filesystem::exists(dll))dll=base/L"recovery/extracted/live/sfizz.dll";engine=std::make_unique<lp::AudioHost>(dll);
    // Discover SF2 evaluation presets without changing the approved SFZ bank.
    // Keep SF2 entries in memory only; the original curated catalog remains intact.
@@ -154,14 +167,20 @@ struct App {
   MoveWindow(midi,16,116,width-32,320,TRUE);
   MoveWindow(audioDriver,16,170,half,320,TRUE);MoveWindow(audioBuffer,32+half,170,half,320,TRUE);
   MoveWindow(GetDlgItem(window,AudioStart),16,224,210,44,TRUE);MoveWindow(GetDlgItem(window,AudioStop),234,224,190,44,TRUE);
-  MoveWindow(GetDlgItem(window,AudioPanel),432,224,200,44,TRUE);MoveWindow(GetDlgItem(window,MidiLearnKnob),858,224,270,44,TRUE);MoveWindow(GetDlgItem(window,Panic),640,224,210,44,TRUE);
+  MoveWindow(GetDlgItem(window,AudioPanel),432,224,200,44,TRUE);MoveWindow(GetDlgItem(window,PerformanceButton),1150,224,240,44,TRUE);MoveWindow(GetDlgItem(window,MidiLearnKnob),858,224,270,44,TRUE);MoveWindow(GetDlgItem(window,Panic),640,224,210,44,TRUE);
   MoveWindow(category,16,284,half,350,TRUE);
   MoveWindow(catalog,16,338,half,height-428,TRUE);MoveWindow(favorites,32+half,284,half,height-374,TRUE);
-  ShowWindow(category,effects?SW_HIDE:SW_SHOW);
-  ShowWindow(catalog,effects?SW_HIDE:SW_SHOW);ShowWindow(favorites,effects?SW_HIDE:SW_SHOW);
+  MoveWindow(performanceMode,16,284,width-32,250,TRUE);
+  for(int i=0;i<4;++i)MoveWindow(performancePartControls[i],16,342+i*64,width-32,250,TRUE);
+  MoveWindow(performancePlay,16,612,320,48,TRUE);
+  ShowWindow(performanceMode,performanceVisible?SW_SHOW:SW_HIDE);
+  for(auto control:performancePartControls)ShowWindow(control,performanceVisible?SW_SHOW:SW_HIDE);
+  ShowWindow(performancePlay,performanceVisible?SW_SHOW:SW_HIDE);
+  ShowWindow(category,(effects||performanceVisible)?SW_HIDE:SW_SHOW);
+  ShowWindow(catalog,(effects||performanceVisible)?SW_HIDE:SW_SHOW);ShowWindow(favorites,(effects||performanceVisible)?SW_HIDE:SW_SHOW);
   for(int i=0;i<14;++i){int col=i/7,row=i%7;int x=16+col*(half+16),y=284+row*((height-384)/7);
    MoveWindow(labels[i],x,y,half,30,TRUE);MoveWindow(sliders[i],x,y+30,half,32,TRUE);
-   ShowWindow(labels[i],effects?SW_SHOW:SW_HIDE);ShowWindow(sliders[i],effects?SW_SHOW:SW_HIDE);
+   ShowWindow(labels[i],(effects&&!performanceVisible)?SW_SHOW:SW_HIDE);ShowWindow(sliders[i],(effects&&!performanceVisible)?SW_SHOW:SW_HIDE);
   }
   MoveWindow(status,16,height-78,width-32,70,TRUE);InvalidateRect(window,nullptr,TRUE);
  }
@@ -199,6 +218,13 @@ struct App {
   if(id==AudioPanel){if(!engine)throw std::runtime_error("Audio engine unavailable");engine->controlPanel(audioDevices[driverIndex()].id,window);audioStatus();}
   if(id==MidiLearnKnob){int selected=-1;auto focus=GetFocus();for(int i=0;i<14;++i)if(focus==sliders[i]||focus==labels[i]){selected=i;break;}if(selected<0){message(L"Abra Parâmetros (E), selecione o knob desejado com TAB e clique MIDI Learn ou pressione Ctrl+L.");}else beginParameterLearn(static_cast<std::size_t>(selected));}
   if(id==Panic&&engine){engine->panic();message(L"Pânico: notas e caudas interrompidas.");}
+  if(id==PerformanceButton){performanceVisible=!performanceVisible;effects=false;
+   for(int i=0;i<4;++i){SendMessageW(performancePartControls[i],CB_RESETCONTENT,0,0);SendMessageW(performancePartControls[i],CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Desativado"));for(const auto& instrument:instruments){auto name=std::filesystem::u8path(instrument.name).wstring();SendMessageW(performancePartControls[i],CB_ADDSTRING,0,reinterpret_cast<LPARAM>(name.c_str()));}SendMessageW(performancePartControls[i],CB_SETCURSEL,0,0);}
+   layout();SetFocus(performanceVisible?performanceMode:catalog);}
+  if(id==PerformancePlay){if(!engine)throw std::runtime_error("Audio engine unavailable");lp::Performance selected;selected.name="Performance";int mode=static_cast<int>(SendMessageW(performanceMode,CB_GETCURSEL,0,0));selected.mode=mode==0?lp::PerformanceMode::Layer:lp::PerformanceMode::Split;
+   constexpr int boundaries[5][5]={{0,0,0,0,128},{0,0,64,64,128},{0,0,0,0,128},{0,0,0,64,128},{0,32,64,96,128}};
+   for(int i=0;i<4;++i){int item=static_cast<int>(SendMessageW(performancePartControls[i],CB_GETCURSEL,0,0));if(item<=0)continue;auto& part=selected.parts[i];part.enabled=true;part.instrument=lp::instrumentReference(instruments[static_cast<std::size_t>(item-1)]);if(mode==1){part.low=i<2?0:64;part.high=i<2?63:127;}else if(mode==2){part.low=i<3?0:64;part.high=i<3?63:127;}else if(mode==3){part.low=i<2?0:(i==2?43:86);part.high=i<2?42:(i==2?85:127);}else if(mode==4){part.low=i*32;part.high=i==3?127:i*32+31;}}
+   engine->loadPerformance(selected);message(L"Performance ativa: até quatro timbres simultâneos.");}
   if(id==Effects){effects=!effects;if(!effects)cancelMidiLearn();layout();SetFocus(effects?sliders[0]:catalog);}
   if(id==Save||id==Open){std::filesystem::path path;if(fileDialog(id==Save,false,path)){if(id==Save)show.save(path);else{show.load(path);router.cancelLearn();if(engine)engine->unload();refreshFavorites();}message(L"Perfil processado. Formato novo .lphs; INI antigo ainda não é compatível.");}}
   if(id==Import){std::filesystem::path path;if(fileDialog(false,true,path)){lp::Instrument p;p.sfz=path;p.name=path.stem().u8string();p.category=10;instruments.push_back(p);SendMessageW(category,CB_SETCURSEL,10,0);refreshCatalog();SendMessageW(catalog,LB_SETCURSEL,visibleInstruments.size()-1,0);}}
@@ -218,7 +244,7 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){auto app=reinterpret_
  case WM_TIMER:if(wp==2){app->restoreAudio();return 0;}if(app->engine&&app->engine->takeFault()){try{app->engine->stop();}catch(const std::exception& e){app->error(e);}app->message(L"Falha no motor/driver. Áudio interrompido; reconecte ASIO.");}return 0;
  case WM_SIZE:if(app->catalog)app->layout();return 0;
  case WM_COMMAND:app->command(LOWORD(wp),HIWORD(wp));return 0;
- case WM_KEYDOWN:if(wp=='L'&&(GetKeyState(VK_CONTROL)&0x8000)){auto focus=GetFocus();for(int i=0;i<14;++i)if(focus==app->sliders[i]||focus==app->labels[i]){app->beginParameterLearn(i);return 0;}}break;
+ case WM_KEYDOWN:if(wp=='P'&&!(GetKeyState(VK_CONTROL)&0x8000)){app->command(PerformanceButton,BN_CLICKED);return 0;}if(wp=='L'&&(GetKeyState(VK_CONTROL)&0x8000)){auto focus=GetFocus();for(int i=0;i<14;++i)if(focus==app->sliders[i]||focus==app->labels[i]){app->beginParameterLearn(i);return 0;}}break;
  case MM_MIM_DATA:if(reinterpret_cast<HMIDIIN>(wp)==app->midiHandle)app->midiEvent(static_cast<DWORD>(lp));return 0;
  case BeginParameterLearn:app->beginParameterLearn(static_cast<std::size_t>(wp));return 0;
  case WM_HSCROLL:for(int i=0;i<14;++i)if(reinterpret_cast<HWND>(lp)==app->sliders[i]&&app->show.current){app->show.parameter(i,static_cast<float>(SendMessageW(app->sliders[i],TBM_GETPOS,0,0))/1000);app->applyParameters();app->refreshParameters();}return 0;
