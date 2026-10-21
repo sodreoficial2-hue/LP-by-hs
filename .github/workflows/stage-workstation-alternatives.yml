@@ -1,0 +1,45 @@
+name: Stage approved-quality additional instrument libraries
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/sf2-engine]
+    paths: ['.github/workflows/stage-workstation-alternatives.yml']
+jobs:
+  stage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download legally distributable SF2 and SFZ instruments
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p staging/sf2 staging/sfz staging/licenses
+          curl -fL --retry 3 -o /tmp/gm.7z 'https://freepats.zenvoid.org/SoundSets/FreePats-GeneralMIDI/FreePatsGM-SF2-20221026.7z'
+          7z x -y /tmp/gm.7z -ostaging/sf2 >/dev/null
+          curl -fL --retry 3 -o /tmp/perc.tar.xz 'https://freepats.zenvoid.org/SoundSets/GM-PercussionSet/FreePatsGM-Percussion-SF2-20200822.tar.xz'
+          tar -xJf /tmp/perc.tar.xz -C staging/sf2
+          curl -fL --retry 3 -o /tmp/growly.zip 'https://github.com/sfzinstruments/karoryfer.growlybass/releases/download/v1.002/Karoryfer.Growlybass.v1.002.zip'
+          unzip -q /tmp/growly.zip -d staging/sfz/Growlybass
+          curl -fL --retry 3 -o /tmp/fashion.zip 'https://github.com/sfzinstruments/karoryfer.fashionbass/releases/download/v1.001/Karoryfer.Fashionbass.v1.001.zip'
+          unzip -q /tmp/fashion.zip -d staging/sfz/Fashionbass
+          python3 - <<'PY'
+          import pathlib,sys
+          root=pathlib.Path('staging')
+          sf2=list(root.rglob('*.sf2'))
+          sfz=list(root.rglob('*.sfz'))
+          print('SF2 files:',len(sf2),'SFZ mappings:',len(sfz))
+          for p in sf2:
+              with p.open('rb') as f: assert f.read(4)==b'RIFF',f'Invalid SF2: {p}'
+          for p in sfz:
+              assert p.stat().st_size>0,f'Empty SFZ: {p}'
+          assert len(sf2)>=2 and len(sfz)>=2,'Incomplete staged instruments'
+          for p in sf2+sfz: print(p)
+          PY
+          printf '%s\n' 'FreePats General MIDI and Percussion: GPLv3+ with special exception; check source licensing before redistribution.' 'Karoryfer Growlybass and Fashionbass: CC0 1.0.' 'No Nord/Motif/Fantom/Kronos proprietary samples included.' > staging/licenses/SOURCES.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LPHS-New-SF2-SFZ-Staging
+          path: staging/
+          retention-days: 14
+          compression-level: 0
