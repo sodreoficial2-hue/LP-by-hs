@@ -1,0 +1,21 @@
+name: Additional SF2 evaluation library
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/sf2-engine]
+    paths: ['.github/workflows/additional-sf2.yml']
+jobs:
+  download:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download official additional SoundFonts
+        run: python3 scripts/download_additional_sf2.py soundbank/additional-sf2
+      - name: Save download report and banks
+        uses: actions/upload-artifact@v4
+        with:
+          name: LPHS-Additional-SF2-Evaluation
+          path: soundbank/additional-sf2/
+          if-no-files-found: warn
+          retention-days: 14
