@@ -2,7 +2,8 @@
 #include <iostream>
 void check(bool ok,const char* message){if(!ok)throw std::runtime_error(message);}
 int main(){
- auto root=std::filesystem::temp_directory_path()/"lp-catalog-regression";std::filesystem::create_directories(root);
+ try {
+ auto root=std::filesystem::temp_directory_path()/"lp-catalog-regression";std::filesystem::remove_all(root);std::filesystem::create_directories(root);
  std::ofstream(root/"tone.sfz")<<"<region> sample=*saw";
  auto write=[&](const std::string& line){std::ofstream(root/"catalog.txt")<<"LPHS_BANK 1\n"<<line<<'\n';};
  write("\"stable-id\" 1 \"Piano elétrico\" \"tone.sfz\" 60 \"poly\" \"CC0-1.0\"");auto bank=lp::loadInstrumentBank(root);
@@ -16,4 +17,5 @@ int main(){
   write(line);bool rejected=false;try{lp::loadInstrumentBank(root);}catch(const std::exception&){rejected=true;}check(rejected,"Malformed bank must fail visibly");
  }
  std::filesystem::remove_all(root);std::cout<<"PASS: catalog categories, UTF-8, portable favorites, legacy paths, invalid bank rejection\n";
+ } catch(const std::exception& e){std::cerr<<"Catalog regression: "<<e.what()<<"\n";return 1;}
 }
