@@ -1,0 +1,24 @@
+name: Real SF2 audio regression
+on:
+  push:
+    branches: [feature/sf2-engine]
+    paths:
+      - 'src/sf2_engine.cpp'
+      - 'src/dsp.cpp'
+      - 'tests/real_sf2_test.cpp'
+      - '.github/workflows/real-sf2-regression.yml'
+  workflow_dispatch:
+jobs:
+  sf2-render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install small real SoundFont and FluidSynth
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libfluidsynth3 timgm6mb-soundfont
+      - name: Compile real SF2 integration test
+        run: |
+          cmake -S . -B build -DLP_TEST_ONLY=ON -DLP_REAL_FLUIDSYNTH=/usr/lib/x86_64-linux-gnu/libfluidsynth.so.3 -DLP_REAL_SF2=/usr/share/sounds/sf2/TimGM6mb.sf2
+          cmake --build build --target lp_real_sf2_test -j2
+      - name: Render real SF2 with ADSR and effects
+        run: ctest --test-dir build -R real_sf2_render_adsr --output-on-failure
