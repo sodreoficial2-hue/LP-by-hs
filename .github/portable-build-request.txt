@@ -1,0 +1,1 @@
+Windows x64 ASIO portable build approved after full compile and regression success at c89441a0.
