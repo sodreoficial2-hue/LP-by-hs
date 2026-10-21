@@ -15,3 +15,18 @@ jobs:
         run: cmake --build build --config Release --parallel 2
       - name: Execute regression suite
         run: ctest --test-dir build -C Release --output-on-failure
+      - name: Fetch ASIO compilation dependencies
+        shell: pwsh
+        run: |
+          git clone --quiet --depth 1 --branch v19.7.0 https://github.com/PortAudio/portaudio.git "$env:RUNNER_TEMP/portaudio"
+          Invoke-WebRequest -Uri 'https://www.steinberg.net/asiosdk' -OutFile "$env:RUNNER_TEMP/asiosdk.zip"
+          Expand-Archive -Path "$env:RUNNER_TEMP/asiosdk.zip" -DestinationPath "$env:RUNNER_TEMP/asiosdk" -Force
+          $asio = Get-ChildItem "$env:RUNNER_TEMP/asiosdk" -Recurse -Filter asio.h | Where-Object { $_.Directory.Name -eq 'common' } | Select-Object -First 1
+          if (-not $asio) { throw 'Steinberg ASIO SDK unavailable' }
+          "ASIOSDK_ROOT=$($asio.Directory.Parent.FullName)" >> $env:GITHUB_ENV
+      - name: Configure complete Windows application without packaging
+        shell: pwsh
+        run: cmake -S . -B build-app -A x64 "-DLP_PORTAUDIO_SOURCE=$env:RUNNER_TEMP/portaudio" "-DASIOSDK_ROOT_DIR=$env:ASIOSDK_ROOT" -DLP_COPY_RECOVERED_ASSETS=ON
+      - name: Compile full Windows ASIO application
+        run: cmake --build build-app --config Release --target LivePerformance --parallel 2
+
