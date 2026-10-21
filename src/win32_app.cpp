@@ -99,6 +99,32 @@ struct App {
   if(!instruments.empty())SendMessageW(category,CB_SETCURSEL,instruments.front().category,0);
   refreshCatalog();refreshFavorites();
   try{auto dll=base/L"sfizz.dll";if(!std::filesystem::exists(dll))dll=base/L"recovery/extracted/live/sfizz.dll";engine=std::make_unique<lp::AudioHost>(dll);
+   // Discover SF2 evaluation presets without changing the approved SFZ bank.
+   // Keep SF2 entries in memory only; the original curated catalog remains intact.
+   const auto sf2Folder=base/L"soundbank/sf2";
+   if(std::filesystem::is_directory(sf2Folder)){
+    for(const auto& entry:std::filesystem::directory_iterator(sf2Folder)){
+     if(!entry.is_regular_file()||entry.path().extension()!=L".sf2")continue;
+     try{
+      auto presets=engine->sf2Presets(entry.path());
+      auto file=entry.path().stem().u8string();
+      unsigned category=file.find("Piano")!=std::string::npos?1:
+       file.find("Brass")!=std::string::npos?4:
+       file.find("Bass")!=std::string::npos?10:10;
+      for(const auto& preset:presets){
+       lp::Instrument p;
+       p.sfz=std::filesystem::u8path(lp::makeSf2Reference(entry.path(),preset.bank,preset.program));
+       p.name=file+" / "+preset.name;
+       p.category=category;
+       instruments.push_back(std::move(p));
+      }
+     }catch(const std::exception& e){
+      // A missing FluidSynth runtime or damaged bank must not hide approved SFZ.
+      OutputDebugStringA(e.what());OutputDebugStringA("\\n");
+     }
+    }
+    refreshCatalog();
+   }
    audioDevices=engine->devices();for(const auto& device:audioDevices){auto text=std::filesystem::u8path(device.name).wstring();SendMessageW(audioDriver,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(text.c_str()));}
    if(audioDevices.empty())message(L"Nenhum driver ASIO estéreo encontrado. Instale ou habilite seu driver ASIO. Não há fallback Windows.");
    PWSTR roaming=nullptr;auto folderResult=SHGetKnownFolderPath(FOLDERID_RoamingAppData,KF_FLAG_CREATE,nullptr,&roaming);
