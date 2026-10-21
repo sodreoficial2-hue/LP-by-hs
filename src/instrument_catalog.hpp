@@ -3,8 +3,8 @@
 #include <set>
 
 namespace lp {
-inline constexpr std::array<const char*,11> instrumentCategories{
- "Pianos acústicos","Pianos elétricos","Órgãos","Cordas","Metais","Leads","Pads","Percussão","Bateria","Acordeons","Outros"};
+inline constexpr std::array<const char*,15> instrumentCategories{
+ "Pianos acústicos","Pianos elétricos","Órgãos","Cordas","Metais","Leads","Pads","Percussão","Bateria","Acordeons","Outros","Contrabaixos","Guitarras","Performance","Meus Sons"};
 struct Instrument {
  std::string id,name,license,mode;
  std::filesystem::path sfz;
