@@ -13,7 +13,9 @@ struct Instrument {
 };
 inline std::vector<Instrument> loadInstrumentBank(const std::filesystem::path& root){
  std::ifstream in(root/"catalog.txt",std::ios::binary);std::string line;
- if(!std::getline(in,line)||line!="LPHS_BANK 1")throw std::runtime_error("Catálogo de timbres inválido");
+ if(!std::getline(in,line))throw std::runtime_error("Catálogo de timbres inválido");
+ if(!line.empty()&&line.back()=='\r')line.pop_back();
+ if(line!="LPHS_BANK 1")throw std::runtime_error("Catálogo de timbres inválido");
  std::vector<Instrument> result;std::set<std::string> ids,paths;
  while(std::getline(in,line)){
   if(line.empty()||line[0]=='#')continue;
