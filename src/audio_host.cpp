@@ -14,6 +14,7 @@ AudioHost::AudioHost(const std::filesystem::path& sfizz):library(sfizz){
  static_assert(std::atomic<float>::is_always_lock_free,"Audio parameters must be lock free");
  for(std::size_t i=0;i<values.size();++i)values[i].store(current[i]);
  engine=std::make_unique<SfizzEngine>(library);
+ fluidLibrary=library.parent_path()/"libfluidsynth-3.dll";
  paCheck(Pa_Initialize());
 }
 AudioHost::~AudioHost(){
@@ -47,7 +48,7 @@ void AudioHost::start(int id,unsigned long size){
 void AudioHost::stop(){
  if(stream){auto old=stream;auto stopped=Pa_StopStream(old);if(stopped<0)Pa_AbortStream(old);
   auto closed=Pa_CloseStream(old);if(closed<0){fault.store(true);paCheck(closed);}stream=nullptr;}
- clearQueue();engine->panic();
+ clearQueue();engine->panic();if(sf2)sf2->panic();
 }
 void AudioHost::controlPanel(int id,void* window){
  requireAsio(id);bool restart=running();auto oldDevice=device;auto oldBuffer=buffer;stop();
@@ -59,10 +60,20 @@ void AudioHost::load(const std::filesystem::path& path,const std::array<float,14
  auto candidate=std::make_unique<SfizzEngine>(library);candidate->load(path);candidate->parameters(parameters,enabled);
  bool restart=running();auto id=device;auto size=buffer;stop();
  auto previousInstrument=instrument;auto previousParameters=current;bool previousAdsr=currentAdsr;
- engine.swap(candidate);restorePerformance();instrument=path;this->parameters(parameters,enabled);
- if(restart){try{open(id,size);}catch(...){engine.swap(candidate);instrument=previousInstrument;this->parameters(previousParameters,previousAdsr);try{open(id,size);}catch(...){fault.store(true);}throw;}}
+ engine.swap(candidate);sf2Active=false;restorePerformance();instrument=path;this->parameters(parameters,enabled);
+ if(restart){try{open(id,size);}catch(...){engine.swap(candidate);sf2Active=false;instrument=previousInstrument;this->parameters(previousParameters,previousAdsr);try{open(id,size);}catch(...){fault.store(true);}throw;}}
 }
-void AudioHost::unload(){bool restart=running();auto id=device;auto size=buffer;stop();engine->unload();instrument.clear();if(restart)open(id,size);}
+void AudioHost::loadSf2(const std::filesystem::path& path,int bank,int program,const std::array<float,14>& params){
+ auto candidate=std::make_unique<Sf2Engine>(fluidLibrary);candidate->load(path);candidate->select(bank,program);
+ bool restart=running();auto id=device;auto size=buffer;stop();
+ auto old=std::move(sf2);bool wasSf2=sf2Active;auto oldPath=instrument;
+ sf2=std::move(candidate);sf2Active=true;instrument=path;this->parameters(params,false);restorePerformance();
+ if(restart){try{open(id,size);}catch(...){sf2=std::move(old);sf2Active=wasSf2;instrument=oldPath;try{open(id,size);}catch(...){fault.store(true);}throw;}}
+}
+std::vector<Sf2Preset> AudioHost::sf2Presets(const std::filesystem::path& path) const{
+ Sf2Engine temporary(fluidLibrary);temporary.load(path);return temporary.presets();
+}
+void AudioHost::unload(){bool restart=running();auto id=device;auto size=buffer;stop();engine->unload();sf2.reset();sf2Active=false;instrument.clear();if(restart)open(id,size);}
 void AudioHost::parameters(const std::array<float,14>& params,bool enabled){
  for(float v:params)if(!std::isfinite(v)||v<0||v>1)throw std::invalid_argument("Invalid audio parameter");
  revision.fetch_add(1,std::memory_order_seq_cst);
@@ -71,7 +82,7 @@ void AudioHost::parameters(const std::array<float,14>& params,bool enabled){
  revision.fetch_add(1,std::memory_order_seq_cst);
 }
 void AudioHost::resetPerformance() noexcept {modulation.store(0);sustain.store(0);bend.store(0);bendSeen.store(true);}
-void AudioHost::restorePerformance(){auto mod=modulation.load(),pedal=sustain.load();if(mod>=0)engine->cc(1,mod);if(pedal>=0)engine->cc(64,pedal);if(bendSeen.load())engine->pitchBend(bend.load());}
+void AudioHost::restorePerformance(){auto mod=modulation.load(),pedal=sustain.load();if(mod>=0)(sf2Active?sf2->cc(1,mod):engine->cc(1,mod));if(pedal>=0)(sf2Active?sf2->cc(64,pedal):engine->cc(64,pedal));if(bendSeen.load())(sf2Active?sf2->pitchBend(bend.load()+8192):engine->pitchBend(bend.load()));}
 void AudioHost::send(MidiMessage message) noexcept {
  if(!message.valid())return;
  auto kind=message.status&0xf0;
@@ -92,14 +103,14 @@ int AudioHost::render(float** output,unsigned long frames,PaStreamCallbackFlags 
   unsigned before=revision.load(std::memory_order_seq_cst);
   if(!(before&1)&&before!=applied){std::array<float,14> snapshot;for(std::size_t i=0;i<snapshot.size();++i)snapshot[i]=values[i].load(std::memory_order_seq_cst);
    bool enabled=desiredAdsr.load(std::memory_order_seq_cst);
-   if(before==revision.load(std::memory_order_seq_cst)){engine->parameters(snapshot,enabled);current=snapshot;currentAdsr=enabled;applied=before;}}
+   if(before==revision.load(std::memory_order_seq_cst)){if(!sf2Active)engine->parameters(snapshot,enabled);current=snapshot;currentAdsr=enabled;applied=before;}}
   if(midi.takeOverflow()||panicRequested.exchange(false)){
-   MidiMessage ignored;for(int i=0;i<1024&&midi.pop(ignored);++i){}engine->panic();resetPerformance();restorePerformance();
+   MidiMessage ignored;for(int i=0;i<1024&&midi.pop(ignored);++i){}if(sf2Active)sf2->panic();else engine->panic();resetPerformance();restorePerformance();
   }else{
    MidiMessage m;for(int i=0;i<1024&&midi.pop(m);++i){auto kind=m.status&0xf0;
-    if(kind==0x90)engine->noteOn(m.data1,m.data2);else if(kind==0x80)engine->noteOff(m.data1,m.data2);else if(kind==0xb0){engine->cc(m.data1,m.data2);if(m.data1==121){engine->cc(1,0);engine->cc(64,0);engine->pitchBend(0);}}else if(kind==0xe0)engine->pitchBend(m.pitchBend());}
+    if(kind==0x90)(sf2Active?sf2->noteOn(m.data1,m.data2):engine->noteOn(m.data1,m.data2));else if(kind==0x80)(sf2Active?sf2->noteOff(m.data1):engine->noteOff(m.data1,m.data2));else if(kind==0xb0){(sf2Active?sf2->cc(m.data1,m.data2):engine->cc(m.data1,m.data2));if(m.data1==121){(sf2Active?sf2->cc(1,0):engine->cc(1,0));(sf2Active?sf2->cc(64,0):engine->cc(64,0));(sf2Active?sf2->pitchBend(8192):engine->pitchBend(0));}}else if(kind==0xe0)(sf2Active?sf2->pitchBend(m.pitchBend()+8192):engine->pitchBend(m.pitchBend()));}
   }
-  for(unsigned long i=0;i<frames;){int size=static_cast<int>(std::min<unsigned long>(256,frames-i));engine->render(output[0]+i,output[1]+i,size);i+=size;}
+  for(unsigned long i=0;i<frames;){int size=static_cast<int>(std::min<unsigned long>(256,frames-i));if(sf2Active)sf2->render(output[0]+i,output[1]+i,size);else engine->render(output[0]+i,output[1]+i,size);i+=size;}
   return paContinue;
  }catch(...){std::fill_n(output[0],frames,0);std::fill_n(output[1],frames,0);fault.store(true);return paContinue;}
 }
