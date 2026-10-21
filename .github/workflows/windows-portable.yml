@@ -31,6 +31,13 @@ jobs:
           msystem: MINGW64
           update: false
           install: mingw-w64-x86_64-fluidsynth
+      - name: Locate actual MSYS2 FluidSynth runtime
+        shell: msys2 {0}
+        run: |
+          set -e
+          test -f /mingw64/bin/libfluidsynth-3.dll
+          cygpath -w /mingw64/bin > fluidsynth-bin-path.txt
+          ls -l /mingw64/bin/libfluidsynth-3.dll
       - name: Download evaluated SF2 banks
         shell: pwsh
         run: python scripts/download_evaluation_sf2.py soundbank/sf2
@@ -44,14 +51,10 @@ jobs:
           foreach($name in @('CP80','Pianet T','Wurlitzer EP200')) { Copy-Item "recovery/extracted/live/samples/$name" "$dest/$name" -Recurse }
           New-Item -ItemType Directory -Force "$dest/soundbank" | Out-Null
           Copy-Item 'soundbank/sf2' "$dest/soundbank/sf2" -Recurse
-          $dllroot='C:/msys64/mingw64/bin'
-          if(-not (Test-Path (Join-Path $dllroot 'libfluidsynth-3.dll'))) {
-            $candidates=Get-ChildItem 'C:/msys64' -Filter 'libfluidsynth*.dll' -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match '\\bin\\' }
-            if(-not $candidates){throw 'FluidSynth DLL was not installed by MSYS2'}
-            $dllroot=$candidates[0].DirectoryName
-          }
+          $dllroot=(Get-Content 'fluidsynth-bin-path.txt' -Raw).Trim()
+          if(-not (Test-Path (Join-Path $dllroot 'libfluidsynth-3.dll'))){throw "FluidSynth missing at actual MSYS2 location: $dllroot"}
           $queue=[System.Collections.Generic.Queue[string]]::new()
-          $fluid=Get-ChildItem $dllroot -Filter 'libfluidsynth*.dll' | Select-Object -First 1
+          $fluid=Get-Item (Join-Path $dllroot 'libfluidsynth-3.dll')
           if(-not $fluid){throw 'FluidSynth DLL missing'}
           $queue.Enqueue($fluid.Name)
           $seen=[System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
@@ -61,7 +64,23 @@ jobs:
             $source=Join-Path $dllroot $dll
             if(-not (Test-Path $source)){throw "FluidSynth dependency missing: $dll"}
             Copy-Item $source $dest
-            $deps=& 'C:/msys64/usr/bin/objdump.exe' -p $source | Select-String 'DLL Name: (.+)$'
+            $deps=& (Join-Path $dllroot 'objdump.exe') -p $source | Select-String 'DLL Name: (.+)
+            foreach($match in $deps){
+              $dependency=$match.Matches[0].Groups[1].Value.Trim()
+              if(Test-Path (Join-Path $dllroot $dependency)){$queue.Enqueue($dependency)}
+            }
+          }
+          if($fluid.Name -ne 'libfluidsynth-3.dll'){Copy-Item (Join-Path $dllroot $fluid.Name) "$dest/libfluidsynth-3.dll"}
+          if(-not (Test-Path "$dest/libfluidsynth-3.dll")){throw 'Missing FluidSynth runtime'}
+          Set-Content -Path "$dest/LEIA-ME.txt" -Value 'Teste Windows ASIO: abra LivePerformance.exe. Inclui CP80, Pianet T e Wurlitzer SFZ recuperados, cinco bancos SF2 FreePats CC0 e FluidSynth. Os demais SFZ aprovados ainda precisam de suas amostras originais.' -Encoding UTF8
+          Compress-Archive -Path "$dest/*" -DestinationPath 'LivePerformance-Windows-x64-ASIO-Teste.zip'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LivePerformance-Windows-x64-ASIO-Teste
+          path: LivePerformance-Windows-x64-ASIO-Teste.zip
+          retention-days: 7
+
+
             foreach($match in $deps){
               $dependency=$match.Matches[0].Groups[1].Value.Trim()
               if(Test-Path (Join-Path $dllroot $dependency)){$queue.Enqueue($dependency)}
