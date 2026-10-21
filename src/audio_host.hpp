@@ -2,6 +2,8 @@
 #include "sfizz_engine.hpp"
 #include "sf2_engine.hpp"
 #include "midi.hpp"
+#include "performance.hpp"
+#include "sf2_reference.hpp"
 #include "portaudio.h"
 #include <atomic>
 #include <memory>
@@ -24,6 +26,9 @@ public:
  void loadSf2(const std::filesystem::path& sf2,int bank,int program,const std::array<float,14>& parameters,bool adsrEnabled=false);
  std::vector<Sf2Preset> sf2Presets(const std::filesystem::path& sf2) const;
  void unload();
+ void loadPerformance(const Performance& performance);
+ bool performanceActive() const noexcept {return activePerformance;}
+ void setPerformancePartParameters(std::size_t index,const std::array<float,14>& params,bool adsrEnabled);
  void parameters(const std::array<float,14>& values,bool adsrEnabled=false);
  void send(MidiMessage message) noexcept;
  void panic() noexcept;
@@ -49,6 +54,13 @@ private:
  std::unique_ptr<Sf2Engine> sf2;
  bool sf2Active=false;
  std::unique_ptr<SfizzEngine> engine;
+ struct PartSynth {std::unique_ptr<SfizzEngine> sfz;std::unique_ptr<Sf2Engine> sf2;};
+ std::array<PartSynth,4> partSynths{};
+ Performance performance{};
+ bool activePerformance=false;
+ std::array<float,256> scratchLeft{},scratchRight{};
+ void panicAll() noexcept;
+ void restorePartControls();
  PaStream* stream{};int device=-1;unsigned long buffer=0;
  MidiQueue<> midi;
  std::atomic<bool> panicRequested{false},fault{false};
