@@ -102,3 +102,7 @@ if(LP_REAL_FLUIDSYNTH AND LP_REAL_SF2)
  target_link_libraries(lp_real_sf2_test PRIVATE lp_engine)
  add_test(NAME real_sf2_render_adsr COMMAND lp_real_sf2_test "${LP_REAL_FLUIDSYNTH}" "${LP_REAL_SF2}")
 endif()
+
+add_executable(lp_performance_midi_integration_test tests/performance_midi_integration_test.cpp)
+target_include_directories(lp_performance_midi_integration_test PRIVATE src)
+add_test(NAME performance_midi_integration COMMAND lp_performance_midi_integration_test)
