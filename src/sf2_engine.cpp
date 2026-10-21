@@ -84,7 +84,7 @@ void Sf2Engine::parameters(const std::array<float,14>& values,bool enabled){
  impl->dsp.parameters(values);
  if(!loaded())return;
  auto env=envelopeValues(values);
- if(!enabled){impl->adsrEnabled=false;return;}
+ if(!enabled){if(impl->adsrEnabled){for(int gen:{34,36,37,38})impl->setGen(impl->synth,0,gen,0.f);}impl->adsrEnabled=false;return;}
  if(impl->adsrEnabled && env==impl->envelope)return;
  // SoundFont volume envelope generators: timecents and centibels.
  auto timecents=[](float seconds){return std::clamp(1200.f*std::log2(std::max(seconds,.001f)),-12000.f,8000.f);};
