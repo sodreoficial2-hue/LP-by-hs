@@ -20,6 +20,9 @@
 #include "audio_preferences.hpp"
 #include <memory>
 #include <string>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
 
 namespace {
 constexpr int Catalog=100,Favorites=101,Save=102,Open=103,Midi=104,Effects=105,Import=106,ImportSf2=114,AudioDriver=107,AudioBuffer=108,AudioStart=109,AudioStop=110,AudioPanel=111,Panic=112,Category=113,Knob=200,MidiLearnKnob=115,PerformanceButton=116,PerformanceModeControl=117,PerformancePartBase=118,PerformancePlay=122,PerformanceSave=123,PerformanceName=124,PerformanceEditPart=125,PerformanceClearBase=126;
@@ -60,6 +63,43 @@ struct App {
  std::vector<lp::AudioDevice> audioDevices;
  const std::array<unsigned long,7> buffers{0,64,128,256,512,1024,2048};
  std::filesystem::path settingsPath;
+ std::filesystem::path mySoundsPath() const {return settingsPath.parent_path()/L"my_sounds.catalog";}
+ bool addMySound(lp::Instrument item){
+  auto reference=lp::instrumentReference(item);
+  for(const auto& existing:instruments)if(existing.category==14&&lp::instrumentReference(existing)==reference)return false;
+  item.category=14;instruments.push_back(std::move(item));return true;
+ }
+ void saveMySounds(){
+  if(settingsPath.empty())throw std::runtime_error("Pasta de Meus Sons indisponível");
+  auto target=mySoundsPath(),temp=target;temp+=L".tmp";
+  {
+   std::ofstream out(temp,std::ios::binary|std::ios::trunc);
+   if(!out)throw std::runtime_error("Não foi possível gravar Meus Sons");
+   out<<"LPHS_MY_SOUNDS 1\n";
+   for(const auto& item:instruments)if(item.category==14)
+    out<<std::quoted(item.sfz.u8string())<<' '<<std::quoted(item.name)<<'\n';
+   out.flush();if(!out)throw std::runtime_error("Falha ao salvar Meus Sons");
+  }
+  if(!MoveFileExW(temp.c_str(),target.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH))
+   throw std::runtime_error("Não foi possível atualizar Meus Sons");
+ }
+ void loadMySounds(){
+  if(settingsPath.empty())return;
+  std::ifstream in(mySoundsPath(),std::ios::binary);
+  if(!in)return;
+  std::string header;if(!std::getline(in,header)||header!="LPHS_MY_SOUNDS 1")
+   throw std::runtime_error("Catálogo Meus Sons inválido");
+  std::string line;
+  while(std::getline(in,line)){
+   if(line.empty())continue;
+   std::istringstream row(line);std::string reference,name,extra;
+   if(!(row>>std::quoted(reference)>>std::quoted(name))||(row>>extra)||reference.empty()||name.empty())
+    throw std::runtime_error("Entrada inválida em Meus Sons");
+   lp::Instrument item;item.sfz=std::filesystem::u8path(reference);item.name=name;item.category=14;
+   addMySound(std::move(item));
+  }
+ }
+
  std::string selectedMidiName() const {auto index=SendMessageW(midi,CB_GETCURSEL,0,0);if(index<=0)return {};MIDIINCAPSW caps{};return midiInGetDevCapsW(static_cast<UINT>(index-1),&caps,sizeof(caps))==MMSYSERR_NOERROR?std::filesystem::path(caps.szPname).u8string():std::string{};}
  void persistAudioAndMidi(){if(!engine||!engine->running())return;lp::rememberConnectedAudio(*engine,settingsPath);auto prefs=lp::AudioSettings::load(settingsPath);prefs.midi=selectedMidiName();prefs.save(settingsPath);}
  void openMidiSelection(){closeMidi();auto index=SendMessageW(midi,CB_GETCURSEL,0,0);if(index>0){auto result=midiInOpen(&midiHandle,static_cast<UINT>(index-1),reinterpret_cast<DWORD_PTR>(window),0,CALLBACK_WINDOW);if(result!=MMSYSERR_NOERROR)throw std::runtime_error("Cannot open MIDI input");if(midiInStart(midiHandle)!=MMSYSERR_NOERROR){closeMidi();throw std::runtime_error("Cannot start MIDI input");}}}
@@ -163,6 +203,7 @@ struct App {
    if(FAILED(folderResult)||!roaming){if(roaming)CoTaskMemFree(roaming);throw std::runtime_error("Pasta permanente de configurações de áudio indisponível");}
    auto folder=std::filesystem::path(roaming)/L"Live Performance by Hugo Sodre";CoTaskMemFree(roaming);
    std::filesystem::create_directories(folder);settingsPath=folder/L"audio.settings";
+   try{loadMySounds();refreshCatalog();}catch(const std::exception& e){error(e);}
    if(std::filesystem::exists(settingsPath)){
     auto saved=lp::AudioSettings::load(settingsPath);int device=lp::resolveAsioDriver(audioDevices,saved.driver);
     for(std::size_t i=0;i<audioDevices.size();++i)if(audioDevices[i].id==device)SendMessageW(audioDriver,CB_SETCURSEL,i+1,0);
@@ -339,8 +380,8 @@ struct App {
      show.performanceLibrary[static_cast<std::size_t>(activePerformanceIndex)]=lp::savePerformance(editingPerformance);
     show.save(path);
    }else{show.load(path);router.cancelLearn();editingPerformanceValid=false;activePerformanceIndex=-1;previewActive=false;show.current.reset();if(engine)engine->unload();refreshFavorites();refreshCatalog();}message(L"Perfil processado. Formato novo .lphs; INI antigo ainda não é compatível.");}}
-  if(id==Import){std::filesystem::path path;if(fileDialog(false,true,path)){lp::Instrument p;p.sfz=path;p.name=path.stem().u8string();p.category=14;instruments.push_back(p);SendMessageW(category,CB_SETCURSEL,14,0);refreshCatalog();SendMessageW(catalog,LB_SETCURSEL,visibleInstruments.size()-1,0);}}
-  if(id==ImportSf2){std::filesystem::path path;if(sf2Dialog(path)){if(!engine)throw std::runtime_error("Audio engine unavailable");auto presets=engine->sf2Presets(path);if(presets.empty())throw std::runtime_error("SF2 has no presets");for(const auto& preset:presets){lp::Instrument p;p.sfz=std::filesystem::u8path(lp::makeSf2Reference(path,preset.bank,preset.program));p.name=path.stem().u8string()+" / "+preset.name+" ("+std::to_string(preset.bank)+":"+std::to_string(preset.program)+")";p.category=14;instruments.push_back(std::move(p));}SendMessageW(category,CB_SETCURSEL,14,0);refreshCatalog();message(L"SF2 importado: escolha um preset na lista Meus Sons.");}}
+  if(id==Import){std::filesystem::path path;if(fileDialog(false,true,path)){lp::Instrument p;p.sfz=path;p.name=path.stem().u8string();p.category=14;if(addMySound(std::move(p)))saveMySounds();SendMessageW(category,CB_SETCURSEL,14,0);refreshCatalog();SendMessageW(catalog,LB_SETCURSEL,visibleInstruments.size()-1,0);}}
+  if(id==ImportSf2){std::filesystem::path path;if(sf2Dialog(path)){if(!engine)throw std::runtime_error("Audio engine unavailable");auto presets=engine->sf2Presets(path);if(presets.empty())throw std::runtime_error("SF2 has no presets");for(const auto& preset:presets){lp::Instrument p;p.sfz=std::filesystem::u8path(lp::makeSf2Reference(path,preset.bank,preset.program));p.name=path.stem().u8string()+" / "+preset.name+" ("+std::to_string(preset.bank)+":"+std::to_string(preset.program)+")";p.category=14;addMySound(std::move(p));}saveMySounds();SendMessageW(category,CB_SETCURSEL,14,0);refreshCatalog();message(L"SF2 importado: escolha um preset na lista Meus Sons.");}}
   if(id==Category&&event==CBN_SELCHANGE)refreshCatalog();
   if(id==Catalog&&event==LBN_DBLCLK)audition();
   if(id==Favorites&&event==LBN_SELCHANGE){auto slot=SendMessageW(favorites,LB_GETCURSEL,0,0);if(slot>=0)activate(static_cast<unsigned>(slot));}
