@@ -35,7 +35,8 @@ struct Patch {
 struct SavedPerformancePart {bool enabled=false;std::string instrument;int low=0,high=127,transpose=0;Patch patch{};};
 struct SavedPerformance {std::string name;bool split=false;std::array<SavedPerformancePart,4> parts{};};
 struct Session {
- std::array<std::optional<SavedPerformance>,20> performances{};
+ std::array<std::optional<SavedPerformance>,20> performances{}; // Legacy v5 migration only.
+ std::vector<SavedPerformance> performanceLibrary; // Independent, per-show collection.
  std::array<std::optional<Patch>,20> favorites;
  std::optional<std::size_t> current;
  // MIDI wire values 0..19 correspond to controller labels 1..20.
@@ -53,7 +54,7 @@ struct Session {
  void save(const std::filesystem::path& path) const {
   // Caller chooses path; does not auto-save shows.
   std::ostringstream f;
-  f << "LPHS_PROFILE 5\n" << std::setprecision(9);
+  f << "LPHS_PROFILE 6\n" << std::setprecision(9);
   for(std::size_t i=0;i<favorites.size();++i) if(favorites[i]) {
    auto& p=*favorites[i];
    if(!p.button.valid()||(p.button.kind!=0&&p.button.number!=static_cast<int>(i))) throw std::runtime_error("Invalid MIDI button");
@@ -69,9 +70,10 @@ struct Session {
   for(std::size_t a=0;a<favorites.size();++a)if(favorites[a])
    for(std::size_t b=a+1;b<favorites.size();++b)if(favorites[b]&&favorites[a]->button.same(favorites[b]->button))
     throw std::runtime_error("Duplicate MIDI button");
-  for(std::size_t slot=0;slot<20;++slot)if(performances[slot]){
-   const auto& performance=*performances[slot];
-   if(!favorites[slot]||performance.name.empty()||performance.name.size()>128)throw std::runtime_error("Invalid saved Performance");
+  if(performanceLibrary.size()>256)throw std::runtime_error("Too many Performances");
+  for(std::size_t slot=0;slot<performanceLibrary.size();++slot){
+   const auto& performance=performanceLibrary[slot];
+   if(performance.name.empty()||performance.name.size()>128)throw std::runtime_error("Invalid saved Performance");
    f<<"PERFORMANCE "<<slot<<' '<<std::quoted(performance.name)<<' '<<(performance.split?1:0)<<'\n';
    int active=0;
    for(std::size_t part=0;part<4;++part){
@@ -90,23 +92,23 @@ struct Session {
  }
  void load(const std::filesystem::path& path) {
   std::ifstream f(path,std::ios::binary); std::string magic; int version=0;
-  if(!(f>>magic>>version) || magic!="LPHS_PROFILE" || (version<1||version>5))
+  if(!(f>>magic>>version) || magic!="LPHS_PROFILE" || (version<1||version>6))
    throw std::runtime_error("Invalid profile header");
   Session candidate; unsigned slot;
   for(;;) {
    f>>std::ws; if(f.eof()) break;
-   if(version==5){
+   if(version>=5){
     std::string line;std::getline(f,line);
     std::istringstream record(line);
     std::string tag;record>>tag;
     if(tag=="PERFORMANCE"){
-     int split=-1;if(!(record>>slot)||slot>=20||candidate.performances[slot])throw std::runtime_error("Invalid Performance slot");
+     int split=-1;if(!(record>>slot)||slot>255||(version==5&&slot>=20)||(version==5&&candidate.performances[slot])||(version==6&&slot!=candidate.performanceLibrary.size()))throw std::runtime_error("Invalid Performance slot");
      SavedPerformance p;if(!(record>>std::quoted(p.name)>>split)||p.name.empty()||p.name.size()>128||(split!=0&&split!=1))throw std::runtime_error("Invalid Performance header");
-     p.split=split!=0;candidate.performances[slot]=std::move(p);continue;
+     p.split=split!=0;if(version==5)candidate.performances[slot]=std::move(p);else candidate.performanceLibrary.push_back(std::move(p));continue;
     }
     if(tag=="PART"){
-     unsigned part=0;int adsr=-1;if(!(record>>slot>>part)||slot>=20||part>=4||!candidate.performances[slot])throw std::runtime_error("Invalid Performance part");
-     auto& p=candidate.performances[slot]->parts[part];
+     unsigned part=0;int adsr=-1;if(!(record>>slot>>part)||part>=4||(version==5?(slot>=20||!candidate.performances[slot]):slot>=candidate.performanceLibrary.size()))throw std::runtime_error("Invalid Performance part");
+     auto& p=(version==5?candidate.performances[slot]->parts[part]:candidate.performanceLibrary[slot].parts[part]);
      if(p.enabled||!(record>>std::quoted(p.instrument)>>p.low>>p.high>>p.transpose>>adsr)||p.instrument.empty()||p.low<0||p.high>127||p.low>p.high||p.transpose< -48||p.transpose>48||(adsr!=0&&adsr!=1))throw std::runtime_error("Invalid Performance part");
      p.enabled=true;p.patch.adsrEnabled=adsr!=0;
      for(auto& value:p.patch.parameters)if(!(record>>value)||!std::isfinite(value)||value<0||value>1)throw std::runtime_error("Invalid Performance parameter");
@@ -152,6 +154,11 @@ struct Session {
    bool any=false;for(const auto& part:candidate.performances[slot]->parts)any|=part.enabled;
    if(!any)throw std::runtime_error("Empty Performance");
   }
+  if(version==5)for(std::size_t slot=0;slot<20;++slot)if(candidate.performances[slot]){
+   candidate.performanceLibrary.push_back(*candidate.performances[slot]);
+   candidate.favorites[slot].reset();candidate.performances[slot].reset();
+  }
+  for(const auto& performance:candidate.performanceLibrary){bool any=false;for(const auto& part:performance.parts)any|=part.enabled;if(!any)throw std::runtime_error("Empty Performance");}
   *this=std::move(candidate); // Failure never replaces current show.
  }
 };
