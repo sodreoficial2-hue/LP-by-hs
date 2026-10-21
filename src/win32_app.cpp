@@ -31,7 +31,7 @@ LRESULT CALLBACK parameterProc(HWND control,UINT msg,WPARAM wp,LPARAM lp,UINT_PT
  case WM_RBUTTONUP:case WM_CONTEXTMENU:
   SendMessageW(GetParent(control),BeginParameterLearn,parameter,0);return 0;
  case WM_KEYDOWN:case WM_SYSKEYDOWN:
-  if(wp==VK_APPS||(wp==VK_F10&&(GetKeyState(VK_SHIFT)&0x8000))){SendMessageW(GetParent(control),BeginParameterLearn,parameter,0);return 0;}break;
+  if(wp==VK_APPS||(wp==VK_F10&&(GetKeyState(VK_SHIFT)&0x8000))||(wp=='L'&&(GetKeyState(VK_CONTROL)&0x8000))){SendMessageW(GetParent(control),BeginParameterLearn,parameter,0);return 0;}break;
  case WM_KEYUP:case WM_SYSKEYUP:if(wp==VK_APPS||wp==VK_F10)return 0;break;
  case WM_NCDESTROY:RemoveWindowSubclass(control,parameterProc,parameter);break;
  }
