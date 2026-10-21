@@ -1,0 +1,33 @@
+name: SF2 evaluation soundbank
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/sf2-engine]
+    paths: ['.github/workflows/sf2-evaluation-bank.yml']
+jobs:
+  download:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install archive extractor
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq p7zip-full
+      - name: Download and extract CC0 SoundFonts
+        run: python3 scripts/download_evaluation_sf2.py soundbank/sf2
+      - name: Verify all five SF2 banks
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          p=pathlib.Path("soundbank/sf2")
+          banks=list(p.glob("*.sf2"))
+          assert len(banks)==5, f"Expected five SF2 files, got {len(banks)}"
+          for f in banks:
+              assert f.read_bytes()[:4]==b"RIFF",f"{f} is not a RIFF SoundFont"
+              print(f.name, f.stat().st_size)
+          PY
+      - name: Upload evaluation bank
+        uses: actions/upload-artifact@v4
+        with:
+          name: LivePerformance-SF2-FreePats-CC0
+          path: soundbank/sf2/
+          retention-days: 14
