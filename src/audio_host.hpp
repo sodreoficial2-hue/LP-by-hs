@@ -59,6 +59,8 @@ private:
  Performance performance{};
  bool activePerformance=false;
  std::array<float,256> scratchLeft{},scratchRight{};
+ struct PartControl {std::array<std::atomic<float>,14> values;std::atomic<bool> adsr{false};std::atomic<unsigned> revision{0};unsigned applied=0;};
+ std::array<PartControl,4> partControls{};
  void panicAll() noexcept;
  void restorePartControls();
  PaStream* stream{};int device=-1;unsigned long buffer=0;
