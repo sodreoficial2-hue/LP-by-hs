@@ -1,0 +1,17 @@
+name: Windows SFZ SF2 regression
+on:
+  push:
+    branches: [feature/sf2-engine]
+  workflow_dispatch:
+jobs:
+  windows-regression:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure test-only build
+        run: cmake -S . -B build -A x64 -DLP_TEST_ONLY=ON
+      - name: Compile all test targets
+        run: cmake --build build --config Release --parallel 2
+      - name: Execute regression suite
+        run: ctest --test-dir build -C Release --output-on-failure
