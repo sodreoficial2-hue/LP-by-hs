@@ -33,6 +33,11 @@ if(WIN32 AND NOT LP_TEST_ONLY)
  target_link_libraries(lp_audio PUBLIC lp_engine portaudio_static)
  enable_language(RC)
  add_executable(LivePerformance WIN32 src/win32_app.cpp src/windows.rc)
+ # windows.rc already embeds app.manifest as RT_MANIFEST (resource 1).
+ # Disable MSVC's automatic second manifest to prevent CVT1100/LNK1123.
+ if(MSVC)
+  target_link_options(LivePerformance PRIVATE /MANIFEST:NO)
+ endif()
  target_include_directories(LivePerformance PRIVATE src)
  target_link_libraries(LivePerformance PRIVATE lp_audio winmm comctl32 comdlg32 gdi32 user32 shell32 ole32 uuid)
  if(MINGW)
