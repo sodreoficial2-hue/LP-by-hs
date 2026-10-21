@@ -25,6 +25,15 @@ jobs:
           cmake -S . -B build-portable -A x64 "-DLP_PORTAUDIO_SOURCE=$env:RUNNER_TEMP/portaudio" "-DASIOSDK_ROOT_DIR=$env:ASIOSDK_ROOT" -DLP_COPY_RECOVERED_ASSETS=ON
       - name: Compile full application
         run: cmake --build build-portable --config Release --target LivePerformance --parallel 2
+      - name: Install FluidSynth runtime
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: mingw-w64-x86_64-fluidsynth
+      - name: Download evaluated SF2 banks
+        shell: pwsh
+        run: python scripts/download_evaluation_sf2.py soundbank/sf2
       - name: Prepare small Windows portable
         shell: pwsh
         run: |
@@ -33,6 +42,33 @@ jobs:
           Copy-Item 'build-portable/Release/LivePerformance.exe' $dest
           foreach($dll in @('sfizz.dll','sndfile.dll','SDL3.dll')) { Copy-Item "recovery/extracted/live/$dll" $dest }
           foreach($name in @('CP80','Pianet T','Wurlitzer EP200')) { Copy-Item "recovery/extracted/live/samples/$name" "$dest/$name" -Recurse }
+          New-Item -ItemType Directory -Force "$dest/soundbank" | Out-Null
+          Copy-Item 'soundbank/sf2' "$dest/soundbank/sf2" -Recurse
+          $dllroot='C:/msys64/mingw64/bin'
+          $queue=[System.Collections.Generic.Queue[string]]::new()
+          $queue.Enqueue('libfluidsynth-3.dll')
+          $seen=[System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+          while($queue.Count -gt 0) {
+            $dll=$queue.Dequeue()
+            if(-not $seen.Add($dll)){continue}
+            $source=Join-Path $dllroot $dll
+            if(-not (Test-Path $source)){throw "FluidSynth dependency missing: $dll"}
+            Copy-Item $source $dest
+            $deps=& 'C:/msys64/usr/bin/objdump.exe' -p $source | Select-String 'DLL Name: (.+)
+          Set-Content -Path "$dest/LEIA-ME.txt" -Value 'Teste Windows ASIO: abra LivePerformance.exe. Inclui CP80, Pianet T e Wurlitzer SFZ recuperados, cinco bancos SF2 FreePats CC0 e FluidSynth. Os demais SFZ aprovados ainda precisam de suas amostras originais.' -Encoding UTF8
+          Compress-Archive -Path "$dest/*" -DestinationPath 'LivePerformance-Windows-x64-ASIO-Teste.zip'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LivePerformance-Windows-x64-ASIO-Teste
+          path: LivePerformance-Windows-x64-ASIO-Teste.zip
+          retention-days: 7
+
+            foreach($match in $deps){
+              $dependency=$match.Matches[0].Groups[1].Value.Trim()
+              if(Test-Path (Join-Path $dllroot $dependency)){$queue.Enqueue($dependency)}
+            }
+          }
+          if(-not (Test-Path "$dest/libfluidsynth-3.dll")){throw 'Missing FluidSynth runtime'}
           Set-Content -Path "$dest/LEIA-ME.txt" -Value 'Teste Windows ASIO: abra LivePerformance.exe. Bibliotecas completas selecionadas ainda devem ser adicionadas. FluidSynth DLL/SF2 devem ser instalados ao lado do EXE para importar SF2.' -Encoding UTF8
           Compress-Archive -Path "$dest/*" -DestinationPath 'LivePerformance-Windows-x64-ASIO-Teste.zip'
       - uses: actions/upload-artifact@v4
