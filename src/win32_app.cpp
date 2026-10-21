@@ -49,6 +49,7 @@ struct App {
  lp::Performance editingPerformance{};
  bool editingPerformanceValid=false;
  int editingPart=0;
+ int learningPerformanceParameter=-1;
  std::array<HWND,4> performancePartControls{};
  bool performanceVisible=false;
  std::vector<lp::AudioDevice> audioDevices;
@@ -210,11 +211,17 @@ struct App {
  std::wstring parameterName(int index){return std::wstring(lp::parameterNames[index],lp::parameterNames[index]+std::char_traits<char>::length(lp::parameterNames[index]));}
  void beginParameterLearn(std::size_t index){
   if(index>=sliders.size())return;
+  if(editingPerformanceValid&&engine&&engine->performanceActive()){
+   if(!midiHandle){message(L"Selecione a entrada MIDI antes de aprender o controle.");return;}
+   if(!editingPerformance.parts[editingPart].enabled){message(L"Selecione uma parte ativa.");return;}
+   router.cancelLearn();learningPerformanceParameter=static_cast<int>(index);
+   message(L"MIDI Learn da parte "+std::to_wstring(editingPart+1)+L": mova o controle fisico. ESC cancela.");return;
+  }
   if(!show.current||!show.favorites[*show.current]){message(L"Selecione um timbre nos Favoritos antes de mapear os parâmetros MIDI.");return;}
   if(!midiHandle){message(L"Selecione a entrada MIDI do seu teclado antes de iniciar o MIDI Learn.");return;}
   try{router.learn(index);refreshParameters();SetFocus(sliders[index]);message(L"MIDI Learn — "+parameterName(static_cast<int>(index))+L": mova o fader ou knob físico do teclado que envia CC. ESC cancela.");}catch(const std::exception& e){error(e);}
  }
- void cancelMidiLearn(){bool wasLearning=router.learning();router.cancelLearn();refreshParameters();if(wasLearning)message(L"MIDI Learn cancelado.");}
+ void cancelMidiLearn(){bool wasLearning=router.learning()||learningPerformanceParameter>=0;learningPerformanceParameter=-1;router.cancelLearn();refreshParameters();if(wasLearning)message(L"MIDI Learn cancelado.");}
  void refreshCatalog(){SendMessageW(catalog,LB_RESETCONTENT,0,0);visibleInstruments.clear();auto selected=SendMessageW(category,CB_GETCURSEL,0,0);for(std::size_t i=0;i<instruments.size();++i){const auto& p=instruments[i];if(selected<0||p.category!=static_cast<unsigned>(selected))continue;visibleInstruments.push_back(i);auto name=std::filesystem::u8path(p.name).wstring();SendMessageW(catalog,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(name.c_str()));}if(!visibleInstruments.empty())SendMessageW(catalog,LB_SETCURSEL,0,0);}
  void refreshFavorites(){SendMessageW(favorites,LB_RESETCONTENT,0,0);for(int i=0;i<20;++i){std::wstring name=std::to_wstring(i+1)+L". ";name+=show.performances[i]?std::filesystem::u8path(show.performances[i]->name).wstring():(show.favorites[i]?std::filesystem::u8path(lp::instrumentName(show.favorites[i]->sfz,instruments)).wstring():L"Vazio");SendMessageW(favorites,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(name.c_str()));}refreshParameters();}
  void refreshParameters(){for(int i=0;i<14;++i){float value=editingPerformanceValid&&engine&&engine->performanceActive()?editingPerformance.parts[editingPart].patch.parameters[i]:(show.current&&show.favorites[*show.current]?show.favorites[*show.current]->parameters[i]:0);auto text=std::wstring(lp::parameterNames[i],lp::parameterNames[i]+std::char_traits<char>::length(lp::parameterNames[i]))+L": "+std::to_wstring(static_cast<int>(value*100))+L"%";if(i>=1&&i<=4&&show.current&&show.favorites[*show.current]&&!show.favorites[*show.current]->adsrEnabled)text+=L" (SFZ original)";if(show.current&&show.favorites[*show.current]){int cc=show.favorites[*show.current]->cc[i];if(cc>=0)text+=L" — CC "+std::to_wstring(cc);}
@@ -248,7 +255,7 @@ struct App {
   if(id==PerformanceButton){performanceVisible=!performanceVisible;effects=false;
    for(int i=0;i<4;++i){SendMessageW(performancePartControls[i],CB_RESETCONTENT,0,0);SendMessageW(performancePartControls[i],CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Desativado"));for(const auto& instrument:instruments){auto name=std::filesystem::u8path(instrument.name).wstring();SendMessageW(performancePartControls[i],CB_ADDSTRING,0,reinterpret_cast<LPARAM>(name.c_str()));}SendMessageW(performancePartControls[i],CB_SETCURSEL,0,0);}
    layout();SetFocus(performanceVisible?performanceMode:catalog);}
-  if(id==PerformanceEditPart&&event==CBN_SELCHANGE&&editingPerformanceValid){
+  if(id==PerformanceEditPart&&event==CBN_SELCHANGE&&editingPerformanceValid){learningPerformanceParameter=-1;
    editingPart=static_cast<int>(SendMessageW(performanceEditPart,CB_GETCURSEL,0,0));
    if(editingPart>=0&&editingPart<4){
     const auto& patch=editingPerformance.parts[editingPart].patch;
@@ -269,7 +276,7 @@ struct App {
    refreshFavorites();SendMessageW(favorites,LB_SETCURSEL,slot,0);
    message(L"Performance salva nos Favoritos. Use Salvar perfil para gravar em disco.");
   }
-  if(id==PerformancePlay){if(!engine)throw std::runtime_error("Audio engine unavailable");lp::Performance selected;selected.name="Performance";int mode=static_cast<int>(SendMessageW(performanceMode,CB_GETCURSEL,0,0));selected.mode=mode==0?lp::PerformanceMode::Layer:lp::PerformanceMode::Split;
+  if(id==PerformancePlay){learningPerformanceParameter=-1;if(!engine)throw std::runtime_error("Audio engine unavailable");lp::Performance selected;selected.name="Performance";int mode=static_cast<int>(SendMessageW(performanceMode,CB_GETCURSEL,0,0));selected.mode=mode==0?lp::PerformanceMode::Layer:lp::PerformanceMode::Split;
    constexpr int boundaries[5][5]={{0,0,0,0,128},{0,0,64,64,128},{0,0,0,0,128},{0,0,0,64,128},{0,32,64,96,128}};
    for(int i=0;i<4;++i){int item=static_cast<int>(SendMessageW(performancePartControls[i],CB_GETCURSEL,0,0));if(item<=0)continue;auto& part=selected.parts[i];part.enabled=true;part.instrument=lp::instrumentReference(instruments[static_cast<std::size_t>(item-1)]);if(mode==1){part.low=i<2?0:64;part.high=i<2?63:127;}else if(mode==2){part.low=i<3?0:64;part.high=i<3?63:127;}else if(mode==3){part.low=i<2?0:(i==2?43:86);part.high=i<2?42:(i==2?85:127);}else if(mode==4){part.low=i*32;part.high=i==3?127:i*32+31;}}
    wchar_t name[256]{};GetWindowTextW(performanceName,name,256);selected.name=std::filesystem::path(name).u8string();
@@ -284,7 +291,32 @@ struct App {
   if(id==Favorites&&event==LBN_SELCHANGE){auto slot=SendMessageW(favorites,LB_GETCURSEL,0,0);if(slot>=0)activate(static_cast<unsigned>(slot));}
   if(id==Midi&&event==CBN_SELCHANGE){cancelMidiLearn();openMidiSelection();persistAudioAndMidi();}
  }catch(const std::exception& e){error(e);}}
- void midiEvent(DWORD packed){try{auto midiMessage=lp::MidiMessage::packed(packed);auto result=router.route(midiMessage);if(result.action==lp::MidiAction::WrongProgram){message(L"Aguardando PC "+std::to_wstring(result.index+1)+L". Recebido PC "+std::to_wstring(result.value+1)+L". Configure o botão do controlador para o número do favorito.");}
+ void midiEvent(DWORD packed){try{auto midiMessage=lp::MidiMessage::packed(packed);
+  if(editingPerformanceValid&&engine&&engine->performanceActive()&&((midiMessage.status&0xf0)==0xb0)&&midiMessage.data1!=64&&midiMessage.data1<120){
+   bool consumed=false;
+   if(learningPerformanceParameter>=0){
+    auto& part=editingPerformance.parts[editingPart];int index=learningPerformanceParameter;learningPerformanceParameter=-1;
+    for(auto& cc:part.patch.cc)if(cc==midiMessage.data1)cc=-1;
+    part.patch.cc[index]=midiMessage.data1;
+    part.patch.parameters[index]=midiMessage.data2/127.f;
+    if(index>=1&&index<=4)part.patch.adsrEnabled=true;
+    engine->setPerformancePartParameters(editingPart,part.patch.parameters,part.patch.adsrEnabled);
+    message(L"CC "+std::to_wstring(midiMessage.data1)+L" atribuido a parte "+std::to_wstring(editingPart+1)+L".");
+    consumed=true;
+   }else{
+    for(int p=0;p<4;++p)if(editingPerformance.parts[p].enabled){
+     auto& part=editingPerformance.parts[p];
+     for(int index=0;index<14;++index)if(part.patch.cc[index]==midiMessage.data1){
+      part.patch.parameters[index]=midiMessage.data2/127.f;
+      if(index>=1&&index<=4)part.patch.adsrEnabled=true;
+      engine->setPerformancePartParameters(p,part.patch.parameters,part.patch.adsrEnabled);
+      consumed=true;
+     }
+    }
+   }
+   if(consumed){refreshParameters();return;}
+  }
+  auto result=router.route(midiMessage);if(result.action==lp::MidiAction::WrongProgram){message(L"Aguardando PC "+std::to_wstring(result.index+1)+L". Recebido PC "+std::to_wstring(result.value+1)+L". Configure o botão do controlador para o número do favorito.");}
  else if(result.action==lp::MidiAction::FavoriteLearned){message(L"Program Change "+std::to_wstring(result.index+1)+L" aprendido. Use Salvar perfil para guardar o vínculo.");}
  else if(result.action==lp::MidiAction::Favorite)activate(result.index);else if(result.action==lp::MidiAction::Parameter||result.action==lp::MidiAction::Learned){applyParameters();refreshParameters();if(result.action==lp::MidiAction::Learned)message(L"CC "+std::to_wstring(result.value)+L" aprendido para "+parameterName(result.index)+L". O controle já está ativo. Use Salvar perfil para guardar o mapeamento.");}
  if(engine&&lp::forwardsToEngine(result,midiMessage))engine->send(midiMessage);}catch(const std::exception& e){error(e);}}
