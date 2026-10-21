@@ -39,4 +39,16 @@ struct Performance {
   return transposed>=0&&transposed<=127?transposed:-1;
  }
 };
+inline SavedPerformance savePerformance(const Performance& p){
+ if(!p.valid())throw std::invalid_argument("Invalid Performance");
+ SavedPerformance result;result.name=p.name;result.split=p.mode==PerformanceMode::Split;
+ for(std::size_t i=0;i<4;++i){const auto& source=p.parts[i];auto& target=result.parts[i];target.enabled=source.enabled;target.instrument=source.instrument;target.low=source.low;target.high=source.high;target.transpose=source.transpose;target.patch=source.patch;}
+ return result;
+}
+inline Performance restorePerformance(const SavedPerformance& p){
+ Performance result;result.name=p.name;result.mode=p.split?PerformanceMode::Split:PerformanceMode::Layer;
+ for(std::size_t i=0;i<4;++i){const auto& source=p.parts[i];auto& target=result.parts[i];target.enabled=source.enabled;target.instrument=source.instrument;target.low=source.low;target.high=source.high;target.transpose=source.transpose;target.patch=source.patch;}
+ if(!result.valid())throw std::runtime_error("Corrupt saved Performance");
+ return result;
+}
 }
