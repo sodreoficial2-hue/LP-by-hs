@@ -33,7 +33,7 @@ struct Sf2Engine::Impl {
  Synth* (*newSynth)(Settings*){};void (*deleteSynth)(Synth*){};
  int (*sfload)(Synth*,const char*,int){};
  Font* (*getFont)(Synth*,int){};
- void (*iterStart)(Font*){};Preset* (*iterNext)(Font*){};
+ void (*iterStart)(Font*){};int (*iterNext)(Font*,Preset**){};
  int (*bank)(Preset*){};int (*program)(Preset*){};const char* (*name)(Preset*){};
  int (*select)(Synth*,int,int,int,int){};
  int (*on)(Synth*,int,int,int){};int (*off)(Synth*,int,int){};
@@ -68,7 +68,7 @@ void Sf2Engine::load(const std::filesystem::path& path){
 std::vector<Sf2Preset> Sf2Engine::presets() const{
  std::vector<Sf2Preset> result;if(!loaded())return result;
  auto& x=*impl;auto* f=x.getFont(x.synth,x.font);if(!f)return result;
- x.iterStart(f);while(auto* p=x.iterNext(f)){auto* n=x.name(p);result.push_back({x.bank(p),x.program(p),n?n:"Unnamed"});}
+ x.iterStart(f);Preset* p=nullptr;while(x.iterNext(f,&p)){if(!p)break;auto* n=x.name(p);result.push_back({x.bank(p),x.program(p),n?n:"Unnamed"});}
  return result;
 }
 void Sf2Engine::select(int bank,int program){
