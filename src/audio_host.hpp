@@ -1,5 +1,6 @@
 #pragma once
 #include "sfizz_engine.hpp"
+#include "sf2_engine.hpp"
 #include "midi.hpp"
 #include "portaudio.h"
 #include <atomic>
@@ -20,6 +21,8 @@ public:
  void stop();
  void controlPanel(int device,void* window);
  void load(const std::filesystem::path& sfz,const std::array<float,14>& parameters,bool adsrEnabled=false);
+ void loadSf2(const std::filesystem::path& sf2,int bank,int program,const std::array<float,14>& parameters);
+ std::vector<Sf2Preset> sf2Presets(const std::filesystem::path& sf2) const;
  void unload();
  void parameters(const std::array<float,14>& values,bool adsrEnabled=false);
  void send(MidiMessage message) noexcept;
@@ -42,7 +45,9 @@ private:
  // events are discarded. -1 leaves an untouched SFZ controller default alone.
  std::atomic<int> modulation{-1},sustain{-1},bend{0};
  std::atomic<bool> bendSeen{false};
- std::filesystem::path library,instrument;
+ std::filesystem::path library,instrument,fluidLibrary;
+ std::unique_ptr<Sf2Engine> sf2;
+ bool sf2Active=false;
  std::unique_ptr<SfizzEngine> engine;
  PaStream* stream{};int device=-1;unsigned long buffer=0;
  MidiQueue<> midi;
