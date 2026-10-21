@@ -63,11 +63,11 @@ void AudioHost::load(const std::filesystem::path& path,const std::array<float,14
  engine.swap(candidate);sf2Active=false;restorePerformance();instrument=path;this->parameters(parameters,enabled);
  if(restart){try{open(id,size);}catch(...){engine.swap(candidate);sf2Active=previousSf2;instrument=previousInstrument;this->parameters(previousParameters,previousAdsr);try{open(id,size);}catch(...){fault.store(true);}throw;}}
 }
-void AudioHost::loadSf2(const std::filesystem::path& path,int bank,int program,const std::array<float,14>& params){
+void AudioHost::loadSf2(const std::filesystem::path& path,int bank,int program,const std::array<float,14>& params,bool adsrEnabled){
  auto candidate=std::make_unique<Sf2Engine>(fluidLibrary);candidate->load(path);candidate->select(bank,program);
  bool restart=running();auto id=device;auto size=buffer;stop();
  auto old=std::move(sf2);bool wasSf2=sf2Active;auto oldPath=instrument;
- sf2=std::move(candidate);sf2Active=true;instrument=path;this->parameters(params,true);restorePerformance();
+ sf2=std::move(candidate);sf2Active=true;instrument=path;this->parameters(params,adsrEnabled);restorePerformance();
  if(restart){try{open(id,size);}catch(...){sf2=std::move(old);sf2Active=wasSf2;instrument=oldPath;try{open(id,size);}catch(...){fault.store(true);}throw;}}
 }
 std::vector<Sf2Preset> AudioHost::sf2Presets(const std::filesystem::path& path) const{
