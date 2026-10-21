@@ -1,5 +1,6 @@
 #pragma once
 #include <filesystem>
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -19,6 +20,7 @@ public:
  void cc(int controller,int value);
  void pitchBend(int unsigned14Bit);
  void panic();
+ void parameters(const std::array<float,14>& values,bool adsrEnabled=false);
  void render(float* left,float* right,int frames);
  bool loaded() const noexcept;
 private:
