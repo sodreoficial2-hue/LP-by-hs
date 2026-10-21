@@ -254,6 +254,7 @@ struct App {
   if(id==Panic&&engine){engine->panic();message(L"Pânico: notas e caudas interrompidas.");}
   if(id==PerformanceButton){performanceVisible=!performanceVisible;effects=false;
    for(int i=0;i<4;++i){SendMessageW(performancePartControls[i],CB_RESETCONTENT,0,0);SendMessageW(performancePartControls[i],CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Desativado"));for(const auto& instrument:instruments){auto name=std::filesystem::u8path(instrument.name).wstring();SendMessageW(performancePartControls[i],CB_ADDSTRING,0,reinterpret_cast<LPARAM>(name.c_str()));}SendMessageW(performancePartControls[i],CB_SETCURSEL,0,0);}
+   if(editingPerformanceValid){SetWindowTextW(performanceName,std::filesystem::u8path(editingPerformance.name).wstring().c_str());SendMessageW(performanceEditPart,CB_SETCURSEL,editingPart,0);}
    layout();SetFocus(performanceVisible?performanceMode:catalog);}
   if(id==PerformanceEditPart&&event==CBN_SELCHANGE&&editingPerformanceValid){learningPerformanceParameter=-1;
    editingPart=static_cast<int>(SendMessageW(performanceEditPart,CB_GETCURSEL,0,0));
@@ -270,7 +271,9 @@ struct App {
    int slot=-1;for(int i=0;i<20;++i)if(!show.favorites[i]){slot=i;break;}
    if(slot<0)throw std::runtime_error("Todos os 20 Favoritos estao ocupados");
    show.favorites[slot]=lp::Patch{};
-   show.favorites[slot]->sfz=editingPerformance.parts[0].instrument;
+   auto first=std::find_if(editingPerformance.parts.begin(),editingPerformance.parts.end(),[](const lp::PerformancePart& p){return p.enabled;});
+   if(first==editingPerformance.parts.end())throw std::runtime_error("Performance sem timbres");
+   show.favorites[slot]->sfz=first->instrument;
    show.performances[slot]=lp::savePerformance(editingPerformance);
    show.current=static_cast<std::size_t>(slot);
    refreshFavorites();SendMessageW(favorites,LB_SETCURSEL,slot,0);
