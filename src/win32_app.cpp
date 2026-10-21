@@ -49,6 +49,9 @@ struct App {
  std::vector<lp::AudioDevice> audioDevices;
  const std::array<unsigned long,7> buffers{0,64,128,256,512,1024,2048};
  std::filesystem::path settingsPath;
+ std::string selectedMidiName() const {auto index=SendMessageW(midi,CB_GETCURSEL,0,0);if(index<=0)return {};MIDIINCAPSW caps{};return midiInGetDevCapsW(static_cast<UINT>(index-1),&caps,sizeof(caps))==MMSYSERR_NOERROR?std::filesystem::path(caps.szPname).u8string():std::string{};}
+ void persistAudioAndMidi(){if(!engine||!engine->running())return;lp::rememberConnectedAudio(*engine,settingsPath);auto prefs=lp::AudioSettings::load(settingsPath);prefs.midi=selectedMidiName();prefs.save(settingsPath);}
+ void openMidiSelection(){closeMidi();auto index=SendMessageW(midi,CB_GETCURSEL,0,0);if(index>0){auto result=midiInOpen(&midiHandle,static_cast<UINT>(index-1),reinterpret_cast<DWORD_PTR>(window),0,CALLBACK_WINDOW);if(result!=MMSYSERR_NOERROR)throw std::runtime_error("Cannot open MIDI input");if(midiInStart(midiHandle)!=MMSYSERR_NOERROR){closeMidi();throw std::runtime_error("Cannot start MIDI input");}}}
  bool pendingRestore=false;unsigned restoreAttempts=0;
  HMIDIIN midiHandle{};bool effects=false;
  std::filesystem::path base;
@@ -136,6 +139,8 @@ struct App {
     for(std::size_t i=0;i<audioDevices.size();++i)if(audioDevices[i].id==device)SendMessageW(audioDriver,CB_SETCURSEL,i+1,0);
     auto buffer=std::find(buffers.begin(),buffers.end(),saved.buffer);if(buffer==buffers.end())throw std::runtime_error("Buffer ASIO salvo inválido");
     SendMessageW(audioBuffer,CB_SETCURSEL,buffer-buffers.begin(),0);
+    if(!saved.midi.empty()){for(UINT i=0;i<midiInGetNumDevs();++i){MIDIINCAPSW caps{};if(midiInGetDevCapsW(i,&caps,sizeof(caps))==MMSYSERR_NOERROR&&std::filesystem::path(caps.szPname).u8string()==saved.midi){SendMessageW(midi,CB_SETCURSEL,i+1,0);openMidiSelection();break;}}}
+
     pendingRestore=true;SetTimer(window,2,750,nullptr);message(L"Reconectando automaticamente o último driver ASIO...");
    }
   }catch(const std::exception& e){error(e);message(L"Áudio não inicializado ou configurações não restauradas. Confira o driver ASIO e tente conectar.");}
@@ -188,7 +193,7 @@ struct App {
  bool sf2Dialog(std::filesystem::path& path){wchar_t file[32768]{};OPENFILENAMEW dialog{};dialog.lStructSize=sizeof(dialog);dialog.hwndOwner=window;dialog.lpstrFile=file;dialog.nMaxFile=32768;dialog.lpstrFilter=L"SoundFont SF2\0*.sf2\0\0";dialog.lpstrDefExt=L"sf2";dialog.Flags=OFN_NOCHANGEDIR|OFN_PATHMUSTEXIST|OFN_FILEMUSTEXIST;bool ok=GetOpenFileNameW(&dialog);if(ok)path=file;else if(CommDlgExtendedError())throw std::runtime_error("SF2 file dialog failed");return ok;}
  void command(int id,int event){try{
   if((id==AudioDriver||id==AudioBuffer)&&event==CBN_SELCHANGE&&SendMessageW(audioDriver,CB_GETCURSEL,0,0)<1)return;
-  if(id==AudioStart||((id==AudioDriver||id==AudioBuffer)&&event==CBN_SELCHANGE)){cancelAudioRestore();if(!engine)throw std::runtime_error("Audio engine unavailable; check sfizz.dll and ASIO");auto index=driverIndex();auto selected=SendMessageW(audioBuffer,CB_GETCURSEL,0,0);if(selected<0||static_cast<std::size_t>(selected)>=buffers.size())throw std::runtime_error("Select ASIO buffer");lp::connectAndRemember(*engine,audioDevices[index].id,buffers[selected],settingsPath);audioStatus();}
+  if(id==AudioStart||((id==AudioDriver||id==AudioBuffer)&&event==CBN_SELCHANGE)){cancelAudioRestore();if(!engine)throw std::runtime_error("Audio engine unavailable; check sfizz.dll and ASIO");auto index=driverIndex();auto selected=SendMessageW(audioBuffer,CB_GETCURSEL,0,0);if(selected<0||static_cast<std::size_t>(selected)>=buffers.size())throw std::runtime_error("Select ASIO buffer");lp::connectAndRemember(*engine,audioDevices[index].id,buffers[selected],settingsPath);persistAudioAndMidi();audioStatus();}
   if(id==AudioStop&&engine){cancelAudioRestore();engine->stop();audioStatus();}
   if(id==AudioPanel){if(!engine)throw std::runtime_error("Audio engine unavailable");engine->controlPanel(audioDevices[driverIndex()].id,window);audioStatus();}
   if(id==Panic&&engine){engine->panic();message(L"Pânico: notas e caudas interrompidas.");}
@@ -199,7 +204,7 @@ struct App {
   if(id==Category&&event==CBN_SELCHANGE)refreshCatalog();
   if(id==Catalog&&event==LBN_DBLCLK)audition();
   if(id==Favorites&&event==LBN_SELCHANGE){auto slot=SendMessageW(favorites,LB_GETCURSEL,0,0);if(slot>=0)activate(static_cast<unsigned>(slot));}
-  if(id==Midi&&event==CBN_SELCHANGE){cancelMidiLearn();closeMidi();auto index=SendMessageW(midi,CB_GETCURSEL,0,0);if(index>0){auto result=midiInOpen(&midiHandle,static_cast<UINT>(index-1),reinterpret_cast<DWORD_PTR>(window),0,CALLBACK_WINDOW);if(result!=MMSYSERR_NOERROR)throw std::runtime_error("Cannot open MIDI input");if(midiInStart(midiHandle)!=MMSYSERR_NOERROR){closeMidi();throw std::runtime_error("Cannot start MIDI input");}}}
+  if(id==Midi&&event==CBN_SELCHANGE){cancelMidiLearn();openMidiSelection();persistAudioAndMidi();}
  }catch(const std::exception& e){error(e);}}
  void midiEvent(DWORD packed){try{auto midiMessage=lp::MidiMessage::packed(packed);auto result=router.route(midiMessage);if(result.action==lp::MidiAction::WrongProgram){message(L"Aguardando PC "+std::to_wstring(result.index+1)+L". Recebido PC "+std::to_wstring(result.value+1)+L". Configure o botão do controlador para o número do favorito.");}
  else if(result.action==lp::MidiAction::FavoriteLearned){message(L"Program Change "+std::to_wstring(result.index+1)+L" aprendido. Use Salvar perfil para guardar o vínculo.");}
@@ -226,7 +231,7 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){auto app=reinterpret_
  case WM_CTLCOLORSTATIC:case WM_CTLCOLORLISTBOX:SetTextColor(reinterpret_cast<HDC>(wp),RGB(255,255,255));SetBkColor(reinterpret_cast<HDC>(wp),RGB(12,16,24));return reinterpret_cast<LRESULT>(app->background);
  case WM_ERASEBKGND:{RECT r{};GetClientRect(w,&r);FillRect(reinterpret_cast<HDC>(wp),&r,app->background);return 1;}
  case WM_GETMINMAXINFO:reinterpret_cast<MINMAXINFO*>(lp)->ptMinTrackSize={1000,900};return 0;
- case WM_CLOSE:try{if(app->engine)lp::rememberConnectedAudio(*app->engine,app->settingsPath);}catch(const std::exception& e){app->error(e);}break;
+ case WM_CLOSE:try{if(app->engine)app->persistAudioAndMidi();}catch(const std::exception& e){app->error(e);}break;
  case WM_DESTROY:app->closeMidi();PostQuitMessage(0);return 0;}
  return DefWindowProcW(w,msg,wp,lp);
 }
