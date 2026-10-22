@@ -179,9 +179,11 @@ struct App {
     base/L"soundbank/sf2",base/L"Red Pianos SF2 Punch Pack - Vol 1"};
    for(const auto& sf2Folder:sf2Folders){
     if(!std::filesystem::is_directory(sf2Folder))continue;
-    for(const auto& entry:std::filesystem::recursive_directory_iterator(
-      sf2Folder,std::filesystem::directory_options::skip_permission_denied)){
-     if(entry.depth()>5){entry.disable_recursion_pending();continue;}
+    for(auto it=std::filesystem::recursive_directory_iterator(
+      sf2Folder,std::filesystem::directory_options::skip_permission_denied);
+      it!=std::filesystem::recursive_directory_iterator();++it){
+     if(it.depth()>5){it.disable_recursion_pending();continue;}
+     const auto& entry=*it;
      if(!entry.is_regular_file()||entry.path().extension()!=L".sf2")continue;
      try{
       auto presets=engine->sf2Presets(entry.path());
