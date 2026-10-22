@@ -175,8 +175,8 @@ struct App {
    // Keep SF2 entries in memory only; the original curated catalog remains intact.
    // Scan standard banks and a user-owned "Red Pianos" folder placed beside the EXE.
    // Never package or redistribute purchased banks with the public executable.
-   const std::array<std::filesystem::path,3> sf2Folders={
-    base/L"soundbank/sf2",base/L"Red Pianos",base/L"Red Pianos SF2 Punch Pack - Vol 1"};
+   const std::array<std::filesystem::path,2> sf2Folders={
+    base/L"soundbank/sf2",base/L"Red Pianos SF2 Punch Pack - Vol 1"};
    for(const auto& sf2Folder:sf2Folders){
     if(!std::filesystem::is_directory(sf2Folder))continue;
     for(const auto& entry:std::filesystem::recursive_directory_iterator(
