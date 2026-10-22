@@ -180,10 +180,15 @@ struct App {
      try{
       auto presets=engine->sf2Presets(entry.path());
       auto file=entry.path().stem().u8string();
-      unsigned category=file.find("Piano")!=std::string::npos?1:
-       file.find("Brass")!=std::string::npos?4:
-       file.find("Bass")!=std::string::npos?10:10;
+      // Curated Red SF2 instruments: place each instrument in its musical category.
+      unsigned category=10;
+      if(file.find("D-50-Fantasia")!=std::string::npos||file.find("D-50-Staccato Heaven")!=std::string::npos)category=6;
+      else if(file.find("Stack Bells")!=std::string::npos||file.find("Galileo Bell")!=std::string::npos)category=7;
+      else if(file.find("BR-")!=std::string::npos||file.find("Brass")!=std::string::npos)category=4;
+      else if(file.find("Piano")!=std::string::npos)category=0;
+      else if(file.find("Bass")!=std::string::npos)category=11;
       for(const auto& preset:presets){
+       if(preset.name=="EOP")continue; // SF2 end-of-presets marker, not a playable timbre.
        lp::Instrument p;
        p.sfz=std::filesystem::u8path(lp::makeSf2Reference(entry.path(),preset.bank,preset.program));
        p.name=file+" / "+preset.name;
