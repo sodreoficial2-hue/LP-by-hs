@@ -1,8 +1,13 @@
 name: Windows portable ASIO build
-# Portable builds are manual-only. Run only after Performance, MIDI Learn,
-# favorite/profile roundtrip and full Windows audio integration are validated.
+# Portable builds are triggered only by explicit edits to this workflow on the
+# validated feature branch, or manually. Avoid building on every source commit.
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feature/sf2-engine
+    paths:
+      - '.github/workflows/windows-portable.yml'
 
 jobs:
   portable:
