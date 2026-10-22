@@ -180,13 +180,20 @@ struct App {
      try{
       auto presets=engine->sf2Presets(entry.path());
       auto file=entry.path().stem().u8string();
-      // Curated Red SF2 instruments: place each instrument in its musical category.
+      // Licensed Red Punch Pack: category by original filename prefix, never by guessed preset.
       unsigned category=10;
-      if(file.find("D-50-Fantasia")!=std::string::npos||file.find("D-50-Staccato Heaven")!=std::string::npos)category=6;
-      else if(file.find("Stack Bells")!=std::string::npos||file.find("Galileo Bell")!=std::string::npos)category=7;
-      else if(file.find("BR-")!=std::string::npos||file.find("Brass")!=std::string::npos)category=4;
-      else if(file.find("Piano")!=std::string::npos)category=0;
-      else if(file.find("Bass")!=std::string::npos)category=11;
+      if(file.rfind("Red-PN-",0)==0)category=0;
+      else if(file.rfind("Red-EP-",0)==0)category=1;
+      else if(file.rfind("Red-OR-",0)==0)category=2;
+      else if(file.rfind("Red-ST-",0)==0)category=3;
+      else if(file.rfind("Red-BR-",0)==0)category=4;
+      else if(file.rfind("Red-LD-",0)==0||file.rfind("Red-SY-",0)==0)category=5;
+      else if(file.rfind("Red-PD-",0)==0||file.rfind("Red-VO-",0)==0)category=6;
+      else if(file.rfind("Red-BL-",0)==0)category=7;
+      else if(file.rfind("Red-RD-",0)==0)category=9;
+      else if(file.rfind("Red-GT-",0)==0)category=12;
+      if(file.find("Fantasia")!=std::string::npos||file.find("Staccato Heaven")!=std::string::npos)category=6;
+      if(file.find("Galileo Bell")!=std::string::npos||file.find("Stack Bells")!=std::string::npos)category=7;
       for(const auto& preset:presets){
        if(preset.name=="EOP")continue; // SF2 end-of-presets marker, not a playable timbre.
        lp::Instrument p;
