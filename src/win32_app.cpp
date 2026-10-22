@@ -173,9 +173,15 @@ struct App {
   try{auto dll=base/L"sfizz.dll";if(!std::filesystem::exists(dll))dll=base/L"recovery/extracted/live/sfizz.dll";engine=std::make_unique<lp::AudioHost>(dll);
    // Discover SF2 evaluation presets without changing the approved SFZ bank.
    // Keep SF2 entries in memory only; the original curated catalog remains intact.
-   const auto sf2Folder=base/L"soundbank/sf2";
-   if(std::filesystem::is_directory(sf2Folder)){
-    for(const auto& entry:std::filesystem::directory_iterator(sf2Folder)){
+   // Scan standard banks and a user-owned "Red Pianos" folder placed beside the EXE.
+   // Never package or redistribute purchased banks with the public executable.
+   const std::array<std::filesystem::path,3> sf2Folders={
+    base/L"soundbank/sf2",base/L"Red Pianos",base/L"Red Pianos SF2 Punch Pack - Vol 1"};
+   for(const auto& sf2Folder:sf2Folders){
+    if(!std::filesystem::is_directory(sf2Folder))continue;
+    for(const auto& entry:std::filesystem::recursive_directory_iterator(
+      sf2Folder,std::filesystem::directory_options::skip_permission_denied)){
+     if(entry.depth()>5){entry.disable_recursion_pending();continue;}
      if(!entry.is_regular_file()||entry.path().extension()!=L".sf2")continue;
      try{
       auto presets=engine->sf2Presets(entry.path());
@@ -207,8 +213,8 @@ struct App {
       OutputDebugStringA(e.what());OutputDebugStringA("\\n");
      }
     }
-    refreshCatalog();
    }
+   refreshCatalog();
    audioDevices=engine->devices();for(const auto& device:audioDevices){auto text=std::filesystem::u8path(device.name).wstring();SendMessageW(audioDriver,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(text.c_str()));}
    if(audioDevices.empty())message(L"Nenhum driver ASIO estéreo encontrado. Instale ou habilite seu driver ASIO. Não há fallback Windows.");
    PWSTR roaming=nullptr;auto folderResult=SHGetKnownFolderPath(FOLDERID_RoamingAppData,KF_FLAG_CREATE,nullptr,&roaming);
