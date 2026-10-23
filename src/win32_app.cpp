@@ -27,7 +27,7 @@
 #include "ui_art.hpp"
 
 namespace {
-constexpr int Catalog=100,Favorites=101,Save=102,Open=103,Midi=104,Effects=105,Import=106,ImportSf2=114,AudioDriver=107,AudioBuffer=108,AudioStart=109,AudioStop=110,AudioPanel=111,Panic=112,Category=113,Knob=200,MidiLearnKnob=115,PerformanceButton=116,PerformanceModeControl=117,PerformancePartBase=118,PerformancePlay=122,PerformanceSave=123,PerformanceName=124,PerformanceEditPart=125,PerformanceClearBase=126,AudioMidiButton=140,SettingsButton=141,AboutButton=142,CategoryTile=143,PreviousCategory=144,NextCategory=145,InstrumentArt=146,AboutText=147,HomeButton=148,CategoryCardBase=400;
+constexpr int Catalog=100,Favorites=101,Save=102,Open=103,Midi=104,Effects=105,Import=106,ImportSf2=114,AudioDriver=107,AudioBuffer=108,AudioStart=109,AudioStop=110,AudioPanel=111,Panic=112,Category=113,Knob=200,MidiLearnKnob=115,PerformanceButton=116,PerformanceModeControl=117,PerformancePartBase=118,PerformancePlay=122,PerformanceSave=123,PerformanceName=124,PerformanceEditPart=125,PerformanceClearBase=126,AudioMidiButton=140,SettingsButton=141,AboutButton=142,CategoryTile=143,PreviousCategory=144,NextCategory=145,InstrumentArt=146,AboutText=147,HomeButton=148,KeyboardButton=149,CategoryCardBase=400;
 constexpr UINT BeginParameterLearn=WM_APP+40,LoadLibraryMessage=WM_APP+41,ToggleFavoriteMessage=WM_APP+42,SelectSoundMessage=WM_APP+43,RevealFocusMessage=WM_APP+44;
 LRESULT CALLBACK pageProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
 LRESULT CALLBACK focusProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
@@ -116,7 +116,7 @@ struct App {
  void error(const std::exception& e){auto s=std::string(e.what());std::wstring text(s.begin(),s.end());MessageBoxW(window,text.c_str(),L"Live Performance",MB_OK|MB_ICONERROR);}
  HWND control(const wchar_t* kind,const wchar_t* text,DWORD style,int id){
   if(_wcsicmp(kind,L"BUTTON")==0)style=(style&~BS_TYPEMASK)|BS_OWNERDRAW;
-  bool header=id==2||id==PerformanceButton||id==AudioMidiButton||id==SettingsButton||id==AboutButton||id==HomeButton;
+  bool header=id==2||id==PerformanceButton||id==AudioMidiButton||id==SettingsButton||id==AboutButton||id==HomeButton||id==KeyboardButton;
   auto parent=header?window:page;
   auto h=CreateWindowExW(0,kind,text,WS_CHILD|style,0,0,0,0,parent,reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)),GetModuleHandleW(nullptr),nullptr);
   SendMessageW(h,WM_SETFONT,reinterpret_cast<WPARAM>(font),TRUE);
@@ -137,11 +137,10 @@ struct App {
   control(L"BUTTON",L"Áudio / MIDI",BS_PUSHBUTTON|WS_TABSTOP,AudioMidiButton);
   control(L"BUTTON",L"Perfis e arquivos",BS_PUSHBUTTON|WS_TABSTOP,SettingsButton);
   control(L"BUTTON",L"Sobre",BS_PUSHBUTTON,AboutButton);
+  control(L"BUTTON",L"Teclado · K",BS_PUSHBUTTON|WS_TABSTOP,KeyboardButton);
   control(L"BUTTON",L"‹ Biblioteca",BS_PUSHBUTTON|WS_TABSTOP,HomeButton);
   for(int i=0;i<16;++i){auto label=i==15?std::wstring(L"Favoritos"):std::filesystem::u8path(lp::instrumentCategories[i]).wstring();control(L"BUTTON",label.c_str(),BS_PUSHBUTTON|WS_TABSTOP,CategoryCardBase+i);}
   control(L"BUTTON",L"Escolher categoria",BS_PUSHBUTTON|WS_TABSTOP,CategoryTile);
-  control(L"BUTTON",L"❮",BS_PUSHBUTTON|WS_TABSTOP,PreviousCategory);
-  control(L"BUTTON",L"❯",BS_PUSHBUTTON|WS_TABSTOP,NextCategory);
   control(L"BUTTON",L"Categoria selecionada",BS_PUSHBUTTON,InstrumentArt);
   control(L"EDIT",L"Hugo Sodré é cantor, compositor, produtor e multi-instrumentista de Guarulhos, São Paulo. Iniciou seus estudos de piano aos seis anos e concluiu a formação em piano popular na Escola Proarte de Música aos treze. Mais tarde, estudou Composição e Regência na FIAM-FAAM.\r\n\r\nAo longo de sua trajetória, atuou com Os Originais do Samba, Eliana de Lima, Sandra de Sá, Jair Rodrigues, Tony Tornado e Netinho de Paula, entre outros artistas, além de desenvolver seu trabalho autoral.\r\n\r\nAos treze anos, uma degeneração da mácula comprometeu sua visão. A experiência pessoal com a baixa visão e as exigências do palco motivaram a concepção do Live Performance: um instrumento de trabalho com alto contraste, controles grandes e acesso pelo teclado e por MIDI.\r\n\r\nO projeto busca ampliar a autonomia de músicos com baixa visão, unindo acessibilidade, expressão musical e praticidade nas apresentações.\r\n\r\nAquilo que meus olhos não veem, minha música sente.",ES_MULTILINE|ES_READONLY|WS_VSCROLL|WS_TABSTOP,AboutText);
   control(L"BUTTON",L"Abrir perfil",BS_PUSHBUTTON|WS_TABSTOP,Open);
@@ -411,9 +410,10 @@ struct App {
   SetFocus(performancePartControls[index]);
  }
  void command(int id,int event){try{
+  if(id==KeyboardButton&&event==BN_CLICKED){openScreen(lp::Screen::Keyboard);return;}
   if(id==HomeButton){effects=false;parameterPanel.open=false;goHome();return;}
-  if(id>=CategoryCardBase&&id<CategoryCardBase+16){categoryIndex=id-CategoryCardBase;SendMessageW(category,CB_SETCURSEL,categoryIndex,0);openCategory();return;}
-  if(id==CategoryTile){openCategory();return;}if(id==PreviousCategory||id==NextCategory){chooseCategory(id==PreviousCategory?-1:1);return;}
+  if(id>=CategoryCardBase&&id<CategoryCardBase+16&&event==BN_CLICKED){categoryIndex=id-CategoryCardBase;SendMessageW(category,CB_SETCURSEL,categoryIndex,0);openCategory();return;}
+  if(id==CategoryTile&&event==BN_CLICKED){openCategory();return;}
   if(id==AudioMidiButton){openScreen(lp::Screen::AudioMidi);return;}if(id==SettingsButton){openScreen(lp::Screen::Settings);return;}if(id==AboutButton){openScreen(lp::Screen::About);return;}
 
   if(id>=PerformanceClearBase&&id<PerformanceClearBase+4){clearPerformancePart(id-PerformanceClearBase);return;}
@@ -507,6 +507,9 @@ struct App {
 
 };
 LRESULT CALLBACK focusProc(HWND control,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR id,DWORD_PTR root){
+ if(msg==WM_MOUSEMOVE){if(!GetPropW(control,L"LPHover")){SetPropW(control,L"LPHover",reinterpret_cast<HANDLE>(1));TRACKMOUSEEVENT track{sizeof(track),TME_LEAVE,control,0};TrackMouseEvent(&track);InvalidateRect(control,nullptr,FALSE);}}
+ if(msg==WM_MOUSELEAVE){RemovePropW(control,L"LPHover");InvalidateRect(control,nullptr,FALSE);}
+ if(msg==WM_NCDESTROY)RemovePropW(control,L"LPHover");
  if(msg==WM_SETFOCUS)PostMessageW(reinterpret_cast<HWND>(root),RevealFocusMessage,0,reinterpret_cast<LPARAM>(control));
  if(msg==WM_NCDESTROY)RemoveWindowSubclass(control,focusProc,id);
  return DefSubclassProc(control,msg,wp,lp);
@@ -530,7 +533,7 @@ LRESULT CALLBACK pageProc(HWND page,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR id,DWO
   }
   app.touchParameters();if(app.pageScroll.seek(target))app.layout();return 0;
  }
- case WM_LBUTTONDOWN:if(!app.effects&&app.screen==lp::Screen::Home){auto point=app.pagePoint(lp);if(PtInRect(&app.keyboardRect,point)){SetCapture(page);app.virtualKey(point);return 0;}}SetFocus(app.window);return 0;
+ case WM_LBUTTONDOWN:if(!app.effects&&app.screen==lp::Screen::Keyboard){auto point=app.pagePoint(lp);if(PtInRect(&app.keyboardRect,point)){SetCapture(page);app.virtualKey(point);return 0;}}SetFocus(app.window);return 0;
  case WM_MOUSEMOVE:if(GetCapture()==page){app.virtualKey(app.pagePoint(lp));return 0;}break;
  case WM_LBUTTONUP:if(GetCapture()==page){app.releaseVirtual();ReleaseCapture();return 0;}break;
  case WM_CAPTURECHANGED:app.releaseVirtual();return 0;

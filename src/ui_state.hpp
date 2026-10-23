@@ -3,7 +3,15 @@
 #include <array>
 #include <algorithm>
 namespace lp {
-enum class Screen { Home, Instruments, PerformanceEditor, AudioMidi, Settings, About };
+enum class Screen { Home, Instruments, PerformanceEditor, AudioMidi, Settings, About, Keyboard };
+// All sixteen categories fit a single viewport at the minimum supported size.
+struct CategoryGrid {
+ static constexpr int count=16,columns=4,rows=4,gap=12,margin=24,top=12;
+ int cardWidth,cardHeight;
+ CategoryGrid(int width,int height):cardWidth((width-2*margin-3*gap)/4),cardHeight((height-2*top-3*gap)/4){}
+ std::array<int,4> card(int index) const {return {margin+(index%4)*(cardWidth+gap),top+(index/4)*(cardHeight+gap),cardWidth,cardHeight};}
+ static int neighbor(int index,int dx,int dy){int column=std::clamp(index%4+dx,0,3),row=std::clamp(index/4+dy,0,3);return row*4+column;}
+};
 // Shared bounds for page arrows, scrollbars, wheel and focus visibility.
 struct PageScroll {
  int offset=0,viewport=0,content=0;

@@ -5,6 +5,14 @@
 #include <vector>
 #include <cmath>
 int main(){
+ // Actual adaptive grid bounds: all categories visible without overlap or scrolling.
+ for(auto size:std::array<std::array<int,2>,5>{{{988,333},{1080,333},{1340,633},{1900,840},{2540,1100}}}){
+  lp::CategoryGrid grid(size[0],size[1]);assert(grid.cardHeight>=64&&grid.cardWidth>=200);
+  for(int i=0;i<16;++i){auto a=grid.card(i);assert(a[0]>=0&&a[1]>=0&&a[0]+a[2]<=size[0]&&a[1]+a[3]<=size[1]);
+   for(int j=i+1;j<16;++j){auto b=grid.card(j);assert(a[0]+a[2]<=b[0]||b[0]+b[2]<=a[0]||a[1]+a[3]<=b[1]||b[1]+b[3]<=a[1]);}}
+ }
+ assert(lp::CategoryGrid::neighbor(3,1,0)==3&&lp::CategoryGrid::neighbor(4,-1,0)==4);
+ assert(lp::CategoryGrid::neighbor(2,0,1)==6&&lp::CategoryGrid::neighbor(14,0,1)==14);
  lp::PageScroll scroll;scroll.resize(240,740);assert(scroll.maximum()==500&&scroll.offset==0);
  assert(scroll.move(48)&&scroll.offset==48);assert(scroll.move(900)&&scroll.offset==500);assert(!scroll.move(48));assert(scroll.move(-1000)&&scroll.offset==0);
  assert(scroll.reveal(620,680)&&scroll.offset==440);assert(scroll.reveal(20,70)&&scroll.offset==20);assert(!scroll.reveal(30,70));

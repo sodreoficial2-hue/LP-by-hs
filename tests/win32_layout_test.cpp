@@ -18,32 +18,35 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
  {App app;WNDCLASSW cls{};cls.lpfnWndProc=proc;cls.hInstance=instance;cls.lpszClassName=L"LPLayoutTest";cls.hCursor=LoadCursorW(nullptr,IDC_ARROW);RegisterClassW(&cls);
  auto w=CreateWindowW(cls.lpszClassName,L"Live Performance layout test",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,0,0,1360,900,nullptr,nullptr,instance,&app);assert(w);ShowWindow(w,SW_SHOW);UpdateWindow(w);
  capture(w,app.base/L"layout-splash.bmp",false);pump();assert(!app.loading&&app.engine&&app.photo&&!app.instruments.empty());capture(w,app.base/L"layout-home.bmp");
- // Every family has a real keyboard-accessible button, within the scrolling page.
- for(int i=0;i<16;++i){auto card=app.item(CategoryCardBase+i);assert(card&&IsWindowVisible(card));assert(GetWindowLongPtrW(card,GWL_STYLE)&WS_TABSTOP);}
- SetFocus(app.item(CategoryCardBase+15));MSG enter{};enter.message=WM_KEYDOWN;enter.wParam=VK_RETURN;assert(app.keyCommand(enter)&&app.categoryIndex==15&&app.screen==lp::Screen::Instruments);
- // Left/right also switch categories while the sound list owns keyboard focus.
- MSG horizontal{};horizontal.message=WM_KEYDOWN;horizontal.wParam=VK_RIGHT;
- assert(GetFocus()==app.favorites&&app.keyCommand(horizontal)&&app.categoryIndex==0);
- assert(app.screen==lp::Screen::Instruments&&GetFocus()==app.catalog&&IsWindowVisible(app.catalog));
- horizontal.wParam=VK_LEFT;assert(app.keyCommand(horizontal)&&app.categoryIndex==15&&GetFocus()==app.favorites);
- app.command(HomeButton,0);assert(app.screen==lp::Screen::Home&&!app.effects);
- // Navigation starts from the card focused by Tab, even if selection differs.
- SetFocus(app.item(CategoryCardBase+5));horizontal.wParam=VK_RIGHT;
- assert(app.keyCommand(horizontal)&&app.categoryIndex==6&&GetFocus()==app.item(CategoryCardBase+6));
- app.chooseCategory(-6); // Restore category zero for the existing sound-loading checks.
- MSG key{};key.message=WM_KEYDOWN;key.wParam=VK_RIGHT;int before=app.categoryIndex;assert(app.keyCommand(key)&&app.categoryIndex==(before+1)%16);app.chooseCategory(-1);key.wParam=VK_RETURN;app.keyCommand(key);assert(app.screen==lp::Screen::Instruments);capture(w,app.base/L"layout-list.bmp");
- // Opening, clicking an already-highlighted row and native arrows all load automatically.
- assert(app.engine->loaded()&&app.previewActive);
+ // All sixteen categories are direct buttons, fully within one viewport.
+ auto checkGrid=[&]{assert(app.pageScroll.maximum()==0);RECT viewport{};GetWindowRect(app.page,&viewport);
+  for(int i=0;i<16;++i){auto card=app.item(CategoryCardBase+i);assert(card&&IsWindowVisible(card));assert(GetWindowLongPtrW(card,GWL_STYLE)&WS_TABSTOP);
+   RECT bounds{};GetWindowRect(card,&bounds);assert(bounds.left>=viewport.left&&bounds.right<=viewport.right&&bounds.top>=viewport.top&&bounds.bottom<=viewport.bottom);}};
+ checkGrid();
+ bool wasLoaded=app.engine->loaded();auto previousPatch=app.previewPatch.sfz;
+ // Merely browsing, keyboard focus, and notification messages must never load audio.
+ MSG key{};key.message=WM_KEYDOWN;key.wParam=VK_RIGHT;int selected=app.categoryIndex;
+ SetFocus(app.item(CategoryCardBase+5));assert(app.keyCommand(key));assert(GetFocus()==app.item(CategoryCardBase+6)&&app.categoryIndex==selected);
+ app.command(CategoryCardBase+15,BN_SETFOCUS);assert(app.screen==lp::Screen::Home);
+ app.command(CategoryCardBase+15,BN_CLICKED);assert(app.screen==lp::Screen::Instruments&&GetFocus()==app.favorites);
+ assert(app.engine->loaded()==wasLoaded&&app.previewPatch.sfz==previousPatch);
+ key.wParam=VK_RIGHT;assert(!app.keyCommand(key)&&app.categoryIndex==15);
+ app.command(HomeButton,0);checkGrid();app.command(KeyboardButton,BN_CLICKED);assert(app.screen==lp::Screen::Keyboard);app.command(HomeButton,0);
+ // Choose a category containing at least two sounds, independently of the fixture ordering.
+ int testCategory=-1;for(int c=0;c<15;++c){int n=0;for(const auto& instrument:app.instruments)if(instrument.category==static_cast<unsigned>(c))++n;if(n>=2){testCategory=c;break;}}
+ assert(testCategory>=0);app.command(CategoryCardBase+testCategory,BN_CLICKED);
+ assert(app.engine->loaded()==wasLoaded&&app.previewPatch.sfz==previousPatch);capture(w,app.base/L"layout-list.bmp");
+ // Clicking an already highlighted sound still loads it; native up/down remain automatic.
  SendMessageW(app.catalog,LB_SETCURSEL,1,0);SendMessageW(app.catalog,WM_LBUTTONUP,0,MAKELPARAM(30,70));
  assert(app.previewPatch.sfz==lp::instrumentReference(app.instruments[app.visibleInstruments[1]]));
  SendMessageW(app.catalog,WM_KEYDOWN,VK_UP,0);assert(app.previewPatch.sfz==lp::instrumentReference(app.instruments[app.visibleInstruments[0]]));
  assert(SendMessageW(app.catalog,LB_GETCURSEL,0,0)==0);
- app.favorite();assert(app.show.favorites[0]);app.toggleParameters();assert(app.effects&&IsWindowVisible(app.sliders[15]));SetFocus(app.sliders[0]);assert(!app.keyCommand(horizontal));app.setPanelValue(15,.4f);assert(app.show.master==.4f);key.wParam=VK_ESCAPE;app.keyCommand(key);assert(app.effects);capture(w,app.base/L"layout-parameters.bmp");app.toggleParameters();assert(!app.effects&&app.screen==lp::Screen::Home);
+ app.favorite();assert(app.show.favorites[0]);app.toggleParameters();assert(app.effects&&IsWindowVisible(app.sliders[15]));SetFocus(app.sliders[0]);key.wParam=VK_RIGHT;assert(!app.keyCommand(key));app.setPanelValue(15,.4f);assert(app.show.master==.4f);key.wParam=VK_ESCAPE;app.keyCommand(key);assert(app.effects);capture(w,app.base/L"layout-parameters.bmp");app.toggleParameters();assert(!app.effects&&app.screen==lp::Screen::Home);
  app.command(PerformanceButton,0);assert(app.screen==lp::Screen::PerformanceEditor);SendMessageW(app.performancePartControls[0],CB_SETCURSEL,1,0);SendMessageW(app.performancePartControls[1],CB_SETCURSEL,2,0);SendMessageW(app.performanceMode,CB_SETCURSEL,1,0);app.command(PerformancePlay,0);assert(app.performanceControls()&&app.editingPerformance.parts[0].high==47);capture(w,app.base/L"layout-editor.bmp");app.command(PerformanceSave,0);assert(app.show.performanceLibrary.size()==1);
  app.toggleParameters();assert(IsWindowVisible(app.sliders[3])&&!IsWindowVisible(app.sliders[4])&&!IsWindowVisible(app.sliders[15]));app.setPanelValue(0,.32f);assert(app.show.performanceLibrary[0].parts[0].patch.parameters[0]==.32f);capture(w,app.base/L"layout-volumes.bmp");app.parameterPanel.lastUse=GetTickCount64()-30001;SendMessageW(w,WM_TIMER,1,0);assert(!app.effects&&app.screen==lp::Screen::Home);
  app.activate(0);assert(!app.performanceControls());app.openScreen(lp::Screen::AudioMidi);capture(w,app.base/L"layout-audio.bmp");app.openScreen(lp::Screen::Settings);capture(w,app.base/L"layout-settings.bmp");app.openScreen(lp::Screen::About);capture(w,app.base/L"layout-about.bmp");
  // A 600-pixel window must expose all functions through the page scrollbar.
- MoveWindow(w,0,0,1100,600,TRUE);pump();app.openScreen(lp::Screen::Settings);SetFocus(w);
+ MoveWindow(w,0,0,1024,600,TRUE);pump();app.goHome();pump();checkGrid();capture(w,app.base/L"layout-home-compact.bmp");app.openScreen(lp::Screen::Settings);SetFocus(w);
  RECT headerBefore{},headerAfter{},buttonBefore{},buttonAfter{};GetWindowRect(app.item(SettingsButton),&headerBefore);GetWindowRect(app.item(Open),&buttonBefore);
  key.wParam=VK_DOWN;assert(app.keyCommand(key)&&app.pageScroll.offset==48);
  GetWindowRect(app.item(SettingsButton),&headerAfter);GetWindowRect(app.item(Open),&buttonAfter);assert(headerBefore.top==headerAfter.top&&buttonAfter.top==buttonBefore.top-48);

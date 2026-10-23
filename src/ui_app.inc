@@ -3,10 +3,10 @@
  HWND page{};lp::PageScroll pageScroll;bool placing=false;int wheelRemainder=0;
  static constexpr int pageOrigin=180;
  HWND item(int id) const {auto child=GetDlgItem(window,id);return child?child:GetDlgItem(page,id);}
- int pageTop() const {RECT r{};GetClientRect(window,&r);return r.right<1280?260:180;}
+ int pageTop() const {if(!loading&&!effects&&screen==lp::Screen::Home)return 156;RECT r{};GetClientRect(window,&r);return r.right<1280?260:180;}
  int pageMinimum() const {
   if(effects)return performanceControls()?300:740;
-  switch(screen){case lp::Screen::Home:return 660;case lp::Screen::Instruments:return 360;case lp::Screen::AudioMidi:return 520;case lp::Screen::Settings:return 410;case lp::Screen::PerformanceEditor:return 580;case lp::Screen::About:return 140;}
+  switch(screen){case lp::Screen::Home:return 316;case lp::Screen::Keyboard:return 220;case lp::Screen::Instruments:return 360;case lp::Screen::AudioMidi:return 520;case lp::Screen::Settings:return 410;case lp::Screen::PerformanceEditor:return 580;case lp::Screen::About:return 140;}
   return 480;
  }
  void scrollPage(int delta){touchParameters();if(pageScroll.move(delta))layout();}
@@ -34,14 +34,11 @@
  void touchParameters(){if(effects)parameterPanel.touch(GetTickCount64());}
  std::wstring categoryName() const {return categoryIndex==15?L"Favoritos":std::filesystem::u8path(lp::instrumentCategories[categoryIndex]).wstring();}
  void syncPerformance(){if(activePerformanceIndex>=0&&editingPerformanceValid&&static_cast<std::size_t>(activePerformanceIndex)<show.performanceLibrary.size())show.performanceLibrary[activePerformanceIndex]=lp::savePerformance(editingPerformance);}
- void chooseCategory(int delta){
-  categoryIndex=(categoryIndex+delta+16)%16;SendMessageW(category,CB_SETCURSEL,categoryIndex,0);refreshCatalog();layout();
-  if(!effects&&screen==lp::Screen::Home){auto card=item(CategoryCardBase+categoryIndex);SetFocus(card);revealFocus(card);}
- }
  void goHome(){pageScroll.seek(0);screen=lp::Screen::Home;performanceVisible=false;cancelMidiLearn();layout();SetFocus(item(CategoryCardBase+categoryIndex));}
  void openCategory(){pageScroll.seek(0);screen=lp::Screen::Instruments;performanceVisible=false;refreshCatalog();layout();
-  if(categoryIndex==15){if(SendMessageW(favorites,LB_GETCURSEL,0,0)<0)SendMessageW(favorites,LB_SETCURSEL,0,0);SetFocus(favorites);auto slot=SendMessageW(favorites,LB_GETCURSEL,0,0);if(slot>=0)activate(static_cast<unsigned>(slot));}
-  else{SetFocus(catalog);audition();}
+  // Browsing categories never loads a sample or interrupts the currently playing sound.
+  if(categoryIndex==15){if(SendMessageW(favorites,LB_GETCURSEL,0,0)<0)SendMessageW(favorites,LB_SETCURSEL,0,0);SetFocus(favorites);}
+  else SetFocus(catalog);
  }
  void toggleParameters(){
   if(loading)return;
@@ -69,12 +66,17 @@
   };
   auto place=[&](int id,int x,int y,int ww,int hh){auto h=item(id);if(GetParent(h)==page)y-=pageOrigin+pageScroll.offset;MoveWindow(h,x,y,std::max(1,ww),std::max(1,hh),TRUE);visible.push_back(h);};
   if(loading){place(2,windowWidth/2,windowHeight-144,windowWidth/2-48,66);finish();return;}
-  int topOfPage=pageTop();pageScroll.resize(windowHeight-topOfPage-92,pageMinimum());
+  int topOfPage=pageTop();pageScroll.resize(windowHeight-topOfPage-((!effects&&screen==lp::Screen::Home)?72:92),pageMinimum());
   MoveWindow(page,0,topOfPage,windowWidth,pageScroll.viewport,TRUE);
   SCROLLINFO info{};info.cbSize=sizeof(info);info.fMask=SIF_RANGE|SIF_PAGE|SIF_POS;info.nMin=0;info.nMax=pageScroll.content-1;info.nPage=pageScroll.viewport;info.nPos=pageScroll.offset;SetScrollInfo(page,SB_VERT,&info,TRUE);
-  int navX=windowWidth-708,navY=windowWidth<1280?138:34;
-  if(!effects){place(PerformanceButton,navX,navY,210,60);place(AudioMidiButton,navX+218,navY,166,60);place(SettingsButton,navX+392,navY,190,60);place(AboutButton,navX+590,navY,102,60);}
-  if(screen!=lp::Screen::Home||effects)place(HomeButton,windowWidth-214,topOfPage-48,182,40);
+  bool gridHome=!effects&&screen==lp::Screen::Home;
+  int navX=gridHome?windowWidth-660:windowWidth-708,navY=gridHome?28:(windowWidth<1280?138:34);
+  if(!effects){
+   if(gridHome){place(PerformanceButton,navX,navY,174,52);place(AudioMidiButton,navX+182,navY,158,52);place(SettingsButton,navX+348,navY,182,52);place(AboutButton,navX+538,navY,106,52);}
+   else{place(PerformanceButton,navX,navY,210,60);place(AudioMidiButton,navX+218,navY,166,60);place(SettingsButton,navX+392,navY,190,60);place(AboutButton,navX+590,navY,102,60);}
+  }
+  if(gridHome)place(KeyboardButton,windowWidth-214,topOfPage-48,182,40);
+  else place(HomeButton,windowWidth-214,topOfPage-48,182,40);
   place(2,40,windowHeight-62,windowWidth-80,48);
   int width=windowWidth-20,height=pageOrigin+pageScroll.content+92,top=148,bottom=height-92;
   if(effects){
@@ -83,9 +85,11 @@
    for(int i=0;i<count;++i){int col=i/rows,row=i%rows,x=28+col*(half+28),y=192+row*cell;
     place(Knob+100+i,x+16,y+10,half-32,30);place(Knob+i,x+16,y+42,half-32,std::max(30,cell-52));}
   }else if(screen==lp::Screen::Home){
-   int columns=4,gap=16,margin=32,cardWidth=(width-2*margin-(columns-1)*gap)/columns;
-   for(int i=0;i<16;++i)place(CategoryCardBase+i,margin+(i%columns)*(cardWidth+gap),pageOrigin+40+(i/columns)*116,cardWidth,100);
-   keyboardRect={40,pageOrigin+548,width-40,pageOrigin+640};
+   lp::CategoryGrid grid(width,pageScroll.viewport);
+   for(int i=0;i<16;++i){auto cell=grid.card(i);place(CategoryCardBase+i,cell[0],pageOrigin+cell[1],cell[2],cell[3]);}
+   keyboardRect={};virtualKeys={};
+  }else if(screen==lp::Screen::Keyboard){
+   keyboardRect={40,pageOrigin+70,width-40,pageOrigin+std::max(170,pageScroll.viewport-30)};
   }else if(screen==lp::Screen::Instruments){
    int left=width*2/5;place(InstrumentArt,32,top+58,left-48,bottom-top-72);place(categoryIndex==15?Favorites:Catalog,left+8,top+58,width-left-40,bottom-top-72);
   }else if(screen==lp::Screen::AudioMidi){
@@ -114,17 +118,23 @@
   HDC dc=item->hDC;RECT r=item->rcItem;bool pressed=item->itemState&ODS_SELECTED,focused=item->itemState&ODS_FOCUS;
   bool card=item->CtlID>=CategoryCardBase&&item->CtlID<CategoryCardBase+16;
   int artIndex=card?static_cast<int>(item->CtlID)-CategoryCardBase:categoryIndex;
+  POINT cursor{};GetCursorPos(&cursor);ScreenToClient(item->hwndItem,&cursor);bool hovered=PtInRect(&r,cursor)!=FALSE;
   bool active=card&&artIndex==categoryIndex;
   if(item->CtlID==PerformanceButton)active=!effects&&screen==lp::Screen::PerformanceEditor;
   if(item->CtlID==AudioMidiButton)active=!effects&&screen==lp::Screen::AudioMidi;
   if(item->CtlID==SettingsButton)active=!effects&&screen==lp::Screen::Settings;
   if(item->CtlID==AboutButton)active=!effects&&screen==lp::Screen::About;
   lpui::fill(dc,r,lpui::ink);
-  lpui::surface(dc,{r.left+2,r.top+2,r.right-2,r.bottom-2},pressed?RGB(69,59,43):(active?RGB(48,43,34):lpui::panel),active?RGB(29,28,27):RGB(18,23,32),(focused||active)?lpui::gold:RGB(66,77,94),14);
+  lpui::surface(dc,{r.left+2,r.top+2,r.right-2,r.bottom-2},pressed?RGB(69,59,43):(active?RGB(48,43,34):(hovered?RGB(37,45,58):lpui::panel)),active?RGB(29,28,27):RGB(18,23,32),(focused||active)?lpui::gold:RGB(66,77,94),14);
   if(card){
-   lpui::instrument(dc,{r.left+14,r.top+16,r.left+88,r.bottom-16},artIndex);
+   bool tall=r.bottom-r.top>=114;
+   int iconSize=tall?std::min<int>(80,r.bottom-r.top-64):44;
+   int iconX=tall?(r.right-iconSize)/2:r.left+16,iconY=tall?r.top+12:(r.bottom-iconSize)/2;
+   lpui::surface(dc,{iconX-5,iconY-4,iconX+iconSize+5,iconY+iconSize+4},RGB(39,45,55),RGB(24,30,40),RGB(57,65,80),12);
+   lpui::categoryIcon(dc,{iconX+5,iconY+4,iconX+iconSize-5,iconY+iconSize-4},artIndex);
    auto label=artIndex==15?std::wstring(L"Favoritos"):std::filesystem::u8path(lp::instrumentCategories[artIndex]).wstring();
-   lpui::text(dc,label,{r.left+98,r.top+12,r.right-14,r.bottom-12},font,lpui::white,DT_LEFT|DT_VCENTER|DT_WORDBREAK|DT_NOPREFIX);
+   RECT caption=tall?RECT{r.left+8,r.bottom-42,r.right-8,r.bottom-8}:RECT{r.left+80,r.top+6,r.right-10,r.bottom-6};
+   lpui::text(dc,label,caption,font,lpui::white,(tall?DT_CENTER:DT_LEFT)|DT_VCENTER|DT_WORDBREAK|DT_NOPREFIX);
   }else if(item->CtlID==CategoryTile||item->CtlID==InstrumentArt){
    RECT art{r.left+32,r.top+28,r.right-32,r.bottom-156};lpui::instrument(dc,art,artIndex);
    lpui::text(dc,categoryName(),{r.left+16,r.bottom-152,r.right-16,r.bottom-102},largeFont);
@@ -169,15 +179,17 @@
   }
   if(!bodyOnly){
   lpui::surface(dc,{16,12,width-16,pageTop()-62},RGB(27,33,44),RGB(15,20,28),RGB(44,54,69),18);
-  lpui::photo(dc,photo.get(),{32,26,106,100},true);
-  int brandRight=width<1280?width-28:width-728;
-  lpui::text(dc,L"Live Performance",{128,20,brandRight,62},largeFont,lpui::white,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
-  lpui::text(dc,L"by Hugo Sodré",{128,62,brandRight,110},signatureFont,lpui::gold,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
+  bool home=screen==lp::Screen::Home&&!effects;
+  lpui::photo(dc,photo.get(),home?RECT{28,22,88,82}:RECT{32,26,106,100},true);
+  int brandRight=home?width-672:(width<1280?width-28:width-728),brandLeft=home?104:128;
+  lpui::text(dc,L"Live Performance",{brandLeft,20,brandRight,62},home?font:largeFont,lpui::white,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
+  lpui::text(dc,L"by Hugo Sodré",{brandLeft,home?56:62,brandRight,home?90:110},home?font:signatureFont,lpui::gold,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
   lpui::line(dc,28,pageTop()-52,width-28,pageTop()-52,RGB(78,90,108),1);
   std::wstring heading;
   if(effects)heading=performanceControls()?L"Mix da Performance":L"Esculpir o som";
   else if(screen==lp::Screen::Home)heading=L"Biblioteca de instrumentos";
   else if(screen==lp::Screen::Instruments)heading=categoryName();
+  else if(screen==lp::Screen::Keyboard)heading=L"Teclado virtual";
   else if(screen==lp::Screen::PerformanceEditor)heading=L"Performance Editor";
   else if(screen==lp::Screen::AudioMidi)heading=L"Áudio / MIDI";
   else if(screen==lp::Screen::Settings)heading=L"Perfis de show e arquivos";
@@ -187,10 +199,8 @@
   return;
   }
   width-=20;height=pageOrigin+pageScroll.content+92;
-  if(!effects&&screen==lp::Screen::Home){
-   lpui::text(dc,L"Selecione uma família de sons",{32,pageOrigin,width-32,pageOrigin+30},font,lpui::muted,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
-   lpui::text(dc,L"TECLADO VIRTUAL",{40,pageOrigin+510,width/2,pageOrigin+540},smallFont,lpui::muted,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
-   lpui::text(dc,L"E  Parâmetros    ·    A  Áudio    ·    P  Performance",{width/2,pageOrigin+510,width-40,pageOrigin+540},smallFont,lpui::gold,DT_RIGHT|DT_VCENTER|DT_SINGLELINE);
+  if(!effects&&screen==lp::Screen::Keyboard){
+   lpui::text(dc,L"Clique nas teclas para tocar o timbre selecionado",{40,pageOrigin+8,width-40,pageOrigin+48},font,lpui::muted,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
    drawKeyboard(dc);
   }
   if(effects){
@@ -245,7 +255,14 @@
    if(key=='P'){command(PerformanceButton,0);return true;}
    if(key=='C'){openScreen(lp::Screen::Settings);return true;}
    if(key=='A'){openScreen(lp::Screen::AudioMidi);return true;}
+   if(key=='K'){openScreen(lp::Screen::Keyboard);return true;}
    }
+  }
+  if(!effects&&!typing&&screen==lp::Screen::Home&&!(GetKeyState(VK_CONTROL)&0x8000)&&!(GetKeyState(VK_MENU)&0x8000)&&
+     (key==VK_LEFT||key==VK_RIGHT||key==VK_UP||key==VK_DOWN)){
+   int id=GetDlgCtrlID(GetFocus()),index=id>=CategoryCardBase&&id<CategoryCardBase+16?id-CategoryCardBase:categoryIndex;
+   index=lp::CategoryGrid::neighbor(index,key==VK_LEFT?-1:(key==VK_RIGHT?1:0),key==VK_UP?-1:(key==VK_DOWN?1:0));
+   SetFocus(item(CategoryCardBase+index));return true;
   }
   if(key==VK_UP||key==VK_DOWN||key==VK_PRIOR||key==VK_NEXT){
    bool native=_wcsicmp(kind,L"LISTBOX")==0||_wcsicmp(kind,L"COMBOBOX")==0||_wcsicmp(kind,TRACKBAR_CLASSW)==0||(textControl&&(GetWindowLongPtrW(GetFocus(),GWL_STYLE)&ES_MULTILINE));
@@ -253,16 +270,6 @@
    if(!effects&&screen==lp::Screen::About){auto text=item(AboutText);SetFocus(text);SendMessageW(text,WM_KEYDOWN,key,msg.lParam);return true;}
    if(!effects&&screen==lp::Screen::Instruments){auto list=categoryIndex==15?favorites:catalog;SetFocus(list);SendMessageW(list,WM_KEYDOWN,key,msg.lParam);return true;}
    int direction=key==VK_UP||key==VK_PRIOR?-1:1;scrollPage(direction*((key==VK_PRIOR||key==VK_NEXT)?std::max(48,pageScroll.viewport-48):48));return true;
-  }
-  if(!effects&&!typing&&(screen==lp::Screen::Home||screen==lp::Screen::Instruments)&&
-     (key==VK_LEFT||key==VK_RIGHT)&&!(GetKeyState(VK_CONTROL)&0x8000)&&!(GetKeyState(VK_MENU)&0x8000)){
-   // Tab can focus a different card without changing the selected category.
-   // Start from that visible focus, then keep the card/list and category together.
-   int focused=GetDlgCtrlID(GetFocus());
-   if(screen==lp::Screen::Home&&focused>=CategoryCardBase&&focused<CategoryCardBase+16)categoryIndex=focused-CategoryCardBase;
-   chooseCategory(key==VK_LEFT?-1:1);
-   if(screen==lp::Screen::Instruments)openCategory();
-   return true;
   }
   if(!effects&&screen==lp::Screen::Home){if(key==VK_RETURN){int focused=GetDlgCtrlID(GetFocus());if(focused>=CategoryCardBase&&focused<CategoryCardBase+16){categoryIndex=focused-CategoryCardBase;openCategory();return true;}if(GetFocus()==window){openCategory();return true;}}}
   if(!effects&&screen==lp::Screen::Instruments){
