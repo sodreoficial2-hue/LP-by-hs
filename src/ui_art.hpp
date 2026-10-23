@@ -2,13 +2,37 @@
 #include <gdiplus.h>
 #include <memory>
 namespace lpui {
-constexpr COLORREF ink=RGB(9,12,18),panel=RGB(20,27,38),gold=RGB(234,196,113),white=RGB(255,255,255),muted=RGB(199,211,227);
+constexpr COLORREF ink=RGB(12,15,21),panel=RGB(25,31,41),gold=RGB(238,197,119),white=RGB(247,249,252),muted=RGB(193,203,218);
 inline void fill(HDC dc,RECT rect,COLORREF color){auto b=CreateSolidBrush(color);FillRect(dc,&rect,b);DeleteObject(b);}
 inline void text(HDC dc,const std::wstring& label,RECT rect,HFONT font,COLORREF color=white,UINT flags=DT_CENTER|DT_VCENTER|DT_SINGLELINE){auto old=SelectObject(dc,font);SetBkMode(dc,TRANSPARENT);SetTextColor(dc,color);DrawTextW(dc,label.c_str(),-1,&rect,flags);SelectObject(dc,old);}
 inline void line(HDC dc,int x,int y,int xx,int yy,COLORREF color=gold,int width=4){auto p=CreatePen(PS_SOLID,width,color);auto old=SelectObject(dc,p);MoveToEx(dc,x,y,nullptr);LineTo(dc,xx,yy);SelectObject(dc,old);DeleteObject(p);}
 inline void box(HDC dc,RECT r,COLORREF color=gold,int width=4){line(dc,r.left,r.top,r.right,r.top,color,width);line(dc,r.right,r.top,r.right,r.bottom,color,width);line(dc,r.right,r.bottom,r.left,r.bottom,color,width);line(dc,r.left,r.bottom,r.left,r.top,color,width);}
+// Shared native design surfaces: smooth corners, subtle depth and restrained gold.
+inline Gdiplus::Color color(COLORREF c){return Gdiplus::Color(255,GetRValue(c),GetGValue(c),GetBValue(c));}
+inline void surface(HDC dc,RECT r,COLORREF top=panel,COLORREF bottom=RGB(18,23,32),COLORREF border=RGB(66,77,94),int radius=16){
+ if(r.right<=r.left||r.bottom<=r.top)return;
+ Gdiplus::Graphics g(dc);g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+ float x=static_cast<float>(r.left)+1,y=static_cast<float>(r.top)+1,w=static_cast<float>(r.right-r.left)-3,h=static_cast<float>(r.bottom-r.top)-3;
+ float d=static_cast<float>(std::min(radius*2,static_cast<int>(std::min(w,h))));
+ Gdiplus::GraphicsPath path;path.AddArc(x,y,d,d,180,90);path.AddArc(x+w-d,y,d,d,270,90);path.AddArc(x+w-d,y+h-d,d,d,0,90);path.AddArc(x,y+h-d,d,d,90,90);path.CloseFigure();
+ Gdiplus::LinearGradientBrush brush(Gdiplus::PointF(x,y),Gdiplus::PointF(x,y+h),color(top),color(bottom));g.FillPath(&brush,&path);
+ Gdiplus::Pen edge(color(border),1);g.DrawPath(&edge,&path);
+}
+inline void studioKeyboard(HDC dc,RECT r,int category){
+ int w=r.right-r.left,h=r.bottom-r.top;if(w<24||h<24)return;
+ int y=r.top+h/4;RECT body{r.left,y,r.right,r.top+h*3/4};
+ surface(dc,body,RGB(52,61,74),RGB(15,19,27),RGB(122,135,151),8);
+ int margin=std::max(4,w/25),keyTop=y+(body.bottom-y)*2/5;
+ int keys=w>200?21:10;int keyWidth=(w-margin*2)/keys;
+ for(int i=0;i<keys;++i){RECT k{r.left+margin+i*keyWidth,keyTop,r.left+margin+(i+1)*keyWidth-1,body.bottom-margin};fill(dc,k,RGB(234,235,230));
+  if(i%7!=2&&i%7!=6&&i<keys-1){RECT black{k.right-keyWidth/4,keyTop,k.right+keyWidth/3,keyTop+(body.bottom-margin-keyTop)*3/5};fill(dc,black,RGB(9,12,17));}}
+ RECT display{r.left+w*2/5,y+margin,r.left+w*3/5,keyTop-margin};fill(dc,display,category==0?RGB(83,64,37):RGB(34,83,93));
+ for(int i=0;i<4;++i){int x=r.left+margin+i*std::max(5,w/20);fill(dc,{x,y+margin,x+std::max(2,w/80),keyTop-margin},gold);}
+ line(dc,r.left+margin,body.bottom+3,r.right-margin,body.bottom+3,RGB(4,6,10),3);
+}
 // Distinct vector drawings, rendered at the available size (no emoji/font dependency).
 inline void instrument(HDC dc,RECT r,int category){
+ if(category==0||category==1||category==2||category==5||category==6||category==9||category==13){studioKeyboard(dc,r,category);return;}
  int cx=(r.left+r.right)/2,cy=(r.top+r.bottom)/2;int w=std::min(r.right-r.left,r.bottom-r.top)*3/4,h=w*2/3;
  RECT body{cx-w/2,cy-h/2,cx+w/2,cy+h/2};
  auto brush=CreateSolidBrush(gold);auto pen=CreatePen(PS_SOLID,5,gold);auto ob=SelectObject(dc,brush),op=SelectObject(dc,pen);

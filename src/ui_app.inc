@@ -6,7 +6,7 @@
  int pageTop() const {RECT r{};GetClientRect(window,&r);return r.right<1280?260:180;}
  int pageMinimum() const {
   if(effects)return performanceControls()?300:740;
-  switch(screen){case lp::Screen::Home:return 480;case lp::Screen::Instruments:return 120;case lp::Screen::AudioMidi:return 520;case lp::Screen::Settings:return 410;case lp::Screen::PerformanceEditor:return 580;case lp::Screen::About:return 140;}
+  switch(screen){case lp::Screen::Home:return 660;case lp::Screen::Instruments:return 360;case lp::Screen::AudioMidi:return 520;case lp::Screen::Settings:return 410;case lp::Screen::PerformanceEditor:return 580;case lp::Screen::About:return 140;}
   return 480;
  }
  void scrollPage(int delta){touchParameters();if(pageScroll.move(delta))layout();}
@@ -35,7 +35,7 @@
  std::wstring categoryName() const {return categoryIndex==15?L"Favoritos":std::filesystem::u8path(lp::instrumentCategories[categoryIndex]).wstring();}
  void syncPerformance(){if(activePerformanceIndex>=0&&editingPerformanceValid&&static_cast<std::size_t>(activePerformanceIndex)<show.performanceLibrary.size())show.performanceLibrary[activePerformanceIndex]=lp::savePerformance(editingPerformance);}
  void chooseCategory(int delta){categoryIndex=(categoryIndex+delta+16)%16;SendMessageW(category,CB_SETCURSEL,categoryIndex,0);refreshCatalog();layout();}
- void goHome(){pageScroll.seek(0);screen=lp::Screen::Home;performanceVisible=false;cancelMidiLearn();layout();SetFocus(item(CategoryTile));}
+ void goHome(){pageScroll.seek(0);screen=lp::Screen::Home;performanceVisible=false;cancelMidiLearn();layout();SetFocus(item(CategoryCardBase+categoryIndex));}
  void openCategory(){pageScroll.seek(0);screen=lp::Screen::Instruments;performanceVisible=false;refreshCatalog();layout();
   if(categoryIndex==15){if(SendMessageW(favorites,LB_GETCURSEL,0,0)<0)SendMessageW(favorites,LB_SETCURSEL,0,0);SetFocus(favorites);auto slot=SendMessageW(favorites,LB_GETCURSEL,0,0);if(slot>=0)activate(static_cast<unsigned>(slot));}
   else{SetFocus(catalog);audition();}
@@ -71,19 +71,20 @@
   SCROLLINFO info{};info.cbSize=sizeof(info);info.fMask=SIF_RANGE|SIF_PAGE|SIF_POS;info.nMin=0;info.nMax=pageScroll.content-1;info.nPage=pageScroll.viewport;info.nPos=pageScroll.offset;SetScrollInfo(page,SB_VERT,&info,TRUE);
   int navX=windowWidth-708,navY=windowWidth<1280?138:34;
   if(!effects){place(PerformanceButton,navX,navY,210,60);place(AudioMidiButton,navX+218,navY,166,60);place(SettingsButton,navX+392,navY,190,60);place(AboutButton,navX+590,navY,102,60);}
-  place(2,28,windowHeight-72,windowWidth-56,60);
+  if(screen!=lp::Screen::Home||effects)place(HomeButton,windowWidth-214,topOfPage-48,182,40);
+  place(2,40,windowHeight-62,windowWidth-80,48);
   int width=windowWidth-20,height=pageOrigin+pageScroll.content+92,top=148,bottom=height-92;
   if(effects){
    int count=performanceControls()?4:16,rows=performanceControls()?2:8;
    int cell=(bottom-192-12)/rows,half=(width-84)/2;
    for(int i=0;i<count;++i){int col=i/rows,row=i%rows,x=28+col*(half+28),y=192+row*cell;
-    place(Knob+100+i,x,y,half,30);place(Knob+i,x,y+32,half,std::max(30,cell-37));}
+    place(Knob+100+i,x+16,y+10,half-32,30);place(Knob+i,x+16,y+42,half-32,std::max(30,cell-52));}
   }else if(screen==lp::Screen::Home){
-   int tile=std::max(200,std::min(width-360,height-242-(top+48)-90)),x=(width-tile)/2;
-   place(CategoryTile,x,top+48,tile,tile+70);place(PreviousCategory,x-132,top+tile/2,96,96);place(NextCategory,x+tile+36,top+tile/2,96,96);
-   keyboardRect={28,height-242,width-28,height-100};
+   int columns=4,gap=16,margin=32,cardWidth=(width-2*margin-(columns-1)*gap)/columns;
+   for(int i=0;i<16;++i)place(CategoryCardBase+i,margin+(i%columns)*(cardWidth+gap),pageOrigin+40+(i/columns)*116,cardWidth,100);
+   keyboardRect={40,pageOrigin+548,width-40,pageOrigin+640};
   }else if(screen==lp::Screen::Instruments){
-   int half=(width-84)/2;place(InstrumentArt,28,top+34,half,bottom-top-46);place(categoryIndex==15?Favorites:Catalog,56+half,top+34,half,bottom-top-46);
+   int left=width*2/5;place(InstrumentArt,32,top+58,left-48,bottom-top-72);place(categoryIndex==15?Favorites:Catalog,left+8,top+58,width-left-40,bottom-top-72);
   }else if(screen==lp::Screen::AudioMidi){
    place(AudioDriver,40,top+68,width-80,300);place(AudioBuffer,40,top+172,width-80,300);place(Midi,40,top+276,width-80,300);
    place(AudioStart,40,top+354,260,64);place(AudioStop,320,top+354,220,64);place(AudioPanel,560,top+354,240,64);place(Panic,40,top+442,260,64);
@@ -96,22 +97,51 @@
   }else if(screen==lp::Screen::About){place(AboutText,width/2,top+32,width/2-40,bottom-top-54);}
   finish();
  }
+ void drawSlider(NMCUSTOMDRAW* item){
+  HDC dc=item->hdc;RECT r{};GetClientRect(item->hdr.hwndFrom,&r);lpui::fill(dc,r,lpui::panel);
+  RECT channel{};SendMessageW(item->hdr.hwndFrom,TBM_GETCHANNELRECT,0,reinterpret_cast<LPARAM>(&channel));
+  int start=channel.left,end=channel.right,cy=(r.bottom+r.top)/2;
+  int value=static_cast<int>(SendMessageW(item->hdr.hwndFrom,TBM_GETPOS,0,0));int x=start+(end-start)*value/1000;
+  lpui::surface(dc,{start,cy-4,end,cy+5},RGB(58,69,86),RGB(58,69,86),RGB(58,69,86),4);
+  if(x>start+2)lpui::surface(dc,{start,cy-4,x,cy+5},lpui::gold,RGB(170,126,64),lpui::gold,4);
+  lpui::surface(dc,{x-10,cy-14,x+11,cy+15},RGB(255,227,169),lpui::gold,lpui::gold,6);
+  if(GetFocus()==item->hdr.hwndFrom)lpui::box(dc,{1,1,r.right-2,r.bottom-2},lpui::gold,2);
+ }
  void drawButton(DRAWITEMSTRUCT* item){
-  HDC dc=item->hDC;RECT r=item->rcItem;bool selected=item->itemState&ODS_SELECTED;
-  lpui::fill(dc,r,selected?RGB(49,61,78):lpui::panel);
-  if(item->CtlID==CategoryTile||item->CtlID==InstrumentArt){
-   RECT art{r.left+36,r.top+24,r.right-36,r.bottom-82};lpui::instrument(dc,art,categoryIndex);
-   RECT label{r.left+12,r.bottom-78,r.right-12,r.bottom-14};lpui::text(dc,categoryName(),label,largeFont);
-  }else{wchar_t label[128]{};GetWindowTextW(item->hwndItem,label,128);auto previousFont=SelectObject(dc,font);RECT measure=r;DrawTextW(dc,label,-1,&measure,DT_CALCRECT|DT_CENTER|DT_WORDBREAK);SelectObject(dc,previousFont);RECT target=r;target.top+=(r.bottom-r.top-(measure.bottom-measure.top))/2;lpui::text(dc,label,target,font,lpui::white,DT_CENTER|DT_WORDBREAK|DT_NOPREFIX);}
-  if((item->itemState&ODS_FOCUS)||selected)lpui::box(dc,{r.left+3,r.top+3,r.right-3,r.bottom-3},lpui::gold,4);
-  else lpui::box(dc,{r.left+1,r.top+1,r.right-1,r.bottom-1},RGB(89,106,128),1);
+  HDC dc=item->hDC;RECT r=item->rcItem;bool pressed=item->itemState&ODS_SELECTED,focused=item->itemState&ODS_FOCUS;
+  bool card=item->CtlID>=CategoryCardBase&&item->CtlID<CategoryCardBase+16;
+  int artIndex=card?static_cast<int>(item->CtlID)-CategoryCardBase:categoryIndex;
+  bool active=card&&artIndex==categoryIndex;
+  if(item->CtlID==PerformanceButton)active=!effects&&screen==lp::Screen::PerformanceEditor;
+  if(item->CtlID==AudioMidiButton)active=!effects&&screen==lp::Screen::AudioMidi;
+  if(item->CtlID==SettingsButton)active=!effects&&screen==lp::Screen::Settings;
+  if(item->CtlID==AboutButton)active=!effects&&screen==lp::Screen::About;
+  lpui::fill(dc,r,lpui::ink);
+  lpui::surface(dc,{r.left+2,r.top+2,r.right-2,r.bottom-2},pressed?RGB(69,59,43):(active?RGB(48,43,34):lpui::panel),active?RGB(29,28,27):RGB(18,23,32),(focused||active)?lpui::gold:RGB(66,77,94),14);
+  if(card){
+   lpui::instrument(dc,{r.left+14,r.top+16,r.left+88,r.bottom-16},artIndex);
+   auto label=artIndex==15?std::wstring(L"Favoritos"):std::filesystem::u8path(lp::instrumentCategories[artIndex]).wstring();
+   lpui::text(dc,label,{r.left+98,r.top+12,r.right-14,r.bottom-12},font,lpui::white,DT_LEFT|DT_VCENTER|DT_WORDBREAK|DT_NOPREFIX);
+  }else if(item->CtlID==CategoryTile||item->CtlID==InstrumentArt){
+   RECT art{r.left+32,r.top+28,r.right-32,r.bottom-156};lpui::instrument(dc,art,artIndex);
+   lpui::text(dc,categoryName(),{r.left+16,r.bottom-152,r.right-16,r.bottom-102},largeFont);
+   lpui::text(dc,L"Sua biblioteca de palco",{r.left+16,r.bottom-96,r.right-16,r.bottom-60},font,lpui::muted);
+   lpui::text(dc,L"↑ ↓ Selecionar   ·   Espaço Favoritar",{r.left+16,r.bottom-56,r.right-16,r.bottom-18},smallFont,lpui::gold);
+  }else{
+   wchar_t label[128]{};GetWindowTextW(item->hwndItem,label,128);
+   lpui::text(dc,label,{r.left+8,r.top+8,r.right-8,r.bottom-8},font,active?lpui::gold:lpui::white,DT_CENTER|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS|DT_NOPREFIX);
+  }
+  if(focused)lpui::box(dc,{r.left+7,r.top+7,r.right-7,r.bottom-7},lpui::gold,2);
  }
  void drawList(DRAWITEMSTRUCT* item){
   if(item->itemID==static_cast<UINT>(-1))return;
   auto h=item->hwndItem;auto length=SendMessageW(h,LB_GETTEXTLEN,item->itemID,0);if(length<0)return;
   std::wstring name(static_cast<std::size_t>(length)+1,L'\0');SendMessageW(h,LB_GETTEXT,item->itemID,reinterpret_cast<LPARAM>(name.data()));
-  RECT r=item->rcItem;lpui::fill(item->hDC,r,(item->itemState&ODS_SELECTED)?RGB(56,73,98):lpui::panel);
-  RECT label{r.left+14,r.top+6,r.right-62,r.bottom-6};lpui::text(item->hDC,name,label,font,lpui::white,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+  RECT r=item->rcItem;bool selected=item->itemState&ODS_SELECTED;
+  lpui::fill(item->hDC,r,lpui::ink);RECT row{r.left+4,r.top+3,r.right-4,r.bottom-3};
+  lpui::surface(item->hDC,row,selected?RGB(55,47,35):lpui::panel,selected?RGB(37,34,28):RGB(20,25,34),selected?lpui::gold:RGB(48,58,73),10);
+  if(selected)lpui::fill(item->hDC,{r.left+5,r.top+12,r.left+9,r.bottom-12},lpui::gold);
+  RECT label{r.left+24,r.top+6,r.right-62,r.bottom-6};lpui::text(item->hDC,name,label,font,lpui::white,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
   bool star=false;
   if(h==favorites)star=show.favorites[item->itemID].has_value();
   else if(categoryIndex==13)star=isFavorite("performance://"+std::to_string(visiblePerformances[item->itemID]));
@@ -135,24 +165,35 @@
    lpui::text(dc,L"Versão 1.0",{width/2,height-66,width-40,height-28},font,lpui::gold);return;
   }
   if(!bodyOnly){
-  lpui::photo(dc,photo.get(),{26,24,110,108},true);
+  lpui::surface(dc,{16,12,width-16,pageTop()-62},RGB(27,33,44),RGB(15,20,28),RGB(44,54,69),18);
+  lpui::photo(dc,photo.get(),{32,26,106,100},true);
   int brandRight=width<1280?width-28:width-728;
   lpui::text(dc,L"Live Performance",{128,20,brandRight,62},largeFont,lpui::white,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
   lpui::text(dc,L"by Hugo Sodré",{128,62,brandRight,110},signatureFont,lpui::gold,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
   lpui::line(dc,28,pageTop()-52,width-28,pageTop()-52,RGB(78,90,108),1);
   std::wstring heading;
-  if(effects)heading=performanceControls()?L"Volumes da Performance · E para fechar":L"Parâmetros · E para fechar";
-  else if(screen==lp::Screen::Home)heading=L"Escolha a categoria";
-  else if(screen==lp::Screen::Instruments)heading=categoryName()+L" · ↑ ↓ para escolher · Espaço para favoritar";
+  if(effects)heading=performanceControls()?L"Mix da Performance":L"Esculpir o som";
+  else if(screen==lp::Screen::Home)heading=L"Biblioteca de instrumentos";
+  else if(screen==lp::Screen::Instruments)heading=categoryName();
   else if(screen==lp::Screen::PerformanceEditor)heading=L"Performance Editor";
   else if(screen==lp::Screen::AudioMidi)heading=L"Áudio / MIDI";
-  else if(screen==lp::Screen::Settings)heading=L"Configurações";
+  else if(screen==lp::Screen::Settings)heading=L"Perfis de show e arquivos";
   else heading=L"Sobre · Versão 1.0";
-  lpui::text(dc,heading,{28,pageTop()-40,width-28,pageTop()-4},font,lpui::gold);
+  lpui::text(dc,heading,{32,pageTop()-46,width-230,pageTop()-4},largeFont,lpui::white,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+  lpui::line(dc,32,height-80,width-32,height-80,RGB(56,66,81),1);
   return;
   }
   width-=20;height=pageOrigin+pageScroll.content+92;
-  if(!effects&&screen==lp::Screen::Home)drawKeyboard(dc);
+  if(!effects&&screen==lp::Screen::Home){
+   lpui::text(dc,L"Selecione uma família de sons",{32,pageOrigin,width-32,pageOrigin+30},font,lpui::muted,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
+   lpui::text(dc,L"TECLADO VIRTUAL",{40,pageOrigin+510,width/2,pageOrigin+540},smallFont,lpui::muted,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
+   lpui::text(dc,L"E  Parâmetros    ·    A  Áudio    ·    P  Performance",{width/2,pageOrigin+510,width-40,pageOrigin+540},smallFont,lpui::gold,DT_RIGHT|DT_VCENTER|DT_SINGLELINE);
+   drawKeyboard(dc);
+  }
+  if(effects){
+   int count=performanceControls()?4:16,rows=performanceControls()?2:8,cell=(height-92-192-12)/rows,half=(width-84)/2;
+   for(int i=0;i<count;++i){int x=28+(i/rows)*(half+28),y=192+(i%rows)*cell;lpui::surface(dc,{x,y,x+half,y+cell-8},lpui::panel,lpui::panel,RGB(52,63,80),12);}
+  }
   if(!effects&&screen==lp::Screen::AudioMidi){
    lpui::text(dc,L"Driver ASIO",{40,184,width-40,212},font,lpui::muted,DT_LEFT);
    lpui::text(dc,L"Tamanho do buffer",{40,288,width-40,316},font,lpui::muted,DT_LEFT);
@@ -210,7 +251,7 @@
    if(!effects&&screen==lp::Screen::Instruments){auto list=categoryIndex==15?favorites:catalog;SetFocus(list);SendMessageW(list,WM_KEYDOWN,key,msg.lParam);return true;}
    int direction=key==VK_UP||key==VK_PRIOR?-1:1;scrollPage(direction*((key==VK_PRIOR||key==VK_NEXT)?std::max(48,pageScroll.viewport-48):48));return true;
   }
-  if(!effects&&screen==lp::Screen::Home){if(key==VK_LEFT||key==VK_RIGHT){chooseCategory(key==VK_LEFT?-1:1);return true;}if(key==VK_RETURN){openCategory();return true;}}
+  if(!effects&&screen==lp::Screen::Home){if(key==VK_LEFT||key==VK_RIGHT){chooseCategory(key==VK_LEFT?-1:1);SetFocus(item(CategoryCardBase+categoryIndex));return true;}if(key==VK_RETURN){int focused=GetDlgCtrlID(GetFocus());if(focused>=CategoryCardBase&&focused<CategoryCardBase+16){categoryIndex=focused-CategoryCardBase;openCategory();return true;}if(GetFocus()==window){openCategory();return true;}}}
   if(!effects&&screen==lp::Screen::Instruments){
    if(key==VK_SPACE){favorite();return true;}
    if(key==VK_RETURN){if(categoryIndex==15){auto slot=SendMessageW(favorites,LB_GETCURSEL,0,0);if(slot>=0)activate(static_cast<unsigned>(slot));}else audition();return true;}

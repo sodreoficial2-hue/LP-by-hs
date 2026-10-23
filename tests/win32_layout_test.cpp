@@ -18,6 +18,11 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
  {App app;WNDCLASSW cls{};cls.lpfnWndProc=proc;cls.hInstance=instance;cls.lpszClassName=L"LPLayoutTest";cls.hCursor=LoadCursorW(nullptr,IDC_ARROW);RegisterClassW(&cls);
  auto w=CreateWindowW(cls.lpszClassName,L"Live Performance layout test",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,0,0,1360,900,nullptr,nullptr,instance,&app);assert(w);ShowWindow(w,SW_SHOW);UpdateWindow(w);
  capture(w,app.base/L"layout-splash.bmp",false);pump();assert(!app.loading&&app.engine&&app.photo&&!app.instruments.empty());capture(w,app.base/L"layout-home.bmp");
+ // Every family has a real keyboard-accessible button, within the scrolling page.
+ for(int i=0;i<16;++i){auto card=app.item(CategoryCardBase+i);assert(card&&IsWindowVisible(card));assert(GetWindowLongPtrW(card,GWL_STYLE)&WS_TABSTOP);}
+ SetFocus(app.item(CategoryCardBase+15));MSG enter{};enter.message=WM_KEYDOWN;enter.wParam=VK_RETURN;assert(app.keyCommand(enter)&&app.categoryIndex==15&&app.screen==lp::Screen::Instruments);
+ app.command(HomeButton,0);assert(app.screen==lp::Screen::Home&&!app.effects);
+ app.chooseCategory(1); // Restore category zero for the existing sound-loading checks.
  MSG key{};key.message=WM_KEYDOWN;key.wParam=VK_RIGHT;int before=app.categoryIndex;assert(app.keyCommand(key)&&app.categoryIndex==(before+1)%16);app.chooseCategory(-1);key.wParam=VK_RETURN;app.keyCommand(key);assert(app.screen==lp::Screen::Instruments);capture(w,app.base/L"layout-list.bmp");
  // Opening, clicking an already-highlighted row and native arrows all load automatically.
  assert(app.engine->loaded()&&app.previewActive);

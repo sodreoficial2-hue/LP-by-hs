@@ -27,7 +27,7 @@
 #include "ui_art.hpp"
 
 namespace {
-constexpr int Catalog=100,Favorites=101,Save=102,Open=103,Midi=104,Effects=105,Import=106,ImportSf2=114,AudioDriver=107,AudioBuffer=108,AudioStart=109,AudioStop=110,AudioPanel=111,Panic=112,Category=113,Knob=200,MidiLearnKnob=115,PerformanceButton=116,PerformanceModeControl=117,PerformancePartBase=118,PerformancePlay=122,PerformanceSave=123,PerformanceName=124,PerformanceEditPart=125,PerformanceClearBase=126,AudioMidiButton=140,SettingsButton=141,AboutButton=142,CategoryTile=143,PreviousCategory=144,NextCategory=145,InstrumentArt=146,AboutText=147;
+constexpr int Catalog=100,Favorites=101,Save=102,Open=103,Midi=104,Effects=105,Import=106,ImportSf2=114,AudioDriver=107,AudioBuffer=108,AudioStart=109,AudioStop=110,AudioPanel=111,Panic=112,Category=113,Knob=200,MidiLearnKnob=115,PerformanceButton=116,PerformanceModeControl=117,PerformancePartBase=118,PerformancePlay=122,PerformanceSave=123,PerformanceName=124,PerformanceEditPart=125,PerformanceClearBase=126,AudioMidiButton=140,SettingsButton=141,AboutButton=142,CategoryTile=143,PreviousCategory=144,NextCategory=145,InstrumentArt=146,AboutText=147,HomeButton=148,CategoryCardBase=400;
 constexpr UINT BeginParameterLearn=WM_APP+40,LoadLibraryMessage=WM_APP+41,ToggleFavoriteMessage=WM_APP+42,SelectSoundMessage=WM_APP+43,RevealFocusMessage=WM_APP+44;
 LRESULT CALLBACK pageProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
 LRESULT CALLBACK focusProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
@@ -47,7 +47,7 @@ LRESULT CALLBACK parameterProc(HWND control,UINT msg,WPARAM wp,LPARAM lp,UINT_PT
 struct App {
  HWND window{},catalog{},favorites{},status{},midi{},effectsButton{},category{};
  std::array<HWND,16> sliders{},labels{};
- HFONT font{}; HBRUSH background=CreateSolidBrush(lpui::ink);
+ HFONT font{}; HBRUSH background=CreateSolidBrush(lpui::ink),panelBackground=CreateSolidBrush(lpui::panel);
  lp::Session show; lp::MidiRouter router{show};
  std::vector<lp::Instrument> instruments;
  std::vector<std::size_t> visibleInstruments;
@@ -110,15 +110,15 @@ struct App {
  bool pendingRestore=false;unsigned restoreAttempts=0;
  HMIDIIN midiHandle{};bool effects=false;
  std::filesystem::path base;
- ~App(){closeMidi();engine.reset();for(auto f:{font,titleFont,signatureFont,largeFont,smallFont})if(f)DeleteObject(f);DeleteObject(background);}
+ ~App(){closeMidi();engine.reset();for(auto f:{font,titleFont,signatureFont,largeFont,smallFont})if(f)DeleteObject(f);DeleteObject(background);DeleteObject(panelBackground);}
  void closeMidi(){router.cancelLearn();if(engine)engine->panic();if(midiHandle){midiInStop(midiHandle);midiInReset(midiHandle);midiInClose(midiHandle);midiHandle=nullptr;}}
  void message(const std::wstring& text){SetWindowTextW(status,text.c_str());}
  void error(const std::exception& e){auto s=std::string(e.what());std::wstring text(s.begin(),s.end());MessageBoxW(window,text.c_str(),L"Live Performance",MB_OK|MB_ICONERROR);}
  HWND control(const wchar_t* kind,const wchar_t* text,DWORD style,int id){
   if(_wcsicmp(kind,L"BUTTON")==0)style=(style&~BS_TYPEMASK)|BS_OWNERDRAW;
-  bool header=id==2||id==PerformanceButton||id==AudioMidiButton||id==SettingsButton||id==AboutButton;
+  bool header=id==2||id==PerformanceButton||id==AudioMidiButton||id==SettingsButton||id==AboutButton||id==HomeButton;
   auto parent=header?window:page;
-  auto h=CreateWindowExW(_wcsicmp(kind,L"LISTBOX")==0?WS_EX_CLIENTEDGE:0,kind,text,WS_CHILD|style,0,0,0,0,parent,reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)),GetModuleHandleW(nullptr),nullptr);
+  auto h=CreateWindowExW(0,kind,text,WS_CHILD|style,0,0,0,0,parent,reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)),GetModuleHandleW(nullptr),nullptr);
   SendMessageW(h,WM_SETFONT,reinterpret_cast<WPARAM>(font),TRUE);
   if(!header)SetWindowSubclass(h,focusProc,0,reinterpret_cast<DWORD_PTR>(window));
   return h;
@@ -134,9 +134,11 @@ struct App {
   largeFont=CreateFontW(-34,0,0,0,FW_SEMIBOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
   smallFont=CreateFontW(-16,0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
   photo=lpui::portrait(GetModuleHandleW(nullptr));
-  control(L"BUTTON",L"Áudio / MIDI\nA",BS_PUSHBUTTON|WS_TABSTOP,AudioMidiButton);
-  control(L"BUTTON",L"Configurações\nC",BS_PUSHBUTTON|WS_TABSTOP,SettingsButton);
+  control(L"BUTTON",L"Áudio / MIDI",BS_PUSHBUTTON|WS_TABSTOP,AudioMidiButton);
+  control(L"BUTTON",L"Perfis e arquivos",BS_PUSHBUTTON|WS_TABSTOP,SettingsButton);
   control(L"BUTTON",L"Sobre",BS_PUSHBUTTON,AboutButton);
+  control(L"BUTTON",L"‹ Biblioteca",BS_PUSHBUTTON|WS_TABSTOP,HomeButton);
+  for(int i=0;i<16;++i){auto label=i==15?std::wstring(L"Favoritos"):std::filesystem::u8path(lp::instrumentCategories[i]).wstring();control(L"BUTTON",label.c_str(),BS_PUSHBUTTON|WS_TABSTOP,CategoryCardBase+i);}
   control(L"BUTTON",L"Escolher categoria",BS_PUSHBUTTON|WS_TABSTOP,CategoryTile);
   control(L"BUTTON",L"❮",BS_PUSHBUTTON|WS_TABSTOP,PreviousCategory);
   control(L"BUTTON",L"❯",BS_PUSHBUTTON|WS_TABSTOP,NextCategory);
@@ -164,7 +166,7 @@ struct App {
   control(L"BUTTON",L"Desconectar",BS_PUSHBUTTON|WS_TABSTOP,AudioStop);
   control(L"BUTTON",L"ASIO Control",BS_PUSHBUTTON|WS_TABSTOP,AudioPanel);
   control(L"BUTTON",L"MIDI Learn knob (Ctrl+L)",BS_PUSHBUTTON|WS_TABSTOP,MidiLearnKnob);
-  control(L"BUTTON",L"Performance\nEditor (P)",BS_PUSHBUTTON|WS_TABSTOP,PerformanceButton);
+  control(L"BUTTON",L"Performance",BS_PUSHBUTTON|WS_TABSTOP,PerformanceButton);
   performanceMode=control(L"COMBOBOX",L"",CBS_DROPDOWNLIST|WS_TABSTOP,PerformanceModeControl);
   SendMessageW(performanceMode,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Camadas: quatro timbres em todo teclado"));
   SendMessageW(performanceMode,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Dividir: duas partes (2 + 2)"));
@@ -276,7 +278,7 @@ struct App {
     pendingRestore=true;SetTimer(window,2,750,nullptr);message(L"Reconectando automaticamente o último driver ASIO...");
    }
   }catch(const std::exception& e){error(e);message(L"Áudio não inicializado ou configurações não restauradas. Confira o driver ASIO e tente conectar.");}
-  updateSplash(100,L"Biblioteca pronta.");loading=false;layout();SetFocus(item(CategoryTile));SetTimer(window,1,250,nullptr);
+  updateSplash(100,L"Biblioteca pronta.");loading=false;layout();SetFocus(item(CategoryCardBase+categoryIndex));SetTimer(window,1,250,nullptr);
  }
  #include "ui_app.inc"
  void cancelAudioRestore(){pendingRestore=false;KillTimer(window,2);}
@@ -409,6 +411,8 @@ struct App {
   SetFocus(performancePartControls[index]);
  }
  void command(int id,int event){try{
+  if(id==HomeButton){effects=false;parameterPanel.open=false;goHome();return;}
+  if(id>=CategoryCardBase&&id<CategoryCardBase+16){categoryIndex=id-CategoryCardBase;SendMessageW(category,CB_SETCURSEL,categoryIndex,0);openCategory();return;}
   if(id==CategoryTile){openCategory();return;}if(id==PreviousCategory||id==NextCategory){chooseCategory(id==PreviousCategory?-1:1);return;}
   if(id==AudioMidiButton){openScreen(lp::Screen::AudioMidi);return;}if(id==SettingsButton){openScreen(lp::Screen::Settings);return;}if(id==AboutButton){openScreen(lp::Screen::About);return;}
 
@@ -530,7 +534,7 @@ LRESULT CALLBACK pageProc(HWND page,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR id,DWO
  case WM_MOUSEMOVE:if(GetCapture()==page){app.virtualKey(app.pagePoint(lp));return 0;}break;
  case WM_LBUTTONUP:if(GetCapture()==page){app.releaseVirtual();ReleaseCapture();return 0;}break;
  case WM_CAPTURECHANGED:app.releaseVirtual();return 0;
- case WM_COMMAND:case WM_DRAWITEM:case WM_MEASUREITEM:case WM_HSCROLL:case WM_CONTEXTMENU:
+ case WM_NOTIFY:case WM_COMMAND:case WM_DRAWITEM:case WM_MEASUREITEM:case WM_HSCROLL:case WM_CONTEXTMENU:
  case WM_CTLCOLORSTATIC:case WM_CTLCOLOREDIT:case WM_CTLCOLORLISTBOX:
  case BeginParameterLearn:case ToggleFavoriteMessage:case SelectSoundMessage:
   return SendMessageW(app.window,msg,wp,lp);
@@ -557,6 +561,9 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
   if(app->engine&&app->engine->takeFault()){try{app->engine->stop();}catch(const std::exception& e){app->error(e);}app->message(L"Falha no motor/driver. Áudio interrompido; reconecte ASIO.");}return 0;
  case WM_SIZE:if(app->catalog)app->layout();return 0;
  case WM_PAINT:{PAINTSTRUCT ps{};auto dc=BeginPaint(w,&ps);RECT r{};GetClientRect(w,&r);auto buffer=CreateCompatibleDC(dc);auto bitmap=CreateCompatibleBitmap(dc,std::max(1L,r.right),std::max(1L,r.bottom));auto previous=SelectObject(buffer,bitmap);app->paint(buffer);BitBlt(dc,0,0,r.right,r.bottom,buffer,0,0,SRCCOPY);SelectObject(buffer,previous);DeleteObject(bitmap);DeleteDC(buffer);EndPaint(w,&ps);return 0;}
+ case WM_NOTIFY:{auto custom=reinterpret_cast<NMCUSTOMDRAW*>(lp);if(custom->hdr.code==NM_CUSTOMDRAW){
+  for(auto slider:app->sliders)if(custom->hdr.hwndFrom==slider){if(custom->dwDrawStage==CDDS_PREPAINT){app->drawSlider(custom);return CDRF_SKIPDEFAULT;}}
+ }break;}
  case WM_DRAWITEM:{auto item=reinterpret_cast<DRAWITEMSTRUCT*>(lp);if(item->CtlType==ODT_BUTTON)app->drawButton(item);else if(item->CtlType==ODT_LISTBOX)app->drawList(item);return TRUE;}
  case WM_MEASUREITEM:{auto item=reinterpret_cast<MEASUREITEMSTRUCT*>(lp);if(item->CtlType==ODT_LISTBOX){item->itemHeight=62;return TRUE;}break;}
  case WM_COMMAND:app->touchParameters();app->command(LOWORD(wp),HIWORD(wp));return 0;
@@ -572,7 +579,7 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
   if(lp!=-1){POINT pt{static_cast<short>(LOWORD(lp)),static_cast<short>(HIWORD(lp))};ScreenToClient(app->favorites,&pt);auto hit=SendMessageW(app->favorites,LB_ITEMFROMPOINT,0,MAKELPARAM(pt.x,pt.y));slot=HIWORD(hit)?-1:LOWORD(hit);}
   if(slot>=0){try{app->router.learnFavorite(static_cast<std::size_t>(slot));app->message(L"MIDI Learn: pressione o Program Change correspondente ao favorito (1 a 20). ESC cancela.");}catch(const std::exception& e){app->error(e);}}return 0;
  }break;
- case WM_CTLCOLORSTATIC:case WM_CTLCOLOREDIT:case WM_CTLCOLORLISTBOX:{auto dc=reinterpret_cast<HDC>(wp);SetTextColor(dc,lpui::white);SetBkColor(dc,lpui::ink);return reinterpret_cast<LRESULT>(app->background);}
+ case WM_CTLCOLORSTATIC:case WM_CTLCOLOREDIT:case WM_CTLCOLORLISTBOX:{auto dc=reinterpret_cast<HDC>(wp);SetTextColor(dc,lpui::white);int id=GetDlgCtrlID(reinterpret_cast<HWND>(lp));bool panel=id>=Knob+100&&id<Knob+116;SetBkColor(dc,panel?lpui::panel:lpui::ink);return reinterpret_cast<LRESULT>(panel?app->panelBackground:app->background);}
  case WM_ERASEBKGND:return 1;
  case WM_GETMINMAXINFO:reinterpret_cast<MINMAXINFO*>(lp)->ptMinTrackSize={1024,600};return 0;
  case WM_CLOSE:try{app->releaseVirtual();if(app->engine)app->persistAudioAndMidi();}catch(const std::exception& e){app->error(e);}break;
