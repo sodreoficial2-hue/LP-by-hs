@@ -5,7 +5,7 @@
 #include <sstream>
 namespace lp {
 struct AudioSettings {
- std::string driver;unsigned long buffer=0;std::string midi;
+ std::string driver;unsigned long buffer=0;std::string midi{};
  void save(const std::filesystem::path& path) const {
   if(driver.empty()||driver.size()>1024||(buffer&&(buffer<16||buffer>8192)))throw std::invalid_argument("Invalid audio settings");
   std::ostringstream out;out<<"LPHS_ASIO 2\n"<<std::quoted(driver)<<' '<<buffer<<' '<<std::quoted(midi)<<'\n';atomicWrite(path,out.str());

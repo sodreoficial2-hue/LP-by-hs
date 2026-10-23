@@ -34,7 +34,7 @@ Dsp::Dsp(float sampleRate):rate(sampleRate) {
  followerAttack=std::exp(-1/(rate*.002f));followerRelease=std::exp(-1/(rate*.08f));
  parameters(p);
 }
-void Dsp::parameters(const std::array<float,14>& values) {
+void Dsp::parameters(const std::array<float,15>& values) {
  for(float v:values)if(!std::isfinite(v)||v<0||v>1)throw std::invalid_argument("Invalid DSP parameter");
  p=values;
  constexpr float frequencies[]{120,1000,6000};

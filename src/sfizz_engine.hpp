@@ -18,7 +18,7 @@ public:
  void cc(int number,int value);
  void pitchBend(int value); // Signed 14-bit MIDI: -8192..8191, center 0.
  void panic();
- void parameters(const std::array<float,14>& values,bool adsrEnabled=false);
+ void parameters(const std::array<float,15>& values,bool adsrEnabled=false);
  std::array<float,4> envelope(int region); // Readback: only on owner thread / stopped stream.
  void unload();
  void render(float* left,float* right,int frames);

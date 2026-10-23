@@ -33,11 +33,34 @@ void AudioHost::open(int id,unsigned long size){
  requireAsio(id);auto info=Pa_GetDeviceInfo(id);
  PaStreamParameters out{};out.device=id;out.channelCount=2;out.sampleFormat=paFloat32|paNonInterleaved;
  out.suggestedLatency=info->defaultLowOutputLatency;
- paCheck(Pa_IsFormatSupported(nullptr,&out,48000));
- PaStream* candidate=nullptr;paCheck(Pa_OpenStream(&candidate,nullptr,&out,48000,size,paNoFlag,callback,this));
- restorePerformance();
- auto result=Pa_StartStream(candidate);
- if(result<0){Pa_CloseStream(candidate);paCheck(result);}
+ // Prefer the driver's advertised default, then common ASIO rates.
+ // Do not assume every device supports the former hard-coded 48 kHz.
+ const double candidates[]{info->defaultSampleRate,48000.0,44100.0,96000.0,88200.0};
+ double rate=0;
+ for(double candidateRate:candidates){
+  if(candidateRate<8000||candidateRate>384000)continue;
+  if(Pa_IsFormatSupported(nullptr,&out,candidateRate)==paFormatIsSupported){rate=candidateRate;break;}
+ }
+ if(rate==0)throw std::runtime_error("ASIO: no compatible sample rate reported by selected driver");
+ // Every synth and DSP must match the negotiated physical stream rate.
+ auto replacement=std::make_unique<SfizzEngine>(library,static_cast<float>(rate));
+ std::unique_ptr<Sf2Engine> fluidReplacement;
+ std::array<PartSynth,4> prepared{};
+ if(activePerformance){
+  for(std::size_t i=0;i<4;++i)if(performance.parts[i].enabled){
+   const auto& part=performance.parts[i];auto ref=parseSf2Reference(part.instrument);
+   if(ref){prepared[i].sf2=std::make_unique<Sf2Engine>(fluidLibrary,static_cast<int>(rate));prepared[i].sf2->load(ref->path);prepared[i].sf2->select(ref->bank,ref->program);prepared[i].sf2->parameters(part.patch.parameters,part.patch.adsrEnabled);}
+   else{prepared[i].sfz=std::make_unique<SfizzEngine>(library,static_cast<float>(rate));prepared[i].sfz->load(std::filesystem::u8path(part.instrument));prepared[i].sfz->parameters(part.patch.parameters,part.patch.adsrEnabled);}
+  }
+ }else if(sf2Active){fluidReplacement=std::make_unique<Sf2Engine>(fluidLibrary,static_cast<int>(rate));fluidReplacement->load(instrument);fluidReplacement->select(sf2Bank,sf2Program);fluidReplacement->parameters(current,currentAdsr);}
+ else if(!instrument.empty()){replacement->load(instrument);replacement->parameters(current,currentAdsr);}
+ PaStream* candidate=nullptr;
+ paCheck(Pa_OpenStream(&candidate,nullptr,&out,rate,size,paNoFlag,callback,this));
+ auto previous=std::move(engine);auto previousFluid=std::move(sf2);auto previousParts=std::move(partSynths);
+ engine=std::move(replacement);sf2=std::move(fluidReplacement);partSynths=std::move(prepared);
+ try{restorePerformance();paCheck(Pa_StartStream(candidate));}
+ catch(...){Pa_CloseStream(candidate);engine=std::move(previous);sf2=std::move(previousFluid);partSynths=std::move(previousParts);throw;}
+ this->rate=rate;
  stream=candidate;device=id;buffer=size;
 }
 void AudioHost::start(int id,unsigned long size){
@@ -57,21 +80,19 @@ void AudioHost::controlPanel(int id,void* window){
  if(restart)open(oldDevice,oldBuffer);
  paCheck(result);
 }
-void AudioHost::load(const std::filesystem::path& path,const std::array<float,14>& parameters,bool enabled){
- if(activePerformance){bool restart=running();auto id=device;auto size=buffer;stop();activePerformance=false;partSynths={};if(restart)open(id,size);}
- auto candidate=std::make_unique<SfizzEngine>(library);candidate->load(path);candidate->parameters(parameters,enabled);
+void AudioHost::load(const std::filesystem::path& path,const std::array<float,15>& parameters,bool enabled){
+ auto candidate=std::make_unique<SfizzEngine>(library,static_cast<float>(rate));candidate->load(path);candidate->parameters(parameters,enabled);
  bool restart=running();auto id=device;auto size=buffer;stop();
- auto previousInstrument=instrument;auto previousParameters=current;bool previousAdsr=currentAdsr;bool previousSf2=sf2Active;
+ auto previousInstrument=instrument;auto previousParameters=current;bool previousAdsr=currentAdsr;bool previousSf2=sf2Active;bool wasPerformance=activePerformance;activePerformance=false;
  engine.swap(candidate);sf2Active=false;restorePerformance();instrument=path;this->parameters(parameters,enabled);
- if(restart){try{open(id,size);}catch(...){engine.swap(candidate);sf2Active=previousSf2;instrument=previousInstrument;this->parameters(previousParameters,previousAdsr);try{open(id,size);}catch(...){fault.store(true);}throw;}}
+ if(restart){try{open(id,size);}catch(...){engine.swap(candidate);activePerformance=wasPerformance;sf2Active=previousSf2;instrument=previousInstrument;this->parameters(previousParameters,previousAdsr);try{open(id,size);}catch(...){fault.store(true);}throw;}}
 }
-void AudioHost::loadSf2(const std::filesystem::path& path,int bank,int program,const std::array<float,14>& params,bool adsrEnabled){
- if(activePerformance){bool restart=running();auto id=device;auto size=buffer;stop();activePerformance=false;partSynths={};if(restart)open(id,size);}
- auto candidate=std::make_unique<Sf2Engine>(fluidLibrary);candidate->load(path);candidate->select(bank,program);
+void AudioHost::loadSf2(const std::filesystem::path& path,int bank,int program,const std::array<float,15>& params,bool adsrEnabled){
+ auto candidate=std::make_unique<Sf2Engine>(fluidLibrary,static_cast<int>(rate));candidate->load(path);candidate->select(bank,program);
  bool restart=running();auto id=device;auto size=buffer;stop();
- auto old=std::move(sf2);bool wasSf2=sf2Active;auto oldPath=instrument;
- sf2=std::move(candidate);sf2Active=true;instrument=path;this->parameters(params,adsrEnabled);restorePerformance();
- if(restart){try{open(id,size);}catch(...){sf2=std::move(old);sf2Active=wasSf2;instrument=oldPath;try{open(id,size);}catch(...){fault.store(true);}throw;}}
+ auto old=std::move(sf2);bool wasSf2=sf2Active;auto oldPath=instrument;auto oldBank=sf2Bank,oldProgram=sf2Program;bool wasPerformance=activePerformance;activePerformance=false;auto oldParams=current;auto oldAdsr=currentAdsr;
+ sf2=std::move(candidate);sf2Active=true;sf2Bank=bank;sf2Program=program;instrument=path;this->parameters(params,adsrEnabled);restorePerformance();
+ if(restart){try{open(id,size);}catch(...){sf2=std::move(old);activePerformance=wasPerformance;this->parameters(oldParams,oldAdsr);sf2Active=wasSf2;sf2Bank=oldBank;sf2Program=oldProgram;instrument=oldPath;try{open(id,size);}catch(...){fault.store(true);}throw;}}
 }
 std::vector<Sf2Preset> AudioHost::sf2Presets(const std::filesystem::path& path) const{
  Sf2Engine temporary(fluidLibrary);temporary.load(path);return temporary.presets();
@@ -93,23 +114,24 @@ void AudioHost::loadPerformance(const Performance& selected){
  std::array<PartSynth,4> prepared{};
  for(std::size_t i=0;i<4;++i)if(selected.parts[i].enabled){
   const auto& part=selected.parts[i];auto ref=parseSf2Reference(part.instrument);
-  if(ref){prepared[i].sf2=std::make_unique<Sf2Engine>(fluidLibrary);prepared[i].sf2->load(ref->path);prepared[i].sf2->select(ref->bank,ref->program);prepared[i].sf2->parameters(part.patch.parameters,part.patch.adsrEnabled);}
-  else{prepared[i].sfz=std::make_unique<SfizzEngine>(library);prepared[i].sfz->load(std::filesystem::u8path(part.instrument));prepared[i].sfz->parameters(part.patch.parameters,part.patch.adsrEnabled);}
+  if(ref){prepared[i].sf2=std::make_unique<Sf2Engine>(fluidLibrary,static_cast<int>(rate));prepared[i].sf2->load(ref->path);prepared[i].sf2->select(ref->bank,ref->program);prepared[i].sf2->parameters(part.patch.parameters,part.patch.adsrEnabled);}
+  else{prepared[i].sfz=std::make_unique<SfizzEngine>(library,static_cast<float>(rate));prepared[i].sfz->load(std::filesystem::u8path(part.instrument));prepared[i].sfz->parameters(part.patch.parameters,part.patch.adsrEnabled);}
  }
  bool restart=running();auto id=device;auto size=buffer;stop();
  partSynths=std::move(prepared);performance=selected;activePerformance=true;
- for(std::size_t i=0;i<4;++i){auto& control=partControls[i];control.revision.fetch_add(1,std::memory_order_seq_cst);for(std::size_t j=0;j<14;++j)control.values[j].store(selected.parts[i].patch.parameters[j],std::memory_order_seq_cst);control.adsr.store(selected.parts[i].patch.adsrEnabled,std::memory_order_seq_cst);control.revision.fetch_add(1,std::memory_order_seq_cst);control.applied=control.revision.load();}
- restorePartControls();instrument=std::filesystem::u8path(selected.parts[0].instrument);
+ for(std::size_t i=0;i<4;++i){auto& control=partControls[i];control.revision.fetch_add(1,std::memory_order_seq_cst);for(std::size_t j=0;j<15;++j)control.values[j].store(selected.parts[i].patch.parameters[j],std::memory_order_seq_cst);control.adsr.store(selected.parts[i].patch.adsrEnabled,std::memory_order_seq_cst);control.revision.fetch_add(1,std::memory_order_seq_cst);control.applied=control.revision.load();}
+ restorePartControls();for(const auto& part:selected.parts)if(part.enabled){instrument=std::filesystem::u8path(part.instrument);break;}
  if(restart)open(id,size);
 }
-void AudioHost::setPerformancePartParameters(std::size_t index,const std::array<float,14>& params,bool enabled){
+void AudioHost::setPerformancePartParameters(std::size_t index,const std::array<float,15>& params,bool enabled){
  if(!activePerformance||index>=4||!performance.parts[index].enabled)throw std::invalid_argument("Inactive Performance part");
  for(float value:params)if(!std::isfinite(value)||value<0||value>1)throw std::invalid_argument("Invalid parameter");
  // The callback is the only owner of live synth parameters. Never restart ASIO
  // when adjusting a knob; publish a consistent atomic snapshot instead.
+ performance.parts[index].patch.parameters=params;performance.parts[index].patch.adsrEnabled=enabled;
  auto& control=partControls[index];
  control.revision.fetch_add(1,std::memory_order_seq_cst);
- for(std::size_t j=0;j<14;++j)control.values[j].store(params[j],std::memory_order_seq_cst);
+ for(std::size_t j=0;j<15;++j)control.values[j].store(params[j],std::memory_order_seq_cst);
  control.adsr.store(enabled,std::memory_order_seq_cst);
  control.revision.fetch_add(1,std::memory_order_seq_cst);
  if(!running()){
@@ -118,8 +140,9 @@ void AudioHost::setPerformancePartParameters(std::size_t index,const std::array<
   control.applied=control.revision.load(std::memory_order_seq_cst);
  }
 }
-void AudioHost::parameters(const std::array<float,14>& params,bool enabled){
+void AudioHost::parameters(const std::array<float,15>& params,bool enabled){
  for(float v:params)if(!std::isfinite(v)||v<0||v>1)throw std::invalid_argument("Invalid audio parameter");
+ if(!stream){current=params;currentAdsr=enabled;}
  revision.fetch_add(1,std::memory_order_seq_cst);
  desiredAdsr.store(enabled,std::memory_order_seq_cst);
  for(std::size_t i=0;i<params.size();++i)values[i].store(params[i],std::memory_order_seq_cst);
@@ -145,14 +168,14 @@ int AudioHost::render(float** output,unsigned long frames,PaStreamCallbackFlags 
  if(flags&paOutputUnderflow)underruns.fetch_add(1);
  try{
   unsigned before=revision.load(std::memory_order_seq_cst);
-  if(!(before&1)&&before!=applied){std::array<float,14> snapshot;for(std::size_t i=0;i<snapshot.size();++i)snapshot[i]=values[i].load(std::memory_order_seq_cst);
+  if(!(before&1)&&before!=applied){std::array<float,15> snapshot;for(std::size_t i=0;i<snapshot.size();++i)snapshot[i]=values[i].load(std::memory_order_seq_cst);
    bool enabled=desiredAdsr.load(std::memory_order_seq_cst);
    if(before==revision.load(std::memory_order_seq_cst)){if(!activePerformance){if(sf2Active)sf2->parameters(snapshot,enabled);else engine->parameters(snapshot,enabled);}current=snapshot;currentAdsr=enabled;applied=before;}}
   if(activePerformance)for(std::size_t part=0;part<4;++part)if(performance.parts[part].enabled){
    auto& control=partControls[part];unsigned before=control.revision.load(std::memory_order_seq_cst);
    if((before&1)||before==control.applied)continue;
-   std::array<float,14> snapshot{};
-   for(std::size_t j=0;j<14;++j)snapshot[j]=control.values[j].load(std::memory_order_seq_cst);
+   std::array<float,15> snapshot{};
+   for(std::size_t j=0;j<15;++j)snapshot[j]=control.values[j].load(std::memory_order_seq_cst);
    bool enabled=control.adsr.load(std::memory_order_seq_cst);
    if(before==control.revision.load(std::memory_order_seq_cst)){
     if(partSynths[part].sf2)partSynths[part].sf2->parameters(snapshot,enabled);
@@ -193,6 +216,7 @@ int AudioHost::render(float** output,unsigned long frames,PaStreamCallbackFlags 
     for(int j=0;j<size;++j){output[0][i+j]+=scratchLeft[j];output[1][i+j]+=scratchRight[j];}
    }
   }else if(sf2Active)sf2->render(output[0]+i,output[1]+i,size);else engine->render(output[0]+i,output[1]+i,size);i+=size;}
+  float gain=master.load();for(unsigned long j=0;j<frames;++j){output[0][j]*=gain;output[1][j]*=gain;}
   return paContinue;
  }catch(...){std::fill_n(output[0],frames,0);std::fill_n(output[1],frames,0);fault.store(true);return paContinue;}
 }

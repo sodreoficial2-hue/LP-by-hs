@@ -22,14 +22,14 @@ public:
  void start(int device,unsigned long buffer=0);
  void stop();
  void controlPanel(int device,void* window);
- void load(const std::filesystem::path& sfz,const std::array<float,14>& parameters,bool adsrEnabled=false);
- void loadSf2(const std::filesystem::path& sf2,int bank,int program,const std::array<float,14>& parameters,bool adsrEnabled=false);
+ void load(const std::filesystem::path& sfz,const std::array<float,15>& parameters,bool adsrEnabled=false);
+ void loadSf2(const std::filesystem::path& sf2,int bank,int program,const std::array<float,15>& parameters,bool adsrEnabled=false);
  std::vector<Sf2Preset> sf2Presets(const std::filesystem::path& sf2) const;
  void unload();
  void loadPerformance(const Performance& performance);
  bool performanceActive() const noexcept {return activePerformance;}
- void setPerformancePartParameters(std::size_t index,const std::array<float,14>& params,bool adsrEnabled);
- void parameters(const std::array<float,14>& values,bool adsrEnabled=false);
+ void setPerformancePartParameters(std::size_t index,const std::array<float,15>& params,bool adsrEnabled);
+ void parameters(const std::array<float,15>& values,bool adsrEnabled=false);
  void send(MidiMessage message) noexcept;
  void panic() noexcept;
  bool running() const noexcept {return stream!=nullptr;}
@@ -37,6 +37,8 @@ public:
  int selectedDevice() const noexcept {return device;}
  unsigned long bufferSize() const noexcept {return buffer;}
  double latency() const noexcept;
+ double sampleRate() const noexcept {return rate;}
+ void masterVolume(float value){if(!std::isfinite(value)||value<0||value>1)throw std::invalid_argument("Invalid Master");master.store(value);}
  bool takeFault() noexcept {return fault.exchange(false);}
  unsigned long xruns() const noexcept {return underruns.load();}
 private:
@@ -52,14 +54,15 @@ private:
  std::atomic<bool> bendSeen{false};
  std::filesystem::path library,instrument,fluidLibrary;
  std::unique_ptr<Sf2Engine> sf2;
- bool sf2Active=false;
+ bool sf2Active=false;int sf2Bank=0,sf2Program=0;
+ double rate=48000;std::atomic<float> master{1};
  std::unique_ptr<SfizzEngine> engine;
  struct PartSynth {std::unique_ptr<SfizzEngine> sfz;std::unique_ptr<Sf2Engine> sf2;};
  std::array<PartSynth,4> partSynths{};
  Performance performance{};
  bool activePerformance=false;
  std::array<float,256> scratchLeft{},scratchRight{};
- struct PartControl {std::array<std::atomic<float>,14> values;std::atomic<bool> adsr{false};std::atomic<unsigned> revision{0};unsigned applied=0;};
+ struct PartControl {std::array<std::atomic<float>,15> values;std::atomic<bool> adsr{false};std::atomic<unsigned> revision{0};unsigned applied=0;};
  std::array<PartControl,4> partControls{};
  void panicAll() noexcept;
  void restorePartControls();
@@ -67,9 +70,9 @@ private:
  MidiQueue<> midi;
  std::atomic<bool> panicRequested{false},fault{false};
  std::atomic<unsigned long> underruns{0};
- std::array<std::atomic<float>,14> values;
+ std::array<std::atomic<float>,15> values;
  std::atomic<unsigned> revision{0};unsigned applied=0;
  std::atomic<bool> desiredAdsr{false};bool currentAdsr=false;
- std::array<float,14> current=Patch{}.parameters;
+ std::array<float,15> current=Patch{}.parameters;
 };
 }

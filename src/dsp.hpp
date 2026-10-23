@@ -9,7 +9,7 @@ namespace lp {
 class Dsp {
 public:
  explicit Dsp(float sampleRate=48000);
- void parameters(const std::array<float,14>& values);
+ void parameters(const std::array<float,15>& values);
  void reset() noexcept;
  void process(float* left,float* right,int frames) noexcept;
 private:
@@ -25,7 +25,7 @@ private:
  std::array<FilterState,2> filter{};
  float rate,envelope=0,phase=0,chorusPhase=0;
  float follower=0,followerAttack=0,followerRelease=0;
- std::array<float,14> p=Patch{}.parameters;
+ std::array<float,15> p=Patch{}.parameters;
  std::array<std::array<Biquad,3>,2> eq;
  std::array<std::vector<float>,2> delay,chorus;
  std::array<std::array<Comb,4>,2> reverb;

@@ -18,6 +18,7 @@ inline std::optional<Sf2Reference> parseSf2Reference(const std::string& value){
  auto number=[](const std::string& v,int max){if(v.empty()||v.find_first_not_of("0123456789")!=std::string::npos)throw std::runtime_error("Invalid SF2 number");int n=std::stoi(v);if(n>max)throw std::runtime_error("Invalid SF2 number");return n;};
  Sf2Reference ref;ref.bank=number(value.substr(start,colon-start),16383);ref.program=number(value.substr(colon+1,second-colon-1),127);
  ref.path=std::filesystem::u8path(value.substr(second+1));
- if(ref.path.empty())throw std::runtime_error("Empty SF2 path");return ref;
+ if(ref.path.empty())throw std::runtime_error("Empty SF2 path");
+ return ref;
 }
 }

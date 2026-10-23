@@ -13,7 +13,7 @@ PaDeviceIndex Pa_GetDeviceCount(){return 4;}
 const PaDeviceInfo* Pa_GetDeviceInfo(PaDeviceIndex id){return id==0?&windows:id==1?&driver:id==2?&mono:id==3?&tascam:nullptr;}
 const PaHostApiInfo* Pa_GetHostApiInfo(PaHostApiIndex id){return id==0?&asio:id==1?&wasapi:nullptr;}
 const char* Pa_GetErrorText(PaError){return "simulated driver failure";}
-PaError Pa_IsFormatSupported(const PaStreamParameters*,const PaStreamParameters* out,double rate){return (out->device==1||out->device==3)&&rate==48000?0:paInvalidDevice;}
+PaError Pa_IsFormatSupported(const PaStreamParameters*,const PaStreamParameters* out,double rate){return (out->device==1||out->device==3)&&rate==driver.defaultSampleRate?0:paInvalidDevice;}
 PaError Pa_OpenStream(PaStream** stream,const PaStreamParameters*,const PaStreamParameters* out,double,unsigned long,PaStreamFlags,PaStreamCallback* cb,void* user){
  if(failNext){failNext=false;return paDeviceUnavailable;}
  selected=out->device;renderCallback=cb;context=user;*stream=reinterpret_cast<PaStream*>(1);return 0;
@@ -27,3 +27,5 @@ PaError PaAsio_ShowControlPanel(PaDeviceIndex id,void*){return id==1||id==3?0:pa
 }
 int fakePump(float* left,float* right,unsigned long frames,PaStreamCallbackFlags flags=0){if(!active||!renderCallback)throw std::runtime_error("No callback running");float* out[]{left,right};return renderCallback(nullptr,out,frames,nullptr,flags,context);}
 void fakeFailOpen(){failNext=true;}int fakeStarts(){return starts;}int fakeDevice(){return selected;}
+
+void fakeSampleRate(double rate){driver.defaultSampleRate=rate;tascam.defaultSampleRate=rate;}

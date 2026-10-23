@@ -1,6 +1,7 @@
 #include "sf2_engine.hpp"
 #include "dsp.hpp"
 #include "envelope.hpp"
+#include "mono_glide.hpp"
 #include <cmath>
 #include <algorithm>
 #include <stdexcept>
@@ -27,7 +28,7 @@ template<class T>T bind(Lib l,const char* n){auto p=sym(l,n);if(!p)throw std::ru
 }
 struct Sf2Engine::Impl {
  Lib lib{};Settings* settings{};Synth* synth{};int font=-1;
- Dsp dsp{48000};bool adsrEnabled=false;std::array<float,4> envelope{};
+ Dsp dsp{48000};MonoGlide glide;float rate=48000;bool adsrEnabled=false;std::array<float,4> envelope{};
  Settings* (*newSettings)(){};void (*deleteSettings)(Settings*){};
  int (*setNum)(Settings*,const char*,double){};
  Synth* (*newSynth)(Settings*){};void (*deleteSynth)(Synth*){};
@@ -38,11 +39,12 @@ struct Sf2Engine::Impl {
  int (*select)(Synth*,int,int,int,int){};
  int (*on)(Synth*,int,int,int){};int (*off)(Synth*,int,int){};
  int (*cc)(Synth*,int,int,int){};int (*bend)(Synth*,int,int){};
+ int (*sensitivity)(Synth*,int,int){};
  int (*silence)(Synth*,int){};int (*setGen)(Synth*,int,int,float){};int (*write)(Synth*,int,void*,int,int,void*,int,int){};
  ~Impl(){if(synth)deleteSynth(synth);if(settings)deleteSettings(settings);close(lib);}
 };
 Sf2Engine::Sf2Engine(const std::filesystem::path& path,int rate):impl(new Impl){
- auto& x=*impl;x.lib=open(path);if(!x.lib)throw std::runtime_error("FluidSynth DLL unavailable");
+ auto& x=*impl;x.rate=static_cast<float>(rate);x.dsp=Dsp(static_cast<float>(rate));x.lib=open(path);if(!x.lib)throw std::runtime_error("FluidSynth DLL unavailable");
 #define B(field,symbol) x.field=bind<decltype(x.field)>(x.lib,symbol)
  B(newSettings,"new_fluid_settings");B(deleteSettings,"delete_fluid_settings");
  B(setNum,"fluid_settings_setnum");B(newSynth,"new_fluid_synth");B(deleteSynth,"delete_fluid_synth");
@@ -50,7 +52,7 @@ Sf2Engine::Sf2Engine(const std::filesystem::path& path,int rate):impl(new Impl){
  B(iterStart,"fluid_sfont_iteration_start");B(iterNext,"fluid_sfont_iteration_next");
  B(bank,"fluid_preset_get_banknum");B(program,"fluid_preset_get_num");B(name,"fluid_preset_get_name");
  B(select,"fluid_synth_program_select");B(on,"fluid_synth_noteon");B(off,"fluid_synth_noteoff");
- B(cc,"fluid_synth_cc");B(bend,"fluid_synth_pitch_bend");B(silence,"fluid_synth_all_sounds_off");
+ B(sensitivity,"fluid_synth_pitch_wheel_sens");B(cc,"fluid_synth_cc");B(bend,"fluid_synth_pitch_bend");B(silence,"fluid_synth_all_sounds_off");
  B(write,"fluid_synth_write_float");B(setGen,"fluid_synth_set_gen");
 #undef B
  x.settings=x.newSettings();if(!x.settings)throw std::runtime_error("FluidSynth settings failed");
@@ -63,7 +65,8 @@ void Sf2Engine::load(const std::filesystem::path& path){
  // Load into a fresh engine per instrument swap; never load in the ASIO callback.
  auto name=std::filesystem::absolute(path).u8string();
  int font=impl->sfload(impl->synth,name.c_str(),0);
- if(font<0)throw std::runtime_error("SF2 loading failed");impl->font=font;
+ if(font<0)throw std::runtime_error("SF2 loading failed");
+ impl->font=font;
 }
 std::vector<Sf2Preset> Sf2Engine::presets() const{
  std::vector<Sf2Preset> result;if(!loaded())return result;
@@ -75,13 +78,15 @@ void Sf2Engine::select(int bank,int program){
  if(!loaded()||bank<0||bank>16383||program<0||program>127||impl->select(impl->synth,0,impl->font,bank,program)!=0)
  throw std::runtime_error("SF2 preset not found");
 }
-void Sf2Engine::noteOn(int n,int v){if(loaded())impl->on(impl->synth,0,n,v);}
-void Sf2Engine::noteOff(int n){if(loaded())impl->off(impl->synth,0,n);}
+void Sf2Engine::noteOn(int n,int v){if(!loaded())return;auto& x=*impl;if(!v){noteOff(n);return;}if(x.glide.amount>0)x.glide.on(n,v,x.rate,[&](int k,int vel){x.on(x.synth,0,k,vel);},[&](int k){x.off(x.synth,0,k);},[&](int b){x.bend(x.synth,0,b+8192);});else x.on(x.synth,0,n,v);}
+void Sf2Engine::noteOff(int n){if(!loaded())return;auto& x=*impl;if(x.glide.amount>0)x.glide.off(n,x.rate,[&](int k,int v){x.on(x.synth,0,k,v);},[&](int k){x.off(x.synth,0,k);},[&](int b){x.bend(x.synth,0,b+8192);});else x.off(x.synth,0,n);}
 void Sf2Engine::cc(int n,int v){if(loaded())impl->cc(impl->synth,0,n,v);}
-void Sf2Engine::pitchBend(int v){if(loaded())impl->bend(impl->synth,0,std::clamp(v,0,16383));}
-void Sf2Engine::panic(){if(loaded())impl->silence(impl->synth,0);impl->dsp.reset();}
-void Sf2Engine::parameters(const std::array<float,14>& values,bool enabled){
+void Sf2Engine::pitchBend(int v){auto& x=*impl;x.glide.wheel=v-8192;if(loaded())x.bend(x.synth,0,x.glide.amount>0?x.glide.bend()+8192:std::clamp(v,0,16383));}
+void Sf2Engine::panic(){impl->glide.reset();if(loaded())impl->silence(impl->synth,0);impl->dsp.reset();}
+void Sf2Engine::parameters(const std::array<float,15>& values,bool enabled){
  impl->dsp.parameters(values);
+ if(loaded()&&((values[14]>0)!=(impl->glide.amount>0))){impl->silence(impl->synth,0);impl->glide.reset();impl->sensitivity(impl->synth,0,values[14]>0?96:2);}
+ impl->glide.amount=values[14];
  if(!loaded())return;
  auto env=envelopeValues(values);
  if(!enabled){if(impl->adsrEnabled){for(int gen:{34,36,37,38})impl->setGen(impl->synth,0,gen,0.f);}impl->adsrEnabled=false;return;}
@@ -96,7 +101,11 @@ void Sf2Engine::parameters(const std::array<float,14>& values,bool enabled){
 }
 void Sf2Engine::render(float* l,float* r,int frames){
  if(!loaded()){std::fill_n(l,frames,0);std::fill_n(r,frames,0);return;}
- if(impl->write(impl->synth,frames,l,0,1,r,0,1)!=0)throw std::runtime_error("SF2 render failed");
+ for(int pos=0;pos<frames;){int size=impl->glide.amount>0?std::min(32,frames-pos):frames-pos;
+  if(impl->glide.amount>0){impl->glide.advance(size);impl->bend(impl->synth,0,impl->glide.bend()+8192);}
+  if(impl->write(impl->synth,size,l+pos,0,1,r+pos,0,1)!=0)throw std::runtime_error("SF2 render failed");
+  pos+=size;
+ }
  impl->dsp.process(l,r,frames);
 }
 bool Sf2Engine::loaded() const noexcept{return impl->font>=0;}

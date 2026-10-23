@@ -2,6 +2,7 @@
 #include "audio_preferences.hpp"
 #include <fstream>
 #include <iostream>
+void fakeSampleRate(double);
 int fakePump(float*,float*,unsigned long,PaStreamCallbackFlags=0);void fakeFailOpen();int fakeStarts();int fakeDevice();
 void check(bool v){if(!v)throw std::runtime_error("Audio host regression failed");}
 int main(int argc,char** argv){
@@ -44,6 +45,15 @@ int main(int argc,char** argv){
  host.send({0x90,60,100});host.send({0x80,60,0});fakePump(left,right,2048);check(left[0]==.75f);
  host.panic();fakePump(left,right,2048);host.load(dir/"good.sfz",p);host.send({0x90,60,100});host.send({0x80,60,0});fakePump(left,right,2048);check(left[0]==0);
  host.send({0x90,60,100});fakePump(left,right,2048);check(left[0]==.25f);host.send({0x80,60,0});fakePump(left,right,2048);check(left[0]==0);
+ // The four-part host keeps live gains through ASIO sample-rate changes.
+ host.panic();fakePump(left,right,2048);lp::Performance performance;performance.name="Layer regression";
+ for(auto& part:performance.parts){part.enabled=true;part.instrument=(dir/"good.sfz").u8string();}
+ host.loadPerformance(performance);host.send({0x90,60,100});fakePump(left,right,2048);check(left[0]==1.f);
+ auto layer=lp::Patch{}.parameters;layer[0]=.5f;host.setPerformancePartParameters(0,layer,false);fakePump(left,right,2048);check(left[0]==.875f);
+ host.masterVolume(.4f);fakePump(left,right,2048);check(std::abs(left[0]-.35f)<1e-6f);
+ fakeSampleRate(44100);host.start(1,128);check(host.performanceActive()&&host.sampleRate()==44100);host.send({0x90,60,100});fakePump(left,right,2048);check(std::abs(left[0]-.35f)<1e-6f);
+ host.load(dir/"good.sfz",p);check(!host.performanceActive()&&host.running()&&host.sampleRate()==44100);host.send({0x90,60,100});fakePump(left,right,2048);check(std::abs(left[0]-.1f)<1e-6f);
+ host.masterVolume(1);fakeSampleRate(48000);
  host.unload();check(!host.loaded()&&host.running());fakePump(left,right,2048);check(left[0]==0);host.stop();check(!host.running());
  }
  {lp::AudioHost reopened(argv[1]);auto saved=lp::restoreRememberedAudio(reopened,preferences);check(reopened.running()&&reopened.selectedDevice()==1&&reopened.bufferSize()==128&&saved.driver=="ASIO4ALL");lp::connectAndRemember(reopened,3,256,preferences);}

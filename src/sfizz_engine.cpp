@@ -1,6 +1,7 @@
 #include "sfizz_engine.hpp"
 #include "dsp.hpp"
 #include "envelope.hpp"
+#include "mono_glide.hpp"
 #include "../third_party/sfizz/sfizz_message.h"
 #include <vector>
 #include <algorithm>
@@ -63,14 +64,14 @@ void midiValue(int value) { if(value<0 || value>127) throw std::invalid_argument
 }
 struct SfizzEngine::Impl {
  Module module;
- Dsp dsp;
+ Dsp dsp;MonoGlide glide;
  sfizz_client_t* (*createClient)(void*);
  void (*freeClient)(sfizz_client_t*);
  void (*receiveCallback)(sfizz_client_t*,sfizz_receive_t*);
  void (*message)(sfizz_synth_t*,sfizz_client_t*,int,const char*,const char*,const sfizz_arg_t*);
  sfizz_client_t* client{};
  float* capture=nullptr;bool captured=false;
- struct RegionEnvelope {std::array<std::string,4> path;std::array<float,4> original;};
+ struct RegionEnvelope {std::array<std::string,4> path;std::array<float,4> original;std::array<std::string,2> bendPath;std::array<float,2> bendRange;};
  std::vector<RegionEnvelope> envelopes;
  std::array<float,4> lastEnvelope{};bool adsrEnabled=false;
  static void receive(void* user,int,const char*,const char* signature,const sfizz_arg_t* args){
@@ -135,14 +136,20 @@ void SfizzEngine::load(const std::filesystem::path& path) {
  constexpr const char* names[]{"ampeg_attack","ampeg_decay","ampeg_sustain","ampeg_release"};
  for(int region=0;region<count;++region){Impl::RegionEnvelope e;
   for(int p=0;p<4;++p){e.path[p]="/region"+std::to_string(region)+"/"+names[p];e.original[p]=a.query(candidate.get(),e.path[p]);}
+  for(int b=0;b<2;++b){e.bendPath[b]="/region"+std::to_string(region)+(b?"/bend_down":"/bend_up");e.bendRange[b]=a.query(candidate.get(),e.bendPath[b]);}
   envelopes.push_back(std::move(e));
  }
- a.envelopes=std::move(envelopes);a.adsrEnabled=false;
+ a.envelopes=std::move(envelopes);a.adsrEnabled=false;a.glide.reset();a.glide.amount=0;
  auto previous=a.synth; a.synth=candidate.release(); a.dsp.reset();
  if(previous) a.freeSynth(previous);
 }
-void SfizzEngine::parameters(const std::array<float,14>& values,bool enabled) {
+void SfizzEngine::parameters(const std::array<float,15>& values,bool enabled) {
  auto& a=*impl;a.dsp.parameters(values);auto mapped=envelopeValues(values);
+ if(loaded()&&((values[14]>0)!=(a.glide.amount>0))){
+  a.silence(a.synth);a.glide.reset();
+  for(const auto& region:a.envelopes)for(int b=0;b<2;++b){sfizz_arg_t arg{};arg.f=values[14]>0?(b?-9600.f:9600.f):region.bendRange[b];a.message(a.synth,a.client,0,region.bendPath[b].c_str(),"f",&arg);}
+ }
+ a.glide.amount=values[14];
  if(loaded()&&(enabled!=a.adsrEnabled||(enabled&&mapped!=a.lastEnvelope))){
   for(const auto& region:a.envelopes)for(int p=0;p<4;++p){sfizz_arg_t arg{};arg.f=enabled?mapped[p]:region.original[p];a.message(a.synth,a.client,0,region.path[p].c_str(),"f",&arg);}
  }
@@ -156,17 +163,25 @@ void SfizzEngine::unload() {impl->dsp.reset();impl->envelopes.clear();impl->adsr
 bool SfizzEngine::loaded() const noexcept { return impl->synth!=nullptr; }
 int SfizzEngine::regions() const { return loaded()?impl->numRegions(impl->synth):0; }
 void SfizzEngine::noteOn(int note,int velocity) {
- midiValue(note); midiValue(velocity);
- if(loaded()) { if(velocity) impl->on(impl->synth,0,note,velocity); else impl->off(impl->synth,0,note,0); }
+ midiValue(note);midiValue(velocity);if(!loaded())return;auto& a=*impl;
+ if(!velocity){noteOff(note);return;}
+ if(a.glide.amount>0)a.glide.on(note,velocity,a.rate,[&](int n,int v){a.on(a.synth,0,n,v);},[&](int n){a.off(a.synth,0,n,0);},[&](int bend){a.bend(a.synth,0,bend);});
+ else a.on(a.synth,0,note,velocity);
 }
-void SfizzEngine::noteOff(int note,int velocity) { midiValue(note); midiValue(velocity); if(loaded()) impl->off(impl->synth,0,note,velocity); }
-void SfizzEngine::cc(int number,int value) { midiValue(number); midiValue(value); if(loaded()) impl->control(impl->synth,0,number,number==64?(value>=64?127:0):value); }
-void SfizzEngine::pitchBend(int value) {if(value< -8192||value>8191)throw std::invalid_argument("Invalid signed MIDI pitch bend");if(loaded())impl->bend(impl->synth,0,value);}
-void SfizzEngine::panic() { if(loaded()) impl->silence(impl->synth); impl->dsp.reset(); }
+void SfizzEngine::noteOff(int note,int velocity){midiValue(note);midiValue(velocity);if(!loaded())return;auto& a=*impl;
+ if(a.glide.amount>0)a.glide.off(note,a.rate,[&](int n,int v){a.on(a.synth,0,n,v);},[&](int n){a.off(a.synth,0,n,velocity);},[&](int bend){a.bend(a.synth,0,bend);});
+ else a.off(a.synth,0,note,velocity);
+}
+void SfizzEngine::cc(int number,int value){midiValue(number);midiValue(value);if(loaded()){if(number>=120)impl->glide.reset();impl->control(impl->synth,0,number,number==64?(value>=64?127:0):value);}}
+void SfizzEngine::pitchBend(int value){if(value< -8192||value>8191)throw std::invalid_argument("Invalid signed MIDI pitch bend");auto& a=*impl;a.glide.wheel=value;if(loaded())a.bend(a.synth,0,a.glide.amount>0?a.glide.bend():value);}
+void SfizzEngine::panic(){impl->glide.reset();if(loaded())impl->silence(impl->synth);impl->dsp.reset();}
 void SfizzEngine::render(float* left,float* right,int frames) {
  if(!left || !right || left==right || frames<1 || frames>impl->block) throw std::invalid_argument("Invalid stereo render block");
  if(!loaded()) {std::fill_n(left,frames,0);std::fill_n(right,frames,0);return;}
- float* channels[]{left,right}; impl->renderBlock(impl->synth,channels,2,frames);
+ for(int pos=0;pos<frames;){int size=impl->glide.amount>0?std::min(32,frames-pos):frames-pos;
+  if(impl->glide.amount>0){impl->glide.advance(size);impl->bend(impl->synth,0,impl->glide.bend());}
+  float* channels[]{left+pos,right+pos};impl->renderBlock(impl->synth,channels,2,size);pos+=size;
+ }
  impl->dsp.process(left,right,frames);
 }
 }
