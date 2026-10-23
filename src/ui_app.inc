@@ -1,5 +1,29 @@
  lp::Screen screen=lp::Screen::Home;
  lp::ParameterPanel parameterPanel;
+ HWND page{};lp::PageScroll pageScroll;bool placing=false;int wheelRemainder=0;
+ static constexpr int pageOrigin=180;
+ HWND item(int id) const {auto child=GetDlgItem(window,id);return child?child:GetDlgItem(page,id);}
+ int pageTop() const {RECT r{};GetClientRect(window,&r);return r.right<1280?260:180;}
+ int pageMinimum() const {
+  if(effects)return performanceControls()?300:740;
+  switch(screen){case lp::Screen::Home:return 480;case lp::Screen::Instruments:return 120;case lp::Screen::AudioMidi:return 520;case lp::Screen::Settings:return 410;case lp::Screen::PerformanceEditor:return 580;case lp::Screen::About:return 140;}
+  return 480;
+ }
+ void scrollPage(int delta){touchParameters();if(pageScroll.move(delta))layout();}
+ void revealFocus(HWND child){
+  if(loading||placing||GetParent(child)!=page||!IsWindowVisible(child)||GetFocus()!=child)return;
+  RECT r{};GetWindowRect(child,&r);MapWindowPoints(nullptr,page,reinterpret_cast<POINT*>(&r),2);
+  if(pageScroll.reveal(r.top+pageScroll.offset-8,r.bottom+pageScroll.offset+8))layout();
+ }
+ POINT pagePoint(LPARAM point) const {return {static_cast<short>(LOWORD(point)),static_cast<short>(HIWORD(point))+pageOrigin+pageScroll.offset};}
+ bool wheelCommand(MSG& msg){
+  if(loading||msg.message!=WM_MOUSEWHEEL)return false;
+  wchar_t kind[32]{};GetClassNameW(msg.hwnd,kind,32);
+  if(_wcsicmp(kind,L"LISTBOX")==0||_wcsicmp(kind,L"COMBOBOX")==0||_wcsicmp(kind,L"EDIT")==0||_wcsicmp(kind,TRACKBAR_CLASSW)==0)return false;
+  if(!effects&&screen==lp::Screen::About){SendMessageW(item(AboutText),WM_MOUSEWHEEL,msg.wParam,msg.lParam);return true;}
+  wheelRemainder+=GET_WHEEL_DELTA_WPARAM(msg.wParam);
+  int notches=wheelRemainder/WHEEL_DELTA;wheelRemainder-=notches*WHEEL_DELTA;if(notches)scrollPage(-notches*144);return true;
+ }
  HFONT titleFont{},signatureFont{},largeFont{},smallFont{};
  std::unique_ptr<Gdiplus::Image> photo;
  bool loading=true;int progress=0,categoryIndex=0,virtualNote=-1,learningVolume=-1;bool learningMaster=false;
@@ -11,41 +35,55 @@
  std::wstring categoryName() const {return categoryIndex==15?L"Favoritos":std::filesystem::u8path(lp::instrumentCategories[categoryIndex]).wstring();}
  void syncPerformance(){if(activePerformanceIndex>=0&&editingPerformanceValid&&static_cast<std::size_t>(activePerformanceIndex)<show.performanceLibrary.size())show.performanceLibrary[activePerformanceIndex]=lp::savePerformance(editingPerformance);}
  void chooseCategory(int delta){categoryIndex=(categoryIndex+delta+16)%16;SendMessageW(category,CB_SETCURSEL,categoryIndex,0);refreshCatalog();layout();}
- void goHome(){screen=lp::Screen::Home;performanceVisible=false;cancelMidiLearn();layout();SetFocus(GetDlgItem(window,CategoryTile));}
- void openCategory(){screen=lp::Screen::Instruments;performanceVisible=false;refreshCatalog();layout();SetFocus(categoryIndex==15?favorites:catalog);}
+ void goHome(){pageScroll.seek(0);screen=lp::Screen::Home;performanceVisible=false;cancelMidiLearn();layout();SetFocus(item(CategoryTile));}
+ void openCategory(){pageScroll.seek(0);screen=lp::Screen::Instruments;performanceVisible=false;refreshCatalog();layout();
+  if(categoryIndex==15){if(SendMessageW(favorites,LB_GETCURSEL,0,0)<0)SendMessageW(favorites,LB_SETCURSEL,0,0);SetFocus(favorites);auto slot=SendMessageW(favorites,LB_GETCURSEL,0,0);if(slot>=0)activate(static_cast<unsigned>(slot));}
+  else{SetFocus(catalog);audition();}
+ }
  void toggleParameters(){
   if(loading)return;
   cancelMidiLearn();parameterPanel.toggle(GetTickCount64());effects=parameterPanel.open;
-  if(effects){performanceVisible=false;refreshParameters();layout();SetFocus(sliders[0]);}
+  if(effects){pageScroll.seek(0);performanceVisible=false;refreshParameters();layout();SetFocus(sliders[0]);}
   else goHome();
  }
- void openScreen(lp::Screen next){if(loading)return;effects=false;parameterPanel.open=false;screen=next;performanceVisible=next==lp::Screen::PerformanceEditor;cancelMidiLearn();layout();SetFocus(window);}
+ void openScreen(lp::Screen next){if(loading)return;pageScroll.seek(0);effects=false;parameterPanel.open=false;screen=next;performanceVisible=next==lp::Screen::PerformanceEditor;cancelMidiLearn();layout();SetFocus(window);}
  void updateSplash(int done,const std::wstring& label){
   progress=std::clamp(done,0,100);SetWindowTextW(status,label.c_str());layout();UpdateWindow(window);
  }
  void layout(){
-  if(!catalog)return;
-  RECT r{};GetClientRect(window,&r);int width=r.right,height=r.bottom;
-  // Hidden controls do not participate in TAB navigation or intercept arrows.
-  for(HWND child=GetWindow(window,GW_CHILD);child;child=GetWindow(child,GW_HWNDNEXT))ShowWindow(child,SW_HIDE);
-  auto place=[&](int id,int x,int y,int ww,int hh){auto h=GetDlgItem(window,id);MoveWindow(h,x,y,std::max(1,ww),std::max(1,hh),TRUE);ShowWindow(h,SW_SHOW);};
-  if(loading){place(2,width/2,height-144,width/2-48,66);InvalidateRect(window,nullptr,FALSE);return;}
-  int navX=width-708;
-  if(!effects){place(PerformanceButton,navX,34,210,60);place(AudioMidiButton,navX+218,34,166,60);place(SettingsButton,navX+392,34,190,60);place(AboutButton,navX+590,34,102,60);}
-  int top=148,bottom=height-92;
-  place(2,28,height-72,width-56,60);
+  if(!catalog||placing)return;
+  placing=true;
+  RECT r{};GetClientRect(window,&r);int windowWidth=r.right,windowHeight=r.bottom;
+  std::vector<HWND> visible;
+  auto finish=[&]{
+   for(auto parent:{window,page})for(HWND child=GetWindow(parent,GW_CHILD);child;child=GetWindow(child,GW_HWNDNEXT)){
+    if(child==page)continue;
+    bool show=std::find(visible.begin(),visible.end(),child)!=visible.end();
+    if(show!=static_cast<bool>(GetWindowLongPtrW(child,GWL_STYLE)&WS_VISIBLE))ShowWindow(child,show?SW_SHOW:SW_HIDE);
+   }
+   ShowWindow(page,loading?SW_HIDE:SW_SHOW);placing=false;
+   InvalidateRect(window,nullptr,FALSE);InvalidateRect(page,nullptr,FALSE);
+  };
+  auto place=[&](int id,int x,int y,int ww,int hh){auto h=item(id);if(GetParent(h)==page)y-=pageOrigin+pageScroll.offset;MoveWindow(h,x,y,std::max(1,ww),std::max(1,hh),TRUE);visible.push_back(h);};
+  if(loading){place(2,windowWidth/2,windowHeight-144,windowWidth/2-48,66);finish();return;}
+  int topOfPage=pageTop();pageScroll.resize(windowHeight-topOfPage-92,pageMinimum());
+  MoveWindow(page,0,topOfPage,windowWidth,pageScroll.viewport,TRUE);
+  SCROLLINFO info{};info.cbSize=sizeof(info);info.fMask=SIF_RANGE|SIF_PAGE|SIF_POS;info.nMin=0;info.nMax=pageScroll.content-1;info.nPage=pageScroll.viewport;info.nPos=pageScroll.offset;SetScrollInfo(page,SB_VERT,&info,TRUE);
+  int navX=windowWidth-708,navY=windowWidth<1280?138:34;
+  if(!effects){place(PerformanceButton,navX,navY,210,60);place(AudioMidiButton,navX+218,navY,166,60);place(SettingsButton,navX+392,navY,190,60);place(AboutButton,navX+590,navY,102,60);}
+  place(2,28,windowHeight-72,windowWidth-56,60);
+  int width=windowWidth-20,height=pageOrigin+pageScroll.content+92,top=148,bottom=height-92;
   if(effects){
    int count=performanceControls()?4:16,rows=performanceControls()?2:8;
-   int cell=(bottom-top-34)/rows,half=(width-84)/2;
-   for(int i=0;i<count;++i){int col=i/rows,row=i%rows,x=28+col*(half+28),y=top+28+row*cell;
+   int cell=(bottom-192-12)/rows,half=(width-84)/2;
+   for(int i=0;i<count;++i){int col=i/rows,row=i%rows,x=28+col*(half+28),y=192+row*cell;
     place(Knob+100+i,x,y,half,30);place(Knob+i,x,y+32,half,std::max(30,cell-37));}
   }else if(screen==lp::Screen::Home){
-   int tile=std::min(width-360,height-242-(top+48)-90);tile=std::max(200,tile);int x=(width-tile)/2;
+   int tile=std::max(200,std::min(width-360,height-242-(top+48)-90)),x=(width-tile)/2;
    place(CategoryTile,x,top+48,tile,tile+70);place(PreviousCategory,x-132,top+tile/2,96,96);place(NextCategory,x+tile+36,top+tile/2,96,96);
    keyboardRect={28,height-242,width-28,height-100};
   }else if(screen==lp::Screen::Instruments){
-   int half=(width-84)/2;place(InstrumentArt,28,top+34,half,bottom-top-46);
-   place(categoryIndex==15?Favorites:Catalog,56+half,top+34,half,bottom-top-46);
+   int half=(width-84)/2;place(InstrumentArt,28,top+34,half,bottom-top-46);place(categoryIndex==15?Favorites:Catalog,56+half,top+34,half,bottom-top-46);
   }else if(screen==lp::Screen::AudioMidi){
    place(AudioDriver,40,top+68,width-80,300);place(AudioBuffer,40,top+172,width-80,300);place(Midi,40,top+276,width-80,300);
    place(AudioStart,40,top+354,260,64);place(AudioStop,320,top+354,220,64);place(AudioPanel,560,top+354,240,64);place(Panic,40,top+442,260,64);
@@ -54,10 +92,9 @@
   }else if(screen==lp::Screen::PerformanceEditor){
    place(PerformanceModeControl,36,top+38,width-72,290);
    for(int i=0;i<4;++i){place(PerformancePartBase+i,36,top+112+i*70,width-190,290);place(PerformanceClearBase+i,width-132,top+112+i*70,96,54);}
-   place(PerformanceName,36,top+414,width-72,56);
-   place(PerformancePlay,36,top+494,(width-100)/2,68);place(PerformanceSave,64+(width-100)/2,top+494,(width-100)/2,68);
+   place(PerformanceName,36,top+414,width-72,56);place(PerformancePlay,36,top+494,(width-100)/2,68);place(PerformanceSave,64+(width-100)/2,top+494,(width-100)/2,68);
   }else if(screen==lp::Screen::About){place(AboutText,width/2,top+32,width/2-40,bottom-top-54);}
-  InvalidateRect(window,nullptr,FALSE);
+  finish();
  }
  void drawButton(DRAWITEMSTRUCT* item){
   HDC dc=item->hDC;RECT r=item->rcItem;bool selected=item->itemState&ODS_SELECTED;
@@ -83,7 +120,7 @@
   if(item->itemState&ODS_FOCUS)lpui::box(item->hDC,{r.left+2,r.top+2,r.right-2,r.bottom-2},lpui::gold,3);
  }
  bool isFavorite(const std::string& reference) const {for(const auto& item:show.favorites)if(item&&item->sfz==reference)return true;return false;}
- void paint(HDC dc){
+ void paint(HDC dc,bool bodyOnly=false){
   RECT r{};GetClientRect(window,&r);int width=r.right,height=r.bottom;lpui::fill(dc,r,lpui::ink);
   if(loading){
    lpui::photo(dc,photo.get(),{32,32,width/2-28,height-32});
@@ -97,10 +134,12 @@
    lpui::text(dc,value,{width/2,480,width-40,526},font);
    lpui::text(dc,L"Versão 1.0",{width/2,height-66,width-40,height-28},font,lpui::gold);return;
   }
+  if(!bodyOnly){
   lpui::photo(dc,photo.get(),{26,24,110,108},true);
-  lpui::text(dc,L"Live Performance",{128,20,width-728,62},largeFont,lpui::white,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
-  lpui::text(dc,L"by Hugo Sodré",{128,62,width-728,110},signatureFont,lpui::gold,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
-  lpui::line(dc,28,128,width-28,128,RGB(78,90,108),1);
+  int brandRight=width<1280?width-28:width-728;
+  lpui::text(dc,L"Live Performance",{128,20,brandRight,62},largeFont,lpui::white,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
+  lpui::text(dc,L"by Hugo Sodré",{128,62,brandRight,110},signatureFont,lpui::gold,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
+  lpui::line(dc,28,pageTop()-52,width-28,pageTop()-52,RGB(78,90,108),1);
   std::wstring heading;
   if(effects)heading=performanceControls()?L"Volumes da Performance · E para fechar":L"Parâmetros · E para fechar";
   else if(screen==lp::Screen::Home)heading=L"Escolha a categoria";
@@ -109,7 +148,10 @@
   else if(screen==lp::Screen::AudioMidi)heading=L"Áudio / MIDI";
   else if(screen==lp::Screen::Settings)heading=L"Configurações";
   else heading=L"Sobre · Versão 1.0";
-  lpui::text(dc,heading,{28,140,width-28,176},font,lpui::gold);
+  lpui::text(dc,heading,{28,pageTop()-40,width-28,pageTop()-4},font,lpui::gold);
+  return;
+  }
+  width-=20;height=pageOrigin+pageScroll.content+92;
   if(!effects&&screen==lp::Screen::Home)drawKeyboard(dc);
   if(!effects&&screen==lp::Screen::AudioMidi){
    lpui::text(dc,L"Driver ASIO",{40,184,width-40,212},font,lpui::muted,DT_LEFT);
@@ -135,8 +177,8 @@
   }
  }
  int keyAt(POINT point){for(int pass=0;pass<2;++pass)for(int note=36;note<=96;++note){int pc=note%12;bool black=pc==1||pc==3||pc==6||pc==8||pc==10;if(black!=(pass==0))continue;if(PtInRect(&virtualKeys[note],point))return note;}return -1;}
- void releaseVirtual(){if(virtualNote>=0&&engine)engine->send({0x80,static_cast<std::uint8_t>(virtualNote),0});if(virtualNote>=0)keyDown[virtualNote]=false;virtualNote=-1;InvalidateRect(window,&keyboardRect,FALSE);}
- void virtualKey(POINT point){int note=keyAt(point);if(note==virtualNote)return;releaseVirtual();if(note>=0&&engine&&engine->loaded()){virtualNote=note;keyDown[note]=true;engine->send({0x90,static_cast<std::uint8_t>(note),100});InvalidateRect(window,&keyboardRect,FALSE);}}
+ void releaseVirtual(){if(virtualNote>=0&&engine)engine->send({0x80,static_cast<std::uint8_t>(virtualNote),0});if(virtualNote>=0)keyDown[virtualNote]=false;virtualNote=-1;InvalidateRect(page,nullptr,FALSE);}
+ void virtualKey(POINT point){int note=keyAt(point);if(note==virtualNote)return;releaseVirtual();if(note>=0&&engine&&engine->loaded()){virtualNote=note;keyDown[note]=true;engine->send({0x90,static_cast<std::uint8_t>(note),100});InvalidateRect(page,nullptr,FALSE);}}
  void setPanelValue(int index,float value){
   touchParameters();
   if(performanceControls()){
@@ -150,15 +192,23 @@
  bool keyCommand(MSG& msg){
   if(msg.message!=WM_KEYDOWN||loading)return false;
   if(effects)touchParameters();
-  auto key=msg.wParam;wchar_t kind[32]{};GetClassNameW(GetFocus(),kind,32);bool typing=_wcsicmp(kind,L"EDIT")==0;
+  auto key=msg.wParam;wchar_t kind[32]{};GetClassNameW(GetFocus(),kind,32);bool textControl=_wcsicmp(kind,L"EDIT")==0;bool typing=textControl&&!(GetWindowLongPtrW(GetFocus(),GWL_STYLE)&ES_READONLY);
   if(key==VK_F12){command(Panic,0);return true;}
   if(key==VK_ESCAPE){if(effects){cancelMidiLearn();return true;}goHome();return true;}
   if(!typing&&!(GetKeyState(VK_CONTROL)&0x8000)&&!(GetKeyState(VK_MENU)&0x8000)){
    if(key=='E'){toggleParameters();return true;}
-   if(effects)return false;
+   if(!effects){
    if(key=='P'){command(PerformanceButton,0);return true;}
    if(key=='C'){openScreen(lp::Screen::Settings);return true;}
    if(key=='A'){openScreen(lp::Screen::AudioMidi);return true;}
+   }
+  }
+  if(key==VK_UP||key==VK_DOWN||key==VK_PRIOR||key==VK_NEXT){
+   bool native=_wcsicmp(kind,L"LISTBOX")==0||_wcsicmp(kind,L"COMBOBOX")==0||_wcsicmp(kind,TRACKBAR_CLASSW)==0||(textControl&&(GetWindowLongPtrW(GetFocus(),GWL_STYLE)&ES_MULTILINE));
+   if(native)return false;
+   if(!effects&&screen==lp::Screen::About){auto text=item(AboutText);SetFocus(text);SendMessageW(text,WM_KEYDOWN,key,msg.lParam);return true;}
+   if(!effects&&screen==lp::Screen::Instruments){auto list=categoryIndex==15?favorites:catalog;SetFocus(list);SendMessageW(list,WM_KEYDOWN,key,msg.lParam);return true;}
+   int direction=key==VK_UP||key==VK_PRIOR?-1:1;scrollPage(direction*((key==VK_PRIOR||key==VK_NEXT)?std::max(48,pageScroll.viewport-48):48));return true;
   }
   if(!effects&&screen==lp::Screen::Home){if(key==VK_LEFT||key==VK_RIGHT){chooseCategory(key==VK_LEFT?-1:1);return true;}if(key==VK_RETURN){openCategory();return true;}}
   if(!effects&&screen==lp::Screen::Instruments){

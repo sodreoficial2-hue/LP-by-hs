@@ -19,10 +19,27 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
  auto w=CreateWindowW(cls.lpszClassName,L"Live Performance layout test",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,0,0,1360,900,nullptr,nullptr,instance,&app);assert(w);ShowWindow(w,SW_SHOW);UpdateWindow(w);
  capture(w,app.base/L"layout-splash.bmp",false);pump();assert(!app.loading&&app.engine&&app.photo&&!app.instruments.empty());capture(w,app.base/L"layout-home.bmp");
  MSG key{};key.message=WM_KEYDOWN;key.wParam=VK_RIGHT;int before=app.categoryIndex;assert(app.keyCommand(key)&&app.categoryIndex==(before+1)%16);app.chooseCategory(-1);key.wParam=VK_RETURN;app.keyCommand(key);assert(app.screen==lp::Screen::Instruments);capture(w,app.base/L"layout-list.bmp");
- app.audition();app.favorite();assert(app.show.favorites[0]);app.toggleParameters();assert(app.effects&&IsWindowVisible(app.sliders[15]));app.setPanelValue(15,.4f);assert(app.show.master==.4f);key.wParam=VK_ESCAPE;app.keyCommand(key);assert(app.effects);capture(w,app.base/L"layout-parameters.bmp");app.toggleParameters();assert(!app.effects&&app.screen==lp::Screen::Home);
+ // Opening, clicking an already-highlighted row and native arrows all load automatically.
+ assert(app.engine->loaded()&&app.previewActive);
+ SendMessageW(app.catalog,LB_SETCURSEL,1,0);SendMessageW(app.catalog,WM_LBUTTONUP,0,MAKELPARAM(30,70));
+ assert(app.previewPatch.sfz==lp::instrumentReference(app.instruments[app.visibleInstruments[1]]));
+ SendMessageW(app.catalog,WM_KEYDOWN,VK_UP,0);assert(app.previewPatch.sfz==lp::instrumentReference(app.instruments[app.visibleInstruments[0]]));
+ assert(SendMessageW(app.catalog,LB_GETCURSEL,0,0)==0);
+ app.favorite();assert(app.show.favorites[0]);app.toggleParameters();assert(app.effects&&IsWindowVisible(app.sliders[15]));app.setPanelValue(15,.4f);assert(app.show.master==.4f);key.wParam=VK_ESCAPE;app.keyCommand(key);assert(app.effects);capture(w,app.base/L"layout-parameters.bmp");app.toggleParameters();assert(!app.effects&&app.screen==lp::Screen::Home);
  app.command(PerformanceButton,0);assert(app.screen==lp::Screen::PerformanceEditor);SendMessageW(app.performancePartControls[0],CB_SETCURSEL,1,0);SendMessageW(app.performancePartControls[1],CB_SETCURSEL,2,0);SendMessageW(app.performanceMode,CB_SETCURSEL,1,0);app.command(PerformancePlay,0);assert(app.performanceControls()&&app.editingPerformance.parts[0].high==47);capture(w,app.base/L"layout-editor.bmp");app.command(PerformanceSave,0);assert(app.show.performanceLibrary.size()==1);
  app.toggleParameters();assert(IsWindowVisible(app.sliders[3])&&!IsWindowVisible(app.sliders[4])&&!IsWindowVisible(app.sliders[15]));app.setPanelValue(0,.32f);assert(app.show.performanceLibrary[0].parts[0].patch.parameters[0]==.32f);capture(w,app.base/L"layout-volumes.bmp");app.parameterPanel.lastUse=GetTickCount64()-30001;SendMessageW(w,WM_TIMER,1,0);assert(!app.effects&&app.screen==lp::Screen::Home);
  app.activate(0);assert(!app.performanceControls());app.openScreen(lp::Screen::AudioMidi);capture(w,app.base/L"layout-audio.bmp");app.openScreen(lp::Screen::Settings);capture(w,app.base/L"layout-settings.bmp");app.openScreen(lp::Screen::About);capture(w,app.base/L"layout-about.bmp");
- std::ofstream result(app.base/L"layout-test-result.txt");result<<"PASS: native Win32 screens, portraits, arrows/Enter/ESC/E, 16 controls, Performance volumes, B2 split, Master, favorites and idle timer. PortAudio test double; no hardware validation.\n";DestroyWindow(w);
+ // A 600-pixel window must expose all functions through the page scrollbar.
+ MoveWindow(w,0,0,1100,600,TRUE);pump();app.openScreen(lp::Screen::Settings);SetFocus(w);
+ RECT headerBefore{},headerAfter{},buttonBefore{},buttonAfter{};GetWindowRect(app.item(SettingsButton),&headerBefore);GetWindowRect(app.item(Open),&buttonBefore);
+ key.wParam=VK_DOWN;assert(app.keyCommand(key)&&app.pageScroll.offset==48);
+ GetWindowRect(app.item(SettingsButton),&headerAfter);GetWindowRect(app.item(Open),&buttonAfter);assert(headerBefore.top==headerAfter.top&&buttonAfter.top==buttonBefore.top-48);
+ SCROLLINFO si{};si.cbSize=sizeof(si);si.fMask=SIF_POS;GetScrollInfo(app.page,SB_VERT,&si);assert(si.nPos==app.pageScroll.offset);
+ SetFocus(app.item(ImportSf2));pump();RECT controlRect{},viewportRect{};GetWindowRect(app.item(ImportSf2),&controlRect);GetWindowRect(app.page,&viewportRect);assert(controlRect.top>=viewportRect.top&&controlRect.bottom<=viewportRect.bottom);
+ app.command(PerformanceButton,0);SetFocus(app.performanceMode);key.wParam=VK_DOWN;assert(!app.keyCommand(key));
+ SendMessageW(app.performanceMode,CB_SETCURSEL,0,0);SendMessageW(app.performanceMode,WM_KEYDOWN,VK_DOWN,0);assert(SendMessageW(app.performanceMode,CB_GETCURSEL,0,0)==1);
+ app.openScreen(lp::Screen::About);SetFocus(w);assert(app.keyCommand(key)&&GetFocus()==app.item(AboutText));
+ app.goHome();app.toggleParameters();SetFocus(w);key.wParam=VK_NEXT;assert(app.keyCommand(key)&&app.pageScroll.offset>0&&app.effects);app.toggleParameters();
+ std::ofstream result(app.base/L"layout-test-result.txt");result<<"PASS: native Win32 page scroll/focus, automatic mouse/arrow sound loading, combo arrows, portraits, arrows/Enter/ESC/E, 16 controls, Performance volumes, B2 split, Master, favorites and idle timer. PortAudio test double; no hardware validation.\n";DestroyWindow(w);
  }Gdiplus::GdiplusShutdown(token);return 0;
 }

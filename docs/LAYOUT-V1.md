@@ -28,7 +28,7 @@ Perfil v7 adiciona portamento e Master, lendo perfis v1–v6 com valores neutros
 
 A negociação ASIO prepara SFZ, SF2 e todas as partes de Performance na taxa selecionada. Evita tentar abrir um arquivo SF2 no sfizz durante reconexão. Ganhos de partes continuam válidos após reiniciar ASIO. Não há fallback para áudio Windows.
 
-A foto provisória vem de `recovery/extracted/live/assets/hugo.jpg`, pois nenhuma nova foto acompanhou esta solicitação. Não houve alteração de fisionomia. O recurso JPEG é incorporado ao executável e compartilhado entre abertura, topo e Sobre. O ICO contém recortes do rosto em 16–256 px. Substituir ambos quando chegar a nova foto. Segoe UI e Segoe Script são fontes do sistema Windows.
+A foto enviada em 23/10/2026 (`1000348604.jpg`) é idêntica, byte a byte (SHA-256 `d3cceb963063d4a21c792d202dc3e7340994a97e206ac9c709d7df19a509b9c1`), ao retrato de `recovery/extracted/live/assets/hugo.jpg` já incorporado. O projeto usa portanto exatamente a foto fornecida, sem duplicar recursos. Não houve alteração de fisionomia. O recurso JPEG é incorporado ao executável e compartilhado entre abertura, topo e Sobre. O ICO contém recortes do rosto em 16–256 px. Segoe UI e Segoe Script são fontes do sistema Windows.
 
 ## Validação e limites
 
@@ -38,3 +38,13 @@ A foto provisória vem de `recovery/extracted/live/assets/hugo.jpg`, pois nenhum
 - `tests/win32_layout_test.cpp` é um teste de integração adicional que pode capturar telas em Windows, usando PortAudio simulado e runtime sfizz disponível junto ao executável. Foi compilado e vinculado; sua execução gráfica não foi validada neste ambiente. Wine não conseguiu iniciar seu servidor local aqui. Nenhuma captura resultante foi apresentada como validação.
 - Não houve teste novo de hardware Windows/ASIO nem audição de portamento em teclado real. Isso fica para a próxima versão de teste solicitada pelo usuário.
 - O conector não expõe saldo de cota autenticada/billing; saldo restante desconhecido. Nenhuma execução remota foi acionada. A nova ramificação não corresponde aos gatilhos dos workflows existentes.
+
+## Complemento: seleção automática e rolagem por setas
+
+- A janela agora admite 1024 × 600 px; em larguras menores, os quatro botões superiores ocupam uma segunda linha. O cabeçalho e o rodapé permanecem fixos, e uma área de conteúdo recorta os controles para impedir sobreposição.
+- Páginas com funções que excedem a altura disponível têm barra vertical sincronizada às setas ↑/↓, Page Up/Page Down e roda do mouse. TAB revela o controle em foco, sem perder o foco durante a rolagem.
+- Listas de timbres/favoritos e caixas de seleção mantêm as setas nativas para mudar itens. Listas e texto Sobre se ajustam à altura visível e usam a própria rolagem interna. Os controles de parâmetros preservam suas setas para edição de valores.
+- Ao abrir uma categoria, o primeiro timbre destacado já é carregado. Um clique sobre um item, inclusive o que já estava destacado, carrega o som sem Enter; mudanças de seleção por setas também carregam automaticamente. A seleção atual já carregada é reutilizada, preservando ajustes e evitando reinícios de áudio duplicados. A regra inclui Favoritos e Performance.
+- A foto recebida foi conferida localmente contra o recurso já existente e corresponde ao retrato da abertura, topo, Sobre e ícone. Nenhum tratamento de fisionomia foi aplicado.
+- Testes portáveis passaram para limites de rolagem, redimensionamento, exibição do foco e os sete grupos de regressão existentes. A interface e o teste de integração Win32 foram compilados/vinculados com MinGW x64 e avisos tratados como erro. Os cenários nativos adicionais verificam clique, setas, caixas de seleção e página de 600 px; sua execução gráfica no Windows continua pendente.
+- Nenhum portátil ou workflow remoto foi gerado. O saldo autenticado de GitHub continua desconhecido, pois não há ferramenta de consulta disponível.

@@ -1,8 +1,23 @@
 #pragma once
 #include <cstdint>
 #include <array>
+#include <algorithm>
 namespace lp {
 enum class Screen { Home, Instruments, PerformanceEditor, AudioMidi, Settings, About };
+// Shared bounds for page arrows, scrollbars, wheel and focus visibility.
+struct PageScroll {
+ int offset=0,viewport=0,content=0;
+ int maximum() const {return std::max(0,content-viewport);}
+ bool seek(int position){int old=offset;offset=std::clamp(position,0,maximum());return old!=offset;}
+ bool move(int pixels){return seek(offset+pixels);}
+ void resize(int available,int full){viewport=std::max(1,available);content=std::max(viewport,full);seek(offset);}
+ bool reveal(int first,int last){
+  if(last-first>viewport)return seek(first);
+  if(first<offset)return seek(first);
+  if(last>offset+viewport)return seek(last-viewport);
+  return false;
+ }
+};
 struct ParameterPanel {
  bool open=false;std::uint64_t lastUse=0;
  void touch(std::uint64_t now){lastUse=now;}
