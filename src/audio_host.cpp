@@ -31,11 +31,30 @@ void AudioHost::open(int id,unsigned long size){
  requireAsio(id);auto info=Pa_GetDeviceInfo(id);
  PaStreamParameters out{};out.device=id;out.channelCount=2;out.sampleFormat=paFloat32|paNonInterleaved;
  out.suggestedLatency=info->defaultLowOutputLatency;
- paCheck(Pa_IsFormatSupported(nullptr,&out,48000));
- PaStream* candidate=nullptr;paCheck(Pa_OpenStream(&candidate,nullptr,&out,48000,size,paNoFlag,callback,this));
- restorePerformance();
- auto result=Pa_StartStream(candidate);
- if(result<0){Pa_CloseStream(candidate);paCheck(result);}
+ // Prefer the driver's advertised default, then common ASIO rates.
+ // Do not assume every device supports the former hard-coded 48 kHz.
+ const double candidates[]{info->defaultSampleRate,48000.0,44100.0,96000.0,88200.0};
+ double rate=0;
+ for(double candidateRate:candidates){
+  if(candidateRate<8000||candidateRate>384000)continue;
+  if(Pa_IsFormatSupported(nullptr,&out,candidateRate)==paFormatIsSupported){rate=candidateRate;break;}
+ }
+ if(rate==0)throw std::runtime_error("ASIO: no compatible sample rate reported by selected driver");
+ // sfizz and its DSP must run at the SAME rate as the physical ASIO stream.
+ // Prepare off the callback thread, keeping the previous engine for rollback.
+ auto replacement=std::make_unique<SfizzEngine>(library,static_cast<float>(rate));
+ if(!instrument.empty())replacement->load(instrument);
+ replacement->parameters(current,currentAdsr);
+ PaStream* candidate=nullptr;
+ paCheck(Pa_OpenStream(&candidate,nullptr,&out,rate,size,paNoFlag,callback,this));
+ auto previous=std::move(engine);
+ engine=std::move(replacement);
+ try{
+  restorePerformance();
+  paCheck(Pa_StartStream(candidate));
+ }catch(...){
+  Pa_CloseStream(candidate);engine=std::move(previous);throw;
+ }
  stream=candidate;device=id;buffer=size;
 }
 void AudioHost::start(int id,unsigned long size){
