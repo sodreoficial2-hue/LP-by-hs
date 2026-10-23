@@ -34,7 +34,10 @@
  void touchParameters(){if(effects)parameterPanel.touch(GetTickCount64());}
  std::wstring categoryName() const {return categoryIndex==15?L"Favoritos":std::filesystem::u8path(lp::instrumentCategories[categoryIndex]).wstring();}
  void syncPerformance(){if(activePerformanceIndex>=0&&editingPerformanceValid&&static_cast<std::size_t>(activePerformanceIndex)<show.performanceLibrary.size())show.performanceLibrary[activePerformanceIndex]=lp::savePerformance(editingPerformance);}
- void chooseCategory(int delta){categoryIndex=(categoryIndex+delta+16)%16;SendMessageW(category,CB_SETCURSEL,categoryIndex,0);refreshCatalog();layout();}
+ void chooseCategory(int delta){
+  categoryIndex=(categoryIndex+delta+16)%16;SendMessageW(category,CB_SETCURSEL,categoryIndex,0);refreshCatalog();layout();
+  if(!effects&&screen==lp::Screen::Home){auto card=item(CategoryCardBase+categoryIndex);SetFocus(card);revealFocus(card);}
+ }
  void goHome(){pageScroll.seek(0);screen=lp::Screen::Home;performanceVisible=false;cancelMidiLearn();layout();SetFocus(item(CategoryCardBase+categoryIndex));}
  void openCategory(){pageScroll.seek(0);screen=lp::Screen::Instruments;performanceVisible=false;refreshCatalog();layout();
   if(categoryIndex==15){if(SendMessageW(favorites,LB_GETCURSEL,0,0)<0)SendMessageW(favorites,LB_SETCURSEL,0,0);SetFocus(favorites);auto slot=SendMessageW(favorites,LB_GETCURSEL,0,0);if(slot>=0)activate(static_cast<unsigned>(slot));}
@@ -251,7 +254,17 @@
    if(!effects&&screen==lp::Screen::Instruments){auto list=categoryIndex==15?favorites:catalog;SetFocus(list);SendMessageW(list,WM_KEYDOWN,key,msg.lParam);return true;}
    int direction=key==VK_UP||key==VK_PRIOR?-1:1;scrollPage(direction*((key==VK_PRIOR||key==VK_NEXT)?std::max(48,pageScroll.viewport-48):48));return true;
   }
-  if(!effects&&screen==lp::Screen::Home){if(key==VK_LEFT||key==VK_RIGHT){chooseCategory(key==VK_LEFT?-1:1);SetFocus(item(CategoryCardBase+categoryIndex));return true;}if(key==VK_RETURN){int focused=GetDlgCtrlID(GetFocus());if(focused>=CategoryCardBase&&focused<CategoryCardBase+16){categoryIndex=focused-CategoryCardBase;openCategory();return true;}if(GetFocus()==window){openCategory();return true;}}}
+  if(!effects&&!typing&&(screen==lp::Screen::Home||screen==lp::Screen::Instruments)&&
+     (key==VK_LEFT||key==VK_RIGHT)&&!(GetKeyState(VK_CONTROL)&0x8000)&&!(GetKeyState(VK_MENU)&0x8000)){
+   // Tab can focus a different card without changing the selected category.
+   // Start from that visible focus, then keep the card/list and category together.
+   int focused=GetDlgCtrlID(GetFocus());
+   if(screen==lp::Screen::Home&&focused>=CategoryCardBase&&focused<CategoryCardBase+16)categoryIndex=focused-CategoryCardBase;
+   chooseCategory(key==VK_LEFT?-1:1);
+   if(screen==lp::Screen::Instruments)openCategory();
+   return true;
+  }
+  if(!effects&&screen==lp::Screen::Home){if(key==VK_RETURN){int focused=GetDlgCtrlID(GetFocus());if(focused>=CategoryCardBase&&focused<CategoryCardBase+16){categoryIndex=focused-CategoryCardBase;openCategory();return true;}if(GetFocus()==window){openCategory();return true;}}}
   if(!effects&&screen==lp::Screen::Instruments){
    if(key==VK_SPACE){favorite();return true;}
    if(key==VK_RETURN){if(categoryIndex==15){auto slot=SendMessageW(favorites,LB_GETCURSEL,0,0);if(slot>=0)activate(static_cast<unsigned>(slot));}else audition();return true;}

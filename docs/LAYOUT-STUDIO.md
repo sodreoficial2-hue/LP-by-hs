@@ -32,3 +32,17 @@ O conector continua sem ferramentas de cota autenticada ou faturamento.
 Saldo disponível desconhecido. A publicação desta etapa usa uma única árvore
 com arquivos de texto, um commit e uma atualização de referência, sem Actions,
 reenvio de samples ou consulta repetitiva de jobs.
+
+## Correção das setas horizontais
+
+Esquerda/direita agora trocam de categoria também na lista de timbres, incluindo
+a passagem entre Favoritos e as demais categorias. Na biblioteca, a navegação
+parte do cartão com foco (inclusive após Tab), atualiza o destaque e revela o
+cartão na área de rolagem. Nas listas, o foco acompanha a lista correta e o
+timbre selecionado é carregado pelo mesmo fluxo de abertura de categoria.
+As setas continuam disponíveis aos parâmetros quando o painel está aberto.
+
+Verificação: interface e teste nativo compilados novamente com MinGW x64 e
+avisos como erros; teste nativo ampliado para foco, Tab, transição circular
+Favoritos/catálogo e preservação dos faders. Execução Windows pendente.
+Cota autenticada continua indisponível no conector; saldo desconhecido.
