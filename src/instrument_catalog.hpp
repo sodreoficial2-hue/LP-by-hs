@@ -1,5 +1,7 @@
 #pragma once
 #include "session.hpp"
+#include "display_name.hpp"
+#include "sf2_reference.hpp"
 #include <set>
 
 namespace lp {
@@ -38,8 +40,13 @@ inline std::filesystem::path resolveInstrument(const std::string& reference,cons
  return std::filesystem::u8path(reference); // Preserve existing imported/legacy favorites.
 }
 inline std::string instrumentReference(const Instrument& p){return p.id.empty()?p.sfz.u8string():"bank://"+p.id;}
+inline std::string instrumentDisplayName(const Instrument& instrument){
+ return soundDisplayName(instrument.name,instrument.sfz.u8string().rfind("sf2://",0)==0);
+}
 inline std::string instrumentName(const std::string& reference,const std::vector<Instrument>& bank){
- if(reference.compare(0,7,"bank://")==0){for(const auto& p:bank)if(p.id==reference.substr(7))return p.name;return reference.substr(7)+" (ausente)";}
- return std::filesystem::u8path(reference).stem().u8string();
+ for(const auto& p:bank)if(instrumentReference(p)==reference)return instrumentDisplayName(p);
+ if(reference.compare(0,7,"bank://")==0)return soundDisplayName(reference.substr(7))+" (ausente)";
+ if(auto preset=parseSf2Reference(reference))return soundDisplayName(preset->path.stem().u8string());
+ return soundDisplayName(std::filesystem::u8path(reference).stem().u8string());
 }
 }

@@ -48,3 +48,11 @@ A foto enviada em 23/10/2026 (`1000348604.jpg`) é idêntica, byte a byte (SHA-2
 - A foto recebida foi conferida localmente contra o recurso já existente e corresponde ao retrato da abertura, topo, Sobre e ícone. Nenhum tratamento de fisionomia foi aplicado.
 - Testes portáveis passaram para limites de rolagem, redimensionamento, exibição do foco e os sete grupos de regressão existentes. A interface e o teste de integração Win32 foram compilados/vinculados com MinGW x64 e avisos tratados como erro. Os cenários nativos adicionais verificam clique, setas, caixas de seleção e página de 600 px; sua execução gráfica no Windows continua pendente.
 - Nenhum portátil ou workflow remoto foi gerado. O saldo autenticado de GitHub continua desconhecido, pois não há ferramenta de consulta disponível.
+
+## Nomes de timbres na interface
+
+O repositório possui o catálogo dos instrumentos incluídos em `banks/curated/catalog.txt`. Os bancos SF2 externos (inclusive a pasta Red Pianos do usuário) são descobertos no computador durante a abertura; os respectivos arquivos comprados não foram publicados no repositório.
+
+A lista de categorias, os seletores de Performance e os Favoritos usam nomes de apresentação: retiram o prefixo Red, códigos conhecidos de categoria/número de pacote, a combinação repetida nome de arquivo/preset e a indicação técnica `(banco:programa)` das importações antigas. Repetições adjacentes do mesmo nome também são removidas. Modelos e variantes diferentes, como DX7 EP 1 e DX7 EP 2, são preservados. Nomes criados pelo usuário para Performances permanecem intactos.
+
+A alteração é somente de apresentação; nomes de arquivo, referências SFZ/SF2, presets, categorias, Program Changes e dados dos perfis não são renomeados. Não é necessário modificar a pasta de timbres do computador. O tratamento também se aplica ao catálogo Meus Sons já salvo por versões anteriores. Os testes incluem nomes em português, repetições, variantes, favoritos SF2 e preservação da referência original. Sete suítes locais passaram e a interface compilou para Windows com avisos tratados como erro. Nenhum portátil ou processamento remoto foi acionado; a cota autenticada continua desconhecida.

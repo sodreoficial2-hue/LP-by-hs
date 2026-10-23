@@ -223,7 +223,7 @@ struct App {
  void loadNextBank(){
   if(startupCompleted>=startupBanks.size()){finishLibrary();return;}
   const auto& bankFile=startupBanks[startupCompleted];std::filesystem::directory_entry entry(bankFile);
-  updateSplash(15+static_cast<int>(75*startupCompleted/startupBanks.size()),L"Carregando "+std::to_wstring(startupCompleted+1)+L" de "+std::to_wstring(startupBanks.size())+L": "+bankFile.filename().wstring());
+  updateSplash(15+static_cast<int>(75*startupCompleted/startupBanks.size()),L"Carregando "+std::to_wstring(startupCompleted+1)+L" de "+std::to_wstring(startupBanks.size())+L": "+std::filesystem::u8path(lp::soundDisplayName(bankFile.stem().u8string())).wstring());
      try{
       auto presets=engine->sf2Presets(entry.path());
       auto file=entry.path().stem().u8string();
@@ -323,7 +323,7 @@ struct App {
    }
   }else for(std::size_t i=0;i<instruments.size();++i){
    const auto& p=instruments[i];if(selected<0||p.category!=static_cast<unsigned>(selected))continue;
-   visibleInstruments.push_back(i);auto name=std::filesystem::u8path(p.name).wstring();
+   visibleInstruments.push_back(i);auto name=std::filesystem::u8path(lp::instrumentDisplayName(p)).wstring();
    SendMessageW(catalog,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(name.c_str()));
   }
   if(SendMessageW(catalog,LB_GETCOUNT,0,0)>0)SendMessageW(catalog,LB_SETCURSEL,0,0);
@@ -420,7 +420,7 @@ struct App {
   if(id==MidiLearnKnob){int selected=-1;auto focus=GetFocus();for(int i=0;i<14;++i)if(focus==sliders[i]||focus==labels[i]){selected=i;break;}if(selected<0){message(L"Abra Parâmetros (E), selecione o knob desejado com TAB e clique MIDI Learn ou pressione Ctrl+L.");}else beginParameterLearn(static_cast<std::size_t>(selected));}
   if(id==Panic&&engine){engine->panic();message(L"Pânico: notas e caudas interrompidas.");}
   if(id==PerformanceButton){openScreen(lp::Screen::PerformanceEditor);syncPerformance();
-   for(int i=0;i<4;++i){SendMessageW(performancePartControls[i],CB_RESETCONTENT,0,0);SendMessageW(performancePartControls[i],CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Desativado"));for(const auto& instrument:instruments){auto name=std::filesystem::u8path(instrument.name).wstring();SendMessageW(performancePartControls[i],CB_ADDSTRING,0,reinterpret_cast<LPARAM>(name.c_str()));}int selection=0;if(editingPerformanceValid&&editingPerformance.parts[i].enabled){for(std::size_t n=0;n<instruments.size();++n)if(lp::instrumentReference(instruments[n])==editingPerformance.parts[i].instrument){selection=static_cast<int>(n+1);break;}}SendMessageW(performancePartControls[i],CB_SETCURSEL,selection,0);}
+   for(int i=0;i<4;++i){SendMessageW(performancePartControls[i],CB_RESETCONTENT,0,0);SendMessageW(performancePartControls[i],CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Desativado"));for(const auto& instrument:instruments){auto name=std::filesystem::u8path(lp::instrumentDisplayName(instrument)).wstring();SendMessageW(performancePartControls[i],CB_ADDSTRING,0,reinterpret_cast<LPARAM>(name.c_str()));}int selection=0;if(editingPerformanceValid&&editingPerformance.parts[i].enabled){for(std::size_t n=0;n<instruments.size();++n)if(lp::instrumentReference(instruments[n])==editingPerformance.parts[i].instrument){selection=static_cast<int>(n+1);break;}}SendMessageW(performancePartControls[i],CB_SETCURSEL,selection,0);}
    if(editingPerformanceValid){
     int mode=0;if(editingPerformance.mode==lp::PerformanceMode::Split){mode=4;if(editingPerformance.parts[0].low==editingPerformance.parts[1].low)mode=editingPerformance.parts[2].low==0?2:(editingPerformance.parts[2].high==127?1:3);}
     SendMessageW(performanceMode,CB_SETCURSEL,mode,0);SetWindowTextW(performanceName,std::filesystem::u8path(editingPerformance.name).wstring().c_str());SendMessageW(performanceEditPart,CB_SETCURSEL,editingPart,0);}

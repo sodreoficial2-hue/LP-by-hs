@@ -3,6 +3,20 @@
 void check(bool ok,const char* message){if(!ok)throw std::runtime_error(message);}
 int main(){
  try {
+ check(lp::soundDisplayName("Red-PN-Royal Grand / Royal Grand",true)=="Royal Grand","SF2 filename/preset duplication");
+ check(lp::soundDisplayName("Red-EP-001-DX7 EP 2.sf2")=="DX7 EP 2","Pack prefixes removed; musical model/variant retained");
+ check(lp::soundDisplayName("My Bank / Red Grand Piano (0:5)",true)=="Grand Piano","Legacy imported preset label");
+ check(lp::soundDisplayName("Grand Piano Grand Piano")=="Grand Piano","Repeated phrase");
+ check(lp::soundDisplayName("Piano Piano Piano")=="Piano","Repeated word");
+ check(lp::soundDisplayName("Piano - Piano")=="Piano","Repeated decorated name");
+ check(lp::soundDisplayName("Red Órgão Órgão")=="Órgão","UTF-8 names retained");
+ check(lp::soundDisplayName("Redwood Altered Strings")=="Redwood Altered Strings","No substring damage");
+ check(lp::soundDisplayName("Piano 1 / Piano 2")=="Piano 1 / Piano 2","Distinct musical variants retained");
+ check(lp::soundDisplayName("Red")=="Timbre sem nome","Nonempty display fallback");
+ lp::Instrument imported;auto ref=lp::makeSf2Reference("Red-PN-Grand.sf2",0,5);imported.sfz=std::filesystem::u8path(ref);imported.name="Red-PN-Grand / Grand (0:5)";
+ check(lp::instrumentName(ref,{imported})=="Grand","Favorites use SF2 preset name, not encoded path");
+ check(lp::instrumentReference(imported)==ref,"Display cleanup preserves preset/path identity");
+
  auto root=std::filesystem::temp_directory_path()/"lp-catalog-regression";std::filesystem::remove_all(root);std::filesystem::create_directories(root);
  std::ofstream(root/"tone.sfz")<<"<region> sample=*saw";
  auto write=[&](const std::string& line){std::ofstream(root/"catalog.txt")<<"LPHS_BANK 1\n"<<line<<'\n';};
