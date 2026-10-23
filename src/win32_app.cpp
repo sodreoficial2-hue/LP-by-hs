@@ -134,6 +134,8 @@ struct App {
   largeFont=CreateFontW(-34,0,0,0,FW_SEMIBOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
   smallFont=CreateFontW(-16,0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
   photo=lpui::portrait(GetModuleHandleW(nullptr));
+  categoryPhotos=lpui::resourceImage(GetModuleHandleW(nullptr),4);
+  if(!categoryPhotos)throw std::runtime_error("Não foi possível carregar as fotografias das categorias");
   control(L"BUTTON",L"Áudio / MIDI",BS_PUSHBUTTON|WS_TABSTOP,AudioMidiButton);
   control(L"BUTTON",L"Perfis e arquivos",BS_PUSHBUTTON|WS_TABSTOP,SettingsButton);
   control(L"BUTTON",L"Sobre",BS_PUSHBUTTON,AboutButton);
@@ -143,6 +145,8 @@ struct App {
   control(L"BUTTON",L"Escolher categoria",BS_PUSHBUTTON|WS_TABSTOP,CategoryTile);
   control(L"BUTTON",L"Categoria selecionada",BS_PUSHBUTTON,InstrumentArt);
   control(L"EDIT",L"Hugo Sodré é cantor, compositor, produtor e multi-instrumentista de Guarulhos, São Paulo. Iniciou seus estudos de piano aos seis anos e concluiu a formação em piano popular na Escola Proarte de Música aos treze. Mais tarde, estudou Composição e Regência na FIAM-FAAM.\r\n\r\nAo longo de sua trajetória, atuou com Os Originais do Samba, Eliana de Lima, Sandra de Sá, Jair Rodrigues, Tony Tornado e Netinho de Paula, entre outros artistas, além de desenvolver seu trabalho autoral.\r\n\r\nAos treze anos, uma degeneração da mácula comprometeu sua visão. A experiência pessoal com a baixa visão e as exigências do palco motivaram a concepção do Live Performance: um instrumento de trabalho com alto contraste, controles grandes e acesso pelo teclado e por MIDI.\r\n\r\nO projeto busca ampliar a autonomia de músicos com baixa visão, unindo acessibilidade, expressão musical e praticidade nas apresentações.\r\n\r\nAquilo que meus olhos não veem, minha música sente.",ES_MULTILINE|ES_READONLY|WS_VSCROLL|WS_TABSTOP,AboutText);
+  auto about=item(AboutText);int aboutLength=GetWindowTextLengthW(about);std::wstring aboutText(aboutLength+1,L'\0');GetWindowTextW(about,aboutText.data(),aboutLength+1);aboutText.resize(aboutLength);
+  aboutText+=L"\r\n\r\nFOTOGRAFIAS DOS INSTRUMENTOS\r\n"+lpui::resourceText(GetModuleHandleW(nullptr),5);SetWindowTextW(about,aboutText.c_str());
   control(L"BUTTON",L"Abrir perfil",BS_PUSHBUTTON|WS_TABSTOP,Open);
   control(L"BUTTON",L"Salvar perfil",BS_PUSHBUTTON|WS_TABSTOP,Save);
   control(L"BUTTON",L"Importar SFZ",BS_PUSHBUTTON|WS_TABSTOP,Import);

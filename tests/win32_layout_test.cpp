@@ -17,7 +17,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
  INITCOMMONCONTROLSEX common{sizeof(common),ICC_BAR_CLASSES};InitCommonControlsEx(&common);Gdiplus::GdiplusStartupInput input;ULONG_PTR token;Gdiplus::GdiplusStartup(&token,&input,nullptr);
  {App app;WNDCLASSW cls{};cls.lpfnWndProc=proc;cls.hInstance=instance;cls.lpszClassName=L"LPLayoutTest";cls.hCursor=LoadCursorW(nullptr,IDC_ARROW);RegisterClassW(&cls);
  auto w=CreateWindowW(cls.lpszClassName,L"Live Performance layout test",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,0,0,1360,900,nullptr,nullptr,instance,&app);assert(w);ShowWindow(w,SW_SHOW);UpdateWindow(w);
- capture(w,app.base/L"layout-splash.bmp",false);pump();assert(!app.loading&&app.engine&&app.photo&&!app.instruments.empty());capture(w,app.base/L"layout-home.bmp");
+ capture(w,app.base/L"layout-splash.bmp",false);pump();assert(!app.loading&&app.engine&&app.photo&&app.categoryPhotos&&!app.instruments.empty());assert(app.categoryPhotos->GetWidth()==2048&&app.categoryPhotos->GetHeight()==1536);assert(!lpui::resourceText(instance,5).empty());capture(w,app.base/L"layout-home.bmp");
  // All sixteen categories are direct buttons, fully within one viewport.
  auto checkGrid=[&]{assert(app.pageScroll.maximum()==0);RECT viewport{};GetWindowRect(app.page,&viewport);
   for(int i=0;i<16;++i){auto card=app.item(CategoryCardBase+i);assert(card&&IsWindowVisible(card));assert(GetWindowLongPtrW(card,GWL_STYLE)&WS_TABSTOP);

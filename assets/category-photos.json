@@ -1,0 +1,256 @@
+{
+  "format": "LP_CATEGORY_PHOTOS_1",
+  "atlas": "category-photos.jpg",
+  "columns": 4,
+  "rows": 4,
+  "tile_width": 512,
+  "tile_height": 384,
+  "atlas_sha256": "6e90178bb1926a70ad15f17ca0d6c4807c4ea79f4ca86d1597e08d0771d0522b",
+  "changes": "Photographic thumbnails resized proportionally and letterboxed on a dark background. Collection only; no AI images or retouching.",
+  "tiles": [
+    {
+      "category": 0,
+      "name": "Pianos acústicos",
+      "source_id": 0,
+      "column": 0,
+      "row": 0
+    },
+    {
+      "category": 1,
+      "name": "Pianos elétricos",
+      "source_id": 1,
+      "column": 1,
+      "row": 0
+    },
+    {
+      "category": 2,
+      "name": "Órgãos",
+      "source_id": 2,
+      "column": 2,
+      "row": 0
+    },
+    {
+      "category": 3,
+      "name": "Cordas",
+      "source_id": 3,
+      "column": 3,
+      "row": 0
+    },
+    {
+      "category": 4,
+      "name": "Metais",
+      "source_id": 4,
+      "column": 0,
+      "row": 1
+    },
+    {
+      "category": 5,
+      "name": "Leads",
+      "source_id": 5,
+      "column": 1,
+      "row": 1
+    },
+    {
+      "category": 6,
+      "name": "Pads",
+      "source_id": 6,
+      "column": 2,
+      "row": 1
+    },
+    {
+      "category": 7,
+      "name": "Percussão",
+      "source_id": 7,
+      "column": 3,
+      "row": 1
+    },
+    {
+      "category": 8,
+      "name": "Bateria",
+      "source_id": 8,
+      "column": 0,
+      "row": 2
+    },
+    {
+      "category": 9,
+      "name": "Acordeons",
+      "source_id": 9,
+      "column": 1,
+      "row": 2
+    },
+    {
+      "category": 10,
+      "name": "Outros",
+      "source_id": 10,
+      "column": 2,
+      "row": 2
+    },
+    {
+      "category": 11,
+      "name": "Contrabaixos",
+      "source_id": 11,
+      "column": 3,
+      "row": 2
+    },
+    {
+      "category": 12,
+      "name": "Guitarras",
+      "source_id": 12,
+      "column": 0,
+      "row": 3
+    },
+    {
+      "category": 13,
+      "name": "Performance",
+      "source_id": 5,
+      "column": 1,
+      "row": 3
+    },
+    {
+      "category": 14,
+      "name": "Meus Sons",
+      "source_id": 6,
+      "column": 2,
+      "row": 3
+    },
+    {
+      "category": 15,
+      "name": "Favoritos",
+      "source_id": 0,
+      "column": 3,
+      "row": 3
+    }
+  ],
+  "sources": [
+    {
+      "id": 0,
+      "title": "File:Steinway & Sons concert grand piano, model D-274, manufactured at Steinway's factory in Hamburg, Germany.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Steinway_%26_Sons_concert_grand_piano,_model_D-274,_manufactured_at_Steinway%27s_factory_in_Hamburg,_Germany.png",
+      "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/Steinway_%26_Sons_concert_grand_piano%2C_model_D-274%2C_manufactured_at_Steinway%27s_factory_in_Hamburg%2C_Germany.png/960px-Steinway_%26_Sons_concert_grand_piano%2C_model_D-274%2C_manufactured_at_Steinway%27s_factory_in_Hamburg%2C_Germany.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "author": "Steinway & Sons, 10 Rondenbarg, Hamburg D-22525, Germany, eu.steinway.com.Steinway & Sons, 1 Steinway Place, Long Island City, New York 11105, The United States, www.steinway.com.",
+      "license": "CC BY-SA 3.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+      "original_thumbnail_sha256": "6196e41a22fc319e3892658ed0bb37200acb21accd23f4e25dab0781292591ad"
+    },
+    {
+      "id": 1,
+      "title": "File:Fender Rhodes Mark I Stage Piano 73-key (2007-01-27 00.21.59 by Tom Ray).jpg",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Fender_Rhodes_Mark_I_Stage_Piano_73-key_(2007-01-27_00.21.59_by_Tom_Ray).jpg",
+      "download_url": "https://upload.wikimedia.org/wikipedia/commons/4/46/Fender_Rhodes_Mark_I_Stage_Piano_73-key_%282007-01-27_00.21.59_by_Tom_Ray%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+      "author": "Tom Ray from USA",
+      "license": "CC BY-SA 2.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/2.0",
+      "original_thumbnail_sha256": "34e62dbe49be679bc88990aba6ba2c39c2c028fb5bcb2f0a926a3c32a934acd9"
+    },
+    {
+      "id": 2,
+      "title": "File:Hammond B3 (2014-04-14 by jmorland at pixabay).jpg",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Hammond_B3_(2014-04-14_by_jmorland_at_pixabay).jpg",
+      "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Hammond_B3_%282014-04-14_by_jmorland_at_pixabay%29.jpg/960px-Hammond_B3_%282014-04-14_by_jmorland_at_pixabay%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "author": "jmorland",
+      "license": "CC0",
+      "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "original_thumbnail_sha256": "0db1fe6a66583825a32a8a9f2c868458086835b2915c169ae73ad171cfb72386"
+    },
+    {
+      "id": 3,
+      "title": "File:Violin VL100.png",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Violin_VL100.png",
+      "download_url": "https://upload.wikimedia.org/wikipedia/commons/1/1b/Violin_VL100.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+      "author": "Just plain Bill",
+      "license": "CC0",
+      "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "original_thumbnail_sha256": "4a528bcb0547e2f92fe62cfedc3845fd8859c40027e2fc7e646ae7d2af10e414"
+    },
+    {
+      "id": 4,
+      "title": "File:Yamaha Trumpet YTR-8335LA crop.jpg",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Yamaha_Trumpet_YTR-8335LA_crop.jpg",
+      "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Yamaha_Trumpet_YTR-8335LA_crop.jpg/960px-Yamaha_Trumpet_YTR-8335LA_crop.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "author": "Yamaha Corporation",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+      "original_thumbnail_sha256": "b3accf0e4eab82f1440054afa9774d8414dcd0d2c292311f1e155594d5191800"
+    },
+    {
+      "id": 5,
+      "title": "File:Minimoog voyager.jpg",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Minimoog_voyager.jpg",
+      "download_url": "https://upload.wikimedia.org/wikipedia/commons/a/a0/Minimoog_voyager.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+      "author": ".\n\nOriginal uploader was Kimi95 at it.wikipedia",
+      "license": "CC BY 3.0",
+      "license_url": "https://creativecommons.org/licenses/by/3.0",
+      "original_thumbnail_sha256": "94088c869d77d89856981d7786ddc6acdd14b52b26a58c0906fd51ab0962f857"
+    },
+    {
+      "id": 6,
+      "title": "File:Roland-tastatur-monphon hg.jpg",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Roland-tastatur-monphon_hg.jpg",
+      "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/Roland-tastatur-monphon_hg.jpg/960px-Roland-tastatur-monphon_hg.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "author": "Hannes Grobe",
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0",
+      "original_thumbnail_sha256": "5f41052ecee1ba7d24023ce96f1545136d511ffe88ce795dc8a6ca57a176a357"
+    },
+    {
+      "id": 7,
+      "title": "File:2006-06-03 Congas1.JPG",
+      "source_page": "https://commons.wikimedia.org/wiki/File:2006-06-03_Congas1.JPG",
+      "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/be/2006-06-03_Congas1.JPG/960px-2006-06-03_Congas1.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "author": "Stephan Czuratis (Jazz-face at de.wikipedia",
+      "license": "CC BY-SA 3.0",
+      "license_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+      "original_thumbnail_sha256": "2d06feffe7b38bfedd56c7f79ab650842d88835e40408cf85a4892950f8e3067"
+    },
+    {
+      "id": 8,
+      "title": "File:Zestaw perkusyjny Element Power Fusion firmy Ludwig.jpg",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Zestaw_perkusyjny_Element_Power_Fusion_firmy_Ludwig.jpg",
+      "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/58/Zestaw_perkusyjny_Element_Power_Fusion_firmy_Ludwig.jpg/960px-Zestaw_perkusyjny_Element_Power_Fusion_firmy_Ludwig.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "author": "http://muzyczny.pl",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+      "original_thumbnail_sha256": "6754251973d4ecf90a440f175cfa8e1a29ade3db4080b3dc890ba586d4b930e9"
+    },
+    {
+      "id": 9,
+      "title": "File:Charron Freres Accordion.jpg",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Charron_Freres_Accordion.jpg",
+      "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/37/Charron_Freres_Accordion.jpg/960px-Charron_Freres_Accordion.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "author": "Uberprutser",
+      "license": "CC BY-SA 3.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+      "original_thumbnail_sha256": "ddc94566341aa0686c763e88e6dc8de8273a5f7160162b016d8384b1b075d37a"
+    },
+    {
+      "id": 10,
+      "title": "File:Traditional musical instruments of Myanmar.jpg",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Traditional_musical_instruments_of_Myanmar.jpg",
+      "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Traditional_musical_instruments_of_Myanmar.jpg/960px-Traditional_musical_instruments_of_Myanmar.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "author": "Munfarid1",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+      "original_thumbnail_sha256": "b7ad1ca440d469afe2458860fbd06f6438a8d6f2cff2049f84597d5db65bffe8"
+    },
+    {
+      "id": 11,
+      "title": "File:Fender Jazz-Bass 1966.jpg",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Fender_Jazz-Bass_1966.jpg",
+      "download_url": "https://upload.wikimedia.org/wikipedia/commons/9/9c/Fender_Jazz-Bass_1966.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+      "author": "Th. Ott",
+      "license": "CC BY-SA 3.0",
+      "license_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+      "original_thumbnail_sha256": "e6fe500ffc183b065c0d9a23c2e4641f53863277fadfe039e73300602f7bec84"
+    },
+    {
+      "id": 12,
+      "title": "File:Fender Stratocaster 004-2.jpg",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Fender_Stratocaster_004-2.jpg",
+      "download_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/63/Fender_Stratocaster_004-2.jpg/960px-Fender_Stratocaster_004-2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "author": "Fender_Stratocaster_004.JPG: Stra2caster\nderivative work: Atlantictire (talk)",
+      "license": "Public domain",
+      "license_url": "",
+      "original_thumbnail_sha256": "29c2675d88b6976c216ddcc1e13441f6c6564c12bc1fbace413896582fcb927b"
+    }
+  ]
+}

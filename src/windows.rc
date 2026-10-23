@@ -2,6 +2,8 @@
 1 24 "app.manifest"
 2 RCDATA "../recovery/extracted/live/assets/hugo.jpg"
 3 ICON "../assets/live-performance.ico"
+4 RCDATA "../assets/category-photos.jpg"
+5 RCDATA "../assets/category-photo-credits.txt"
 
 1 VERSIONINFO
  FILEVERSION 1,0,0,0

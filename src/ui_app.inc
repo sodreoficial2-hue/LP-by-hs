@@ -25,7 +25,7 @@
   int notches=wheelRemainder/WHEEL_DELTA;wheelRemainder-=notches*WHEEL_DELTA;if(notches)scrollPage(-notches*144);return true;
  }
  HFONT titleFont{},signatureFont{},largeFont{},smallFont{};
- std::unique_ptr<Gdiplus::Image> photo;
+ std::unique_ptr<Gdiplus::Image> photo,categoryPhotos;
  bool loading=true;int progress=0,categoryIndex=0,virtualNote=-1,learningVolume=-1;bool learningMaster=false;
  ULONGLONG loadingStart=0;
  RECT keyboardRect{};
@@ -127,16 +127,15 @@
   lpui::fill(dc,r,lpui::ink);
   lpui::surface(dc,{r.left+2,r.top+2,r.right-2,r.bottom-2},pressed?RGB(69,59,43):(active?RGB(48,43,34):(hovered?RGB(37,45,58):lpui::panel)),active?RGB(29,28,27):RGB(18,23,32),(focused||active)?lpui::gold:RGB(66,77,94),14);
   if(card){
-   bool tall=r.bottom-r.top>=114;
-   int iconSize=tall?std::min<int>(80,r.bottom-r.top-64):44;
-   int iconX=tall?(r.right-iconSize)/2:r.left+16,iconY=tall?r.top+12:(r.bottom-iconSize)/2;
-   lpui::surface(dc,{iconX-5,iconY-4,iconX+iconSize+5,iconY+iconSize+4},RGB(39,45,55),RGB(24,30,40),RGB(57,65,80),12);
-   lpui::categoryIcon(dc,{iconX+5,iconY+4,iconX+iconSize-5,iconY+iconSize-4},artIndex);
+   // Reserve the full card width for the accessible name; photos never compete with text.
+   RECT picture{r.left+10,r.top+8,r.right-10,r.bottom-36};
+   lpui::categoryPhoto(dc,categoryPhotos.get(),picture,artIndex);
    auto label=artIndex==15?std::wstring(L"Favoritos"):std::filesystem::u8path(lp::instrumentCategories[artIndex]).wstring();
-   RECT caption=tall?RECT{r.left+8,r.bottom-42,r.right-8,r.bottom-8}:RECT{r.left+80,r.top+6,r.right-10,r.bottom-6};
-   lpui::text(dc,label,caption,font,lpui::white,(tall?DT_CENTER:DT_LEFT)|DT_VCENTER|DT_WORDBREAK|DT_NOPREFIX);
+   RECT caption{r.left+10,r.bottom-32,r.right-10,r.bottom-4};
+   lpui::text(dc,label,caption,font,lpui::white,DT_CENTER|DT_VCENTER|DT_SINGLELINE|DT_NOPREFIX);
+   if(artIndex>=13){RECT badge{picture.right-24,picture.top,picture.right,picture.top+24};lpui::fill(dc,badge,lpui::ink);lpui::text(dc,artIndex==15?L"★":(artIndex==14?L"+":L"P"),badge,smallFont,lpui::gold);}
   }else if(item->CtlID==CategoryTile||item->CtlID==InstrumentArt){
-   RECT art{r.left+32,r.top+28,r.right-32,r.bottom-156};lpui::instrument(dc,art,artIndex);
+   RECT art{r.left+32,r.top+28,r.right-32,r.bottom-156};lpui::categoryPhoto(dc,categoryPhotos.get(),art,artIndex);
    lpui::text(dc,categoryName(),{r.left+16,r.bottom-152,r.right-16,r.bottom-102},largeFont);
    lpui::text(dc,L"Sua biblioteca de palco",{r.left+16,r.bottom-96,r.right-16,r.bottom-60},font,lpui::muted);
    lpui::text(dc,L"↑ ↓ Selecionar   ·   Espaço Favoritar",{r.left+16,r.bottom-56,r.right-16,r.bottom-18},smallFont,lpui::gold);
