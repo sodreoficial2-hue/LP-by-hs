@@ -31,6 +31,7 @@ constexpr int Catalog=100,Favorites=101,Save=102,Open=103,Midi=104,Effects=105,I
 constexpr UINT BeginParameterLearn=WM_APP+40,LoadLibraryMessage=WM_APP+41,ToggleFavoriteMessage=WM_APP+42,SelectSoundMessage=WM_APP+43,RevealFocusMessage=WM_APP+44;
 LRESULT CALLBACK pageProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
 LRESULT CALLBACK focusProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
+LRESULT CALLBACK comboProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
 // Do not rely on a native trackbar forwarding its mouse context request.
 LRESULT CALLBACK parameterProc(HWND control,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR parameter,DWORD_PTR){
  switch(msg){
@@ -110,16 +111,18 @@ struct App {
  bool pendingRestore=false;unsigned restoreAttempts=0;
  HMIDIIN midiHandle{};bool effects=false;
  std::filesystem::path base;
- ~App(){closeMidi();engine.reset();for(auto f:{font,titleFont,signatureFont,largeFont,smallFont})if(f)DeleteObject(f);DeleteObject(background);DeleteObject(panelBackground);}
+ ~App(){closeMidi();engine.reset();for(auto f:{font,titleFont,signatureFont,largeFont,smallFont,statusFont})if(f)DeleteObject(f);DeleteObject(background);DeleteObject(panelBackground);}
  void closeMidi(){router.cancelLearn();if(engine)engine->panic();if(midiHandle){midiInStop(midiHandle);midiInReset(midiHandle);midiInClose(midiHandle);midiHandle=nullptr;}}
  void message(const std::wstring& text){SetWindowTextW(status,text.c_str());}
  void error(const std::exception& e){auto s=std::string(e.what());std::wstring text(s.begin(),s.end());MessageBoxW(window,text.c_str(),L"Live Performance",MB_OK|MB_ICONERROR);}
  HWND control(const wchar_t* kind,const wchar_t* text,DWORD style,int id){
   if(_wcsicmp(kind,L"BUTTON")==0)style=(style&~BS_TYPEMASK)|BS_OWNERDRAW;
+  bool combo=_wcsicmp(kind,L"COMBOBOX")==0;if(combo)style|=CBS_OWNERDRAWFIXED|CBS_HASSTRINGS;
   bool header=id==2||id==PerformanceButton||id==AudioMidiButton||id==SettingsButton||id==AboutButton||id==HomeButton||id==KeyboardButton;
   auto parent=header?window:page;
   auto h=CreateWindowExW(0,kind,text,WS_CHILD|style,0,0,0,0,parent,reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)),GetModuleHandleW(nullptr),nullptr);
   SendMessageW(h,WM_SETFONT,reinterpret_cast<WPARAM>(font),TRUE);
+  if(combo){SendMessageW(h,CB_SETITEMHEIGHT,static_cast<WPARAM>(-1),40);SendMessageW(h,CB_SETITEMHEIGHT,0,40);SetWindowSubclass(h,comboProc,0,0);}
   if(!header)SetWindowSubclass(h,focusProc,0,reinterpret_cast<DWORD_PTR>(window));
   return h;
  }
@@ -132,13 +135,14 @@ struct App {
   titleFont=CreateFontW(-50,0,0,0,FW_BOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
   signatureFont=CreateFontW(-38,0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe Script");
   largeFont=CreateFontW(-34,0,0,0,FW_SEMIBOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
-  smallFont=CreateFontW(-16,0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
+  smallFont=CreateFontW(-18,0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
+  statusFont=CreateFontW(-20,0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
   photo=lpui::portrait(GetModuleHandleW(nullptr));
   categoryPhotos=lpui::resourceImage(GetModuleHandleW(nullptr),4);
   if(!categoryPhotos)throw std::runtime_error("Não foi possível carregar as fotografias das categorias");
   control(L"BUTTON",L"Áudio / MIDI",BS_PUSHBUTTON|WS_TABSTOP,AudioMidiButton);
-  control(L"BUTTON",L"Perfis e arquivos",BS_PUSHBUTTON|WS_TABSTOP,SettingsButton);
-  control(L"BUTTON",L"Sobre",BS_PUSHBUTTON,AboutButton);
+  control(L"BUTTON",L"Perfis",BS_PUSHBUTTON|WS_TABSTOP,SettingsButton);
+  control(L"BUTTON",L"Sobre",BS_PUSHBUTTON|WS_TABSTOP,AboutButton);
   control(L"BUTTON",L"Teclado · K",BS_PUSHBUTTON|WS_TABSTOP,KeyboardButton);
   control(L"BUTTON",L"‹ Biblioteca",BS_PUSHBUTTON|WS_TABSTOP,HomeButton);
   for(int i=0;i<16;++i){auto label=i==15?std::wstring(L"Favoritos"):std::filesystem::u8path(lp::instrumentCategories[i]).wstring();control(L"BUTTON",label.c_str(),BS_PUSHBUTTON|WS_TABSTOP,CategoryCardBase+i);}
@@ -162,7 +166,8 @@ struct App {
   SendMessageW(midi,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"MIDI desligado"));
   for(UINT i=0;i<midiInGetNumDevs();++i){MIDIINCAPSW caps{};if(midiInGetDevCapsW(i,&caps,sizeof(caps))==MMSYSERR_NOERROR)SendMessageW(midi,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(caps.szPname));else SendMessageW(midi,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Dispositivo indisponível"));}
   SendMessageW(midi,CB_SETCURSEL,0,0);
-  status=control(L"STATIC",L"Selecione seu driver ASIO, clique em Conectar ASIO e escolha um timbre.",SS_LEFT,2);
+  status=control(L"STATIC",L"Selecione seu driver ASIO, clique em Conectar ASIO e escolha um timbre.",SS_LEFT|SS_NOPREFIX,2);
+  SendMessageW(status,WM_SETFONT,reinterpret_cast<WPARAM>(statusFont),TRUE);
   audioDriver=control(L"COMBOBOX",L"",CBS_DROPDOWNLIST|WS_VSCROLL|WS_TABSTOP,AudioDriver);
   audioBuffer=control(L"COMBOBOX",L"",CBS_DROPDOWNLIST|WS_VSCROLL|WS_TABSTOP,AudioBuffer);
   control(L"BUTTON",L"Conectar ASIO",BS_PUSHBUTTON|WS_TABSTOP,AudioStart);
@@ -510,7 +515,19 @@ struct App {
  }catch(const std::exception& e){error(e);}}
 
 };
+// Keep native combo interaction and accessibility while finishing the painted arrow.
+LRESULT CALLBACK comboProc(HWND control,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR id,DWORD_PTR){
+ auto result=DefSubclassProc(control,msg,wp,lp);
+ if(msg==WM_PAINT){auto dc=GetDC(control);COMBOBOXINFO info{};info.cbSize=sizeof(info);GetComboBoxInfo(control,&info);RECT r{};GetClientRect(control,&r);
+  lpui::fill(dc,info.rcButton,lpui::panel);int cx=(info.rcButton.left+info.rcButton.right)/2,cy=(info.rcButton.top+info.rcButton.bottom)/2;lpui::line(dc,cx-5,cy-2,cx,cy+3,lpui::gold,2);lpui::line(dc,cx,cy+3,cx+5,cy-2,lpui::gold,2);
+  lpui::box(dc,{0,0,r.right-1,r.bottom-1},GetFocus()==control?lpui::gold:RGB(78,91,110),GetFocus()==control?2:1);ReleaseDC(control,dc);
+ }
+ if(msg==WM_SETFOCUS||msg==WM_KILLFOCUS)InvalidateRect(control,nullptr,FALSE);
+ if(msg==WM_NCDESTROY)RemoveWindowSubclass(control,comboProc,id);
+ return result;
+}
 LRESULT CALLBACK focusProc(HWND control,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR id,DWORD_PTR root){
+ if(msg==WM_PAINT&&GetDlgCtrlID(control)==PerformanceName){auto result=DefSubclassProc(control,msg,wp,lp);auto dc=GetDC(control);RECT r{};GetClientRect(control,&r);lpui::box(dc,{0,0,r.right-1,r.bottom-1},GetFocus()==control?lpui::gold:RGB(78,91,110),1);ReleaseDC(control,dc);return result;}
  if(msg==WM_MOUSEMOVE){if(!GetPropW(control,L"LPHover")){SetPropW(control,L"LPHover",reinterpret_cast<HANDLE>(1));TRACKMOUSEEVENT track{sizeof(track),TME_LEAVE,control,0};TrackMouseEvent(&track);InvalidateRect(control,nullptr,FALSE);}}
  if(msg==WM_MOUSELEAVE){RemovePropW(control,L"LPHover");InvalidateRect(control,nullptr,FALSE);}
  if(msg==WM_NCDESTROY)RemovePropW(control,L"LPHover");
@@ -550,6 +567,9 @@ LRESULT CALLBACK pageProc(HWND page,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR id,DWO
  return DefSubclassProc(page,msg,wp,lp);
 }
 LRESULT CALLBACK listProc(HWND control,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR id,DWORD_PTR){
+ if(msg==WM_PAINT&&SendMessageW(control,LB_GETCOUNT,0,0)==0){auto result=DefSubclassProc(control,msg,wp,lp);auto dc=GetDC(control);RECT r{};GetClientRect(control,&r);auto font=reinterpret_cast<HFONT>(SendMessageW(control,WM_GETFONT,0,0));
+  lpui::fill(dc,r,lpui::ink);lpui::surface(dc,{8,8,r.right-8,180},lpui::panel,lpui::panel,RGB(52,63,80),14);
+  lpui::text(dc,L"Nenhum timbre nesta categoria",{24,28,r.right-24,110},font,lpui::white,DT_CENTER|DT_VCENTER|DT_WORDBREAK|DT_NOPREFIX);ReleaseDC(control,dc);return result;}
  if(msg==WM_LBUTTONUP){RECT r{};GetClientRect(control,&r);if(static_cast<short>(LOWORD(lp))>=r.right-60){auto hit=SendMessageW(control,LB_ITEMFROMPOINT,0,lp);if(!HIWORD(hit)){SendMessageW(control,LB_SETCURSEL,LOWORD(hit),0);SendMessageW(GetParent(control),ToggleFavoriteMessage,id,0);return 0;}}}
  if(msg==WM_LBUTTONUP){auto result=DefSubclassProc(control,msg,wp,lp);SendMessageW(GetParent(control),SelectSoundMessage,reinterpret_cast<WPARAM>(control),0);return result;}
  if(msg==WM_NCDESTROY)RemoveWindowSubclass(control,listProc,id);
@@ -571,8 +591,8 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
  case WM_NOTIFY:{auto custom=reinterpret_cast<NMCUSTOMDRAW*>(lp);if(custom->hdr.code==NM_CUSTOMDRAW){
   for(auto slider:app->sliders)if(custom->hdr.hwndFrom==slider){if(custom->dwDrawStage==CDDS_PREPAINT){app->drawSlider(custom);return CDRF_SKIPDEFAULT;}}
  }break;}
- case WM_DRAWITEM:{auto item=reinterpret_cast<DRAWITEMSTRUCT*>(lp);if(item->CtlType==ODT_BUTTON)app->drawButton(item);else if(item->CtlType==ODT_LISTBOX)app->drawList(item);return TRUE;}
- case WM_MEASUREITEM:{auto item=reinterpret_cast<MEASUREITEMSTRUCT*>(lp);if(item->CtlType==ODT_LISTBOX){item->itemHeight=62;return TRUE;}break;}
+ case WM_DRAWITEM:{auto item=reinterpret_cast<DRAWITEMSTRUCT*>(lp);if(item->CtlType==ODT_BUTTON)app->drawButton(item);else if(item->CtlType==ODT_LISTBOX)app->drawList(item);else if(item->CtlType==ODT_COMBOBOX)app->drawCombo(item);return TRUE;}
+ case WM_MEASUREITEM:{auto item=reinterpret_cast<MEASUREITEMSTRUCT*>(lp);if(item->CtlType==ODT_LISTBOX){item->itemHeight=68;return TRUE;}if(item->CtlType==ODT_COMBOBOX){item->itemHeight=40;return TRUE;}break;}
  case WM_COMMAND:app->touchParameters();app->command(LOWORD(wp),HIWORD(wp));return 0;
  case MM_MIM_DATA:if(reinterpret_cast<HMIDIIN>(wp)==app->midiHandle)app->midiEvent(static_cast<DWORD>(lp));return 0;
  case ToggleFavoriteMessage:app->favorite();return 0;
@@ -586,7 +606,7 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
   if(lp!=-1){POINT pt{static_cast<short>(LOWORD(lp)),static_cast<short>(HIWORD(lp))};ScreenToClient(app->favorites,&pt);auto hit=SendMessageW(app->favorites,LB_ITEMFROMPOINT,0,MAKELPARAM(pt.x,pt.y));slot=HIWORD(hit)?-1:LOWORD(hit);}
   if(slot>=0){try{app->router.learnFavorite(static_cast<std::size_t>(slot));app->message(L"MIDI Learn: pressione o Program Change correspondente ao favorito (1 a 20). ESC cancela.");}catch(const std::exception& e){app->error(e);}}return 0;
  }break;
- case WM_CTLCOLORSTATIC:case WM_CTLCOLOREDIT:case WM_CTLCOLORLISTBOX:{auto dc=reinterpret_cast<HDC>(wp);SetTextColor(dc,lpui::white);int id=GetDlgCtrlID(reinterpret_cast<HWND>(lp));bool panel=id>=Knob+100&&id<Knob+116;SetBkColor(dc,panel?lpui::panel:lpui::ink);return reinterpret_cast<LRESULT>(panel?app->panelBackground:app->background);}
+ case WM_CTLCOLORSTATIC:case WM_CTLCOLOREDIT:case WM_CTLCOLORLISTBOX:{auto dc=reinterpret_cast<HDC>(wp);SetTextColor(dc,lpui::white);int id=GetDlgCtrlID(reinterpret_cast<HWND>(lp));bool panel=(id>=Knob+100&&id<Knob+116)||id==PerformanceName||id==AboutText||id==2;SetBkColor(dc,panel?lpui::panel:lpui::ink);return reinterpret_cast<LRESULT>(panel?app->panelBackground:app->background);}
  case WM_ERASEBKGND:return 1;
  case WM_GETMINMAXINFO:reinterpret_cast<MINMAXINFO*>(lp)->ptMinTrackSize={1024,600};return 0;
  case WM_CLOSE:try{app->releaseVirtual();if(app->engine)app->persistAudioAndMidi();}catch(const std::exception& e){app->error(e);}break;

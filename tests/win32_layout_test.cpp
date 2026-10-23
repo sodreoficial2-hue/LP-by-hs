@@ -31,7 +31,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
  app.command(CategoryCardBase+15,BN_CLICKED);assert(app.screen==lp::Screen::Instruments&&GetFocus()==app.favorites);
  assert(app.engine->loaded()==wasLoaded&&app.previewPatch.sfz==previousPatch);
  key.wParam=VK_RIGHT;assert(!app.keyCommand(key)&&app.categoryIndex==15);
- app.command(HomeButton,0);checkGrid();app.command(KeyboardButton,BN_CLICKED);assert(app.screen==lp::Screen::Keyboard);app.command(HomeButton,0);
+ app.command(HomeButton,0);checkGrid();app.command(KeyboardButton,BN_CLICKED);assert(app.screen==lp::Screen::Keyboard);capture(w,app.base/L"layout-keyboard.bmp");app.command(HomeButton,0);
  // Choose a category containing at least two sounds, independently of the fixture ordering.
  int testCategory=-1;for(int c=0;c<15;++c){int n=0;for(const auto& instrument:app.instruments)if(instrument.category==static_cast<unsigned>(c))++n;if(n>=2){testCategory=c;break;}}
  assert(testCategory>=0);app.command(CategoryCardBase+testCategory,BN_CLICKED);
@@ -45,6 +45,15 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
  app.command(PerformanceButton,0);assert(app.screen==lp::Screen::PerformanceEditor);SendMessageW(app.performancePartControls[0],CB_SETCURSEL,1,0);SendMessageW(app.performancePartControls[1],CB_SETCURSEL,2,0);SendMessageW(app.performanceMode,CB_SETCURSEL,1,0);app.command(PerformancePlay,0);assert(app.performanceControls()&&app.editingPerformance.parts[0].high==47);capture(w,app.base/L"layout-editor.bmp");app.command(PerformanceSave,0);assert(app.show.performanceLibrary.size()==1);
  app.toggleParameters();assert(IsWindowVisible(app.sliders[3])&&!IsWindowVisible(app.sliders[4])&&!IsWindowVisible(app.sliders[15]));app.setPanelValue(0,.32f);assert(app.show.performanceLibrary[0].parts[0].patch.parameters[0]==.32f);capture(w,app.base/L"layout-volumes.bmp");app.parameterPanel.lastUse=GetTickCount64()-30001;SendMessageW(w,WM_TIMER,1,0);assert(!app.effects&&app.screen==lp::Screen::Home);
  app.activate(0);assert(!app.performanceControls());app.openScreen(lp::Screen::AudioMidi);capture(w,app.base/L"layout-audio.bmp");app.openScreen(lp::Screen::Settings);capture(w,app.base/L"layout-settings.bmp");app.openScreen(lp::Screen::About);capture(w,app.base/L"layout-about.bmp");
+ // A consistent native header and large owner-drawn selectors across all forms.
+ RECT headerReference{};GetWindowRect(app.item(SettingsButton),&headerReference);
+ for(auto screen:{lp::Screen::AudioMidi,lp::Screen::Settings,lp::Screen::About,lp::Screen::Keyboard}){
+  app.openScreen(screen);assert(app.pageTop()==156);RECT header{};GetWindowRect(app.item(SettingsButton),&header);
+  assert(header.left==headerReference.left&&header.top==headerReference.top&&IsWindowVisible(app.item(SettingsButton)));
+ }
+ assert(GetWindowLongPtrW(app.audioDriver,GWL_STYLE)&CBS_OWNERDRAWFIXED);
+ assert(SendMessageW(app.audioDriver,CB_GETITEMHEIGHT,static_cast<WPARAM>(-1),0)>=40);
+ app.openScreen(lp::Screen::AudioMidi);SendMessageW(app.audioDriver,CB_SHOWDROPDOWN,TRUE,0);capture(w,app.base/L"layout-audio-dropdown.bmp");SendMessageW(app.audioDriver,CB_SHOWDROPDOWN,FALSE,0);
  // A 600-pixel window must expose all functions through the page scrollbar.
  MoveWindow(w,0,0,1024,600,TRUE);pump();app.goHome();pump();checkGrid();capture(w,app.base/L"layout-home-compact.bmp");app.openScreen(lp::Screen::Settings);SetFocus(w);
  RECT headerBefore{},headerAfter{},buttonBefore{},buttonAfter{};GetWindowRect(app.item(SettingsButton),&headerBefore);GetWindowRect(app.item(Open),&buttonBefore);

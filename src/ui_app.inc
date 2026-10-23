@@ -3,11 +3,11 @@
  HWND page{};lp::PageScroll pageScroll;bool placing=false;int wheelRemainder=0;
  static constexpr int pageOrigin=180;
  HWND item(int id) const {auto child=GetDlgItem(window,id);return child?child:GetDlgItem(page,id);}
- int pageTop() const {if(!loading&&!effects&&screen==lp::Screen::Home)return 156;RECT r{};GetClientRect(window,&r);return r.right<1280?260:180;}
+ int pageTop() const {return 156;}
  int pageMinimum() const {
-  if(effects)return performanceControls()?300:740;
-  switch(screen){case lp::Screen::Home:return 316;case lp::Screen::Keyboard:return 220;case lp::Screen::Instruments:return 360;case lp::Screen::AudioMidi:return 520;case lp::Screen::Settings:return 410;case lp::Screen::PerformanceEditor:return 580;case lp::Screen::About:return 140;}
-  return 480;
+  if(effects)return performanceControls()?360:864;
+  switch(screen){case lp::Screen::Home:return 316;case lp::Screen::Keyboard:return 360;case lp::Screen::Instruments:return 400;case lp::Screen::AudioMidi:return 580;case lp::Screen::Settings:return 580;case lp::Screen::PerformanceEditor:return 748;case lp::Screen::About:return 600;}
+  return 580;
  }
  void scrollPage(int delta){touchParameters();if(pageScroll.move(delta))layout();}
  void revealFocus(HWND child){
@@ -24,7 +24,7 @@
   wheelRemainder+=GET_WHEEL_DELTA_WPARAM(msg.wParam);
   int notches=wheelRemainder/WHEEL_DELTA;wheelRemainder-=notches*WHEEL_DELTA;if(notches)scrollPage(-notches*144);return true;
  }
- HFONT titleFont{},signatureFont{},largeFont{},smallFont{};
+ HFONT titleFont{},signatureFont{},largeFont{},smallFont{},statusFont{};
  std::unique_ptr<Gdiplus::Image> photo,categoryPhotos;
  bool loading=true;int progress=0,categoryIndex=0,virtualNote=-1,learningVolume=-1;bool learningMaster=false;
  ULONGLONG loadingStart=0;
@@ -65,156 +65,42 @@
    InvalidateRect(window,nullptr,FALSE);InvalidateRect(page,nullptr,FALSE);
   };
   auto place=[&](int id,int x,int y,int ww,int hh){auto h=item(id);if(GetParent(h)==page)y-=pageOrigin+pageScroll.offset;MoveWindow(h,x,y,std::max(1,ww),std::max(1,hh),TRUE);visible.push_back(h);};
-  if(loading){place(2,windowWidth/2,windowHeight-144,windowWidth/2-48,66);finish();return;}
-  int topOfPage=pageTop();pageScroll.resize(windowHeight-topOfPage-((!effects&&screen==lp::Screen::Home)?72:92),pageMinimum());
+  if(loading){int y=std::max(56,windowHeight/2-190);place(2,windowWidth*48/100,y+332,windowWidth*52/100-48,72);finish();return;}
+  int topOfPage=pageTop();pageScroll.resize(windowHeight-topOfPage-72,pageMinimum());
   MoveWindow(page,0,topOfPage,windowWidth,pageScroll.viewport,TRUE);
   SCROLLINFO info{};info.cbSize=sizeof(info);info.fMask=SIF_RANGE|SIF_PAGE|SIF_POS;info.nMin=0;info.nMax=pageScroll.content-1;info.nPage=pageScroll.viewport;info.nPos=pageScroll.offset;SetScrollInfo(page,SB_VERT,&info,TRUE);
-  bool gridHome=!effects&&screen==lp::Screen::Home;
-  int navX=gridHome?windowWidth-660:windowWidth-708,navY=gridHome?28:(windowWidth<1280?138:34);
-  if(!effects){
-   if(gridHome){place(PerformanceButton,navX,navY,174,52);place(AudioMidiButton,navX+182,navY,158,52);place(SettingsButton,navX+348,navY,182,52);place(AboutButton,navX+538,navY,106,52);}
-   else{place(PerformanceButton,navX,navY,210,60);place(AudioMidiButton,navX+218,navY,166,60);place(SettingsButton,navX+392,navY,190,60);place(AboutButton,navX+590,navY,102,60);}
-  }
-  if(gridHome)place(KeyboardButton,windowWidth-214,topOfPage-48,182,40);
-  else place(HomeButton,windowWidth-214,topOfPage-48,182,40);
-  place(2,40,windowHeight-62,windowWidth-80,48);
-  int width=windowWidth-20,height=pageOrigin+pageScroll.content+92,top=148,bottom=height-92;
+  int navX=windowWidth-660;
+  place(PerformanceButton,navX,28,174,52);place(AudioMidiButton,navX+182,28,158,52);place(SettingsButton,navX+348,28,182,52);place(AboutButton,navX+538,28,106,52);
+  place(!effects&&screen==lp::Screen::Home?KeyboardButton:HomeButton,windowWidth-214,108,182,40);
+  place(2,54,windowHeight-60,windowWidth-86,48);
+  int width=windowWidth-20,p=pageOrigin;
   if(effects){
-   int count=performanceControls()?4:16,rows=performanceControls()?2:8;
-   int cell=(bottom-192-12)/rows,half=(width-84)/2;
-   for(int i=0;i<count;++i){int col=i/rows,row=i%rows,x=28+col*(half+28),y=192+row*cell;
-    place(Knob+100+i,x+16,y+10,half-32,30);place(Knob+i,x+16,y+42,half-32,std::max(30,cell-52));}
+   int count=performanceControls()?4:16,rows=performanceControls()?2:8,half=(width-84)/2;
+   for(int i=0;i<count;++i){int x=28+(i/rows)*(half+28),y=p+56+(i%rows)*96;
+    place(Knob+100+i,x+18,y+12,half-36,32);place(Knob+i,x+18,y+48,half-36,34);}
   }else if(screen==lp::Screen::Home){
    lp::CategoryGrid grid(width,pageScroll.viewport);
-   for(int i=0;i<16;++i){auto cell=grid.card(i);place(CategoryCardBase+i,cell[0],pageOrigin+cell[1],cell[2],cell[3]);}
+   for(int i=0;i<16;++i){auto cell=grid.card(i);place(CategoryCardBase+i,cell[0],p+cell[1],cell[2],cell[3]);}
    keyboardRect={};virtualKeys={};
   }else if(screen==lp::Screen::Keyboard){
-   keyboardRect={40,pageOrigin+70,width-40,pageOrigin+std::max(170,pageScroll.viewport-30)};
+   keyboardRect={56,p+130,width-56,p+std::max(300,pageScroll.viewport-54)};
   }else if(screen==lp::Screen::Instruments){
-   int left=width*2/5;place(InstrumentArt,32,top+58,left-48,bottom-top-72);place(categoryIndex==15?Favorites:Catalog,left+8,top+58,width-left-40,bottom-top-72);
+   int left=width*2/5;place(InstrumentArt,32,p+20,left-48,pageScroll.content-42);place(categoryIndex==15?Favorites:Catalog,left+8,p+62,width-left-40,pageScroll.content-84);
   }else if(screen==lp::Screen::AudioMidi){
-   place(AudioDriver,40,top+68,width-80,300);place(AudioBuffer,40,top+172,width-80,300);place(Midi,40,top+276,width-80,300);
-   place(AudioStart,40,top+354,260,64);place(AudioStop,320,top+354,220,64);place(AudioPanel,560,top+354,240,64);place(Panic,40,top+442,260,64);
+   int driverWidth=width-408;
+   place(AudioDriver,56,p+152,driverWidth,300);place(AudioBuffer,80+driverWidth,p+152,272,300);place(Midi,56,p+262,width-112,300);
+   int actionWidth=(width-144)/3;place(AudioStart,56,p+340,actionWidth,60);place(AudioStop,72+actionWidth,p+340,actionWidth,60);place(AudioPanel,88+2*actionWidth,p+340,actionWidth,60);place(Panic,width-300,p+460,244,60);
   }else if(screen==lp::Screen::Settings){
-   int half=(width-120)/2;place(Open,40,top+90,half,90);place(Save,80+half,top+90,half,90);place(Import,40,top+208,half,90);place(ImportSf2,80+half,top+208,half,90);place(Panic,40,top+326,half,76);
+   int half=(width-84)/2;
+   place(Open,32,p+28,half,160);place(Save,52+half,p+28,half,160);place(Import,32,p+208,half,160);place(ImportSf2,52+half,p+208,half,160);place(Panic,width-300,p+454,244,60);
   }else if(screen==lp::Screen::PerformanceEditor){
-   place(PerformanceModeControl,36,top+38,width-72,290);
-   for(int i=0;i<4;++i){place(PerformancePartBase+i,36,top+112+i*70,width-190,290);place(PerformanceClearBase+i,width-132,top+112+i*70,96,54);}
-   place(PerformanceName,36,top+414,width-72,56);place(PerformancePlay,36,top+494,(width-100)/2,68);place(PerformanceSave,64+(width-100)/2,top+494,(width-100)/2,68);
-  }else if(screen==lp::Screen::About){place(AboutText,width/2,top+32,width/2-40,bottom-top-54);}
+   place(PerformanceModeControl,56,p+68,width-112,300);
+   for(int i=0;i<4;++i){int y=p+152+i*96;place(PerformancePartBase+i,116,y+22,width-308,300);place(PerformanceClearBase+i,width-172,y+18,112,56);}
+   place(PerformanceName,56,p+602,width-112,50);place(PerformancePlay,56,p+678,(width-128)/2,60);place(PerformanceSave,72+(width-128)/2,p+678,(width-128)/2,60);
+  }else if(screen==lp::Screen::About){int left=width/3;place(AboutText,left+44,p+68,width-left-100,pageScroll.content-108);}
   finish();
  }
- void drawSlider(NMCUSTOMDRAW* item){
-  HDC dc=item->hdc;RECT r{};GetClientRect(item->hdr.hwndFrom,&r);lpui::fill(dc,r,lpui::panel);
-  RECT channel{};SendMessageW(item->hdr.hwndFrom,TBM_GETCHANNELRECT,0,reinterpret_cast<LPARAM>(&channel));
-  int start=channel.left,end=channel.right,cy=(r.bottom+r.top)/2;
-  int value=static_cast<int>(SendMessageW(item->hdr.hwndFrom,TBM_GETPOS,0,0));int x=start+(end-start)*value/1000;
-  lpui::surface(dc,{start,cy-4,end,cy+5},RGB(58,69,86),RGB(58,69,86),RGB(58,69,86),4);
-  if(x>start+2)lpui::surface(dc,{start,cy-4,x,cy+5},lpui::gold,RGB(170,126,64),lpui::gold,4);
-  lpui::surface(dc,{x-10,cy-14,x+11,cy+15},RGB(255,227,169),lpui::gold,lpui::gold,6);
-  if(GetFocus()==item->hdr.hwndFrom)lpui::box(dc,{1,1,r.right-2,r.bottom-2},lpui::gold,2);
- }
- void drawButton(DRAWITEMSTRUCT* item){
-  HDC dc=item->hDC;RECT r=item->rcItem;bool pressed=item->itemState&ODS_SELECTED,focused=item->itemState&ODS_FOCUS;
-  bool card=item->CtlID>=CategoryCardBase&&item->CtlID<CategoryCardBase+16;
-  int artIndex=card?static_cast<int>(item->CtlID)-CategoryCardBase:categoryIndex;
-  POINT cursor{};GetCursorPos(&cursor);ScreenToClient(item->hwndItem,&cursor);bool hovered=PtInRect(&r,cursor)!=FALSE;
-  bool active=card&&artIndex==categoryIndex;
-  if(item->CtlID==PerformanceButton)active=!effects&&screen==lp::Screen::PerformanceEditor;
-  if(item->CtlID==AudioMidiButton)active=!effects&&screen==lp::Screen::AudioMidi;
-  if(item->CtlID==SettingsButton)active=!effects&&screen==lp::Screen::Settings;
-  if(item->CtlID==AboutButton)active=!effects&&screen==lp::Screen::About;
-  lpui::fill(dc,r,lpui::ink);
-  lpui::surface(dc,{r.left+2,r.top+2,r.right-2,r.bottom-2},pressed?RGB(69,59,43):(active?RGB(48,43,34):(hovered?RGB(37,45,58):lpui::panel)),active?RGB(29,28,27):RGB(18,23,32),(focused||active)?lpui::gold:RGB(66,77,94),14);
-  if(card){
-   // Reserve the full card width for the accessible name; photos never compete with text.
-   RECT picture{r.left+10,r.top+8,r.right-10,r.bottom-36};
-   lpui::categoryPhoto(dc,categoryPhotos.get(),picture,artIndex);
-   auto label=artIndex==15?std::wstring(L"Favoritos"):std::filesystem::u8path(lp::instrumentCategories[artIndex]).wstring();
-   RECT caption{r.left+10,r.bottom-32,r.right-10,r.bottom-4};
-   lpui::text(dc,label,caption,font,lpui::white,DT_CENTER|DT_VCENTER|DT_SINGLELINE|DT_NOPREFIX);
-   if(artIndex>=13){RECT badge{picture.right-24,picture.top,picture.right,picture.top+24};lpui::fill(dc,badge,lpui::ink);lpui::text(dc,artIndex==15?L"★":(artIndex==14?L"+":L"P"),badge,smallFont,lpui::gold);}
-  }else if(item->CtlID==CategoryTile||item->CtlID==InstrumentArt){
-   RECT art{r.left+32,r.top+28,r.right-32,r.bottom-156};lpui::categoryPhoto(dc,categoryPhotos.get(),art,artIndex);
-   lpui::text(dc,categoryName(),{r.left+16,r.bottom-152,r.right-16,r.bottom-102},largeFont);
-   lpui::text(dc,L"Sua biblioteca de palco",{r.left+16,r.bottom-96,r.right-16,r.bottom-60},font,lpui::muted);
-   lpui::text(dc,L"↑ ↓ Selecionar   ·   Espaço Favoritar",{r.left+16,r.bottom-56,r.right-16,r.bottom-18},smallFont,lpui::gold);
-  }else{
-   wchar_t label[128]{};GetWindowTextW(item->hwndItem,label,128);
-   lpui::text(dc,label,{r.left+8,r.top+8,r.right-8,r.bottom-8},font,active?lpui::gold:lpui::white,DT_CENTER|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS|DT_NOPREFIX);
-  }
-  if(focused)lpui::box(dc,{r.left+7,r.top+7,r.right-7,r.bottom-7},lpui::gold,2);
- }
- void drawList(DRAWITEMSTRUCT* item){
-  if(item->itemID==static_cast<UINT>(-1))return;
-  auto h=item->hwndItem;auto length=SendMessageW(h,LB_GETTEXTLEN,item->itemID,0);if(length<0)return;
-  std::wstring name(static_cast<std::size_t>(length)+1,L'\0');SendMessageW(h,LB_GETTEXT,item->itemID,reinterpret_cast<LPARAM>(name.data()));
-  RECT r=item->rcItem;bool selected=item->itemState&ODS_SELECTED;
-  lpui::fill(item->hDC,r,lpui::ink);RECT row{r.left+4,r.top+3,r.right-4,r.bottom-3};
-  lpui::surface(item->hDC,row,selected?RGB(55,47,35):lpui::panel,selected?RGB(37,34,28):RGB(20,25,34),selected?lpui::gold:RGB(48,58,73),10);
-  if(selected)lpui::fill(item->hDC,{r.left+5,r.top+12,r.left+9,r.bottom-12},lpui::gold);
-  RECT label{r.left+24,r.top+6,r.right-62,r.bottom-6};lpui::text(item->hDC,name,label,font,lpui::white,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
-  bool star=false;
-  if(h==favorites)star=show.favorites[item->itemID].has_value();
-  else if(categoryIndex==13)star=isFavorite("performance://"+std::to_string(visiblePerformances[item->itemID]));
-  else if(item->itemID<visibleInstruments.size())star=isFavorite(lp::instrumentReference(instruments[visibleInstruments[item->itemID]]));
-  RECT mark{r.right-56,r.top,r.right-6,r.bottom};lpui::text(item->hDC,star?L"★":L"☆",mark,largeFont,lpui::gold);
-  if(item->itemState&ODS_FOCUS)lpui::box(item->hDC,{r.left+2,r.top+2,r.right-2,r.bottom-2},lpui::gold,3);
- }
- bool isFavorite(const std::string& reference) const {for(const auto& item:show.favorites)if(item&&item->sfz==reference)return true;return false;}
- void paint(HDC dc,bool bodyOnly=false){
-  RECT r{};GetClientRect(window,&r);int width=r.right,height=r.bottom;lpui::fill(dc,r,lpui::ink);
-  if(loading){
-   lpui::photo(dc,photo.get(),{32,32,width/2-28,height-32});
-   lpui::text(dc,L"Live Performance",{width/2,140,width-30,218},titleFont);
-   lpui::text(dc,L"by Hugo Sodré",{width/2,224,width-30,306},signatureFont,lpui::gold);
-   lpui::text(dc,L"Carregando sua biblioteca",{width/2,350,width-40,400},font,lpui::muted);
-   RECT bar{width/2+32,430,width-60,458};lpui::fill(dc,bar,lpui::panel);RECT fill=bar;fill.right=bar.left+(bar.right-bar.left)*progress/100;lpui::fill(dc,fill,lpui::gold);
-   auto elapsed=(GetTickCount64()-loadingStart)/1000;
-   std::wstring value=std::to_wstring(progress)+L"%";
-   if(progress>0&&progress<100&&elapsed>=1)value+=L" · cerca de "+std::to_wstring(elapsed*(100-progress)/progress)+L" s restantes";
-   lpui::text(dc,value,{width/2,480,width-40,526},font);
-   lpui::text(dc,L"Versão 1.0",{width/2,height-66,width-40,height-28},font,lpui::gold);return;
-  }
-  if(!bodyOnly){
-  lpui::surface(dc,{16,12,width-16,pageTop()-62},RGB(27,33,44),RGB(15,20,28),RGB(44,54,69),18);
-  bool home=screen==lp::Screen::Home&&!effects;
-  lpui::photo(dc,photo.get(),home?RECT{28,22,88,82}:RECT{32,26,106,100},true);
-  int brandRight=home?width-672:(width<1280?width-28:width-728),brandLeft=home?104:128;
-  lpui::text(dc,L"Live Performance",{brandLeft,20,brandRight,62},home?font:largeFont,lpui::white,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
-  lpui::text(dc,L"by Hugo Sodré",{brandLeft,home?56:62,brandRight,home?90:110},home?font:signatureFont,lpui::gold,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
-  lpui::line(dc,28,pageTop()-52,width-28,pageTop()-52,RGB(78,90,108),1);
-  std::wstring heading;
-  if(effects)heading=performanceControls()?L"Mix da Performance":L"Esculpir o som";
-  else if(screen==lp::Screen::Home)heading=L"Biblioteca de instrumentos";
-  else if(screen==lp::Screen::Instruments)heading=categoryName();
-  else if(screen==lp::Screen::Keyboard)heading=L"Teclado virtual";
-  else if(screen==lp::Screen::PerformanceEditor)heading=L"Performance Editor";
-  else if(screen==lp::Screen::AudioMidi)heading=L"Áudio / MIDI";
-  else if(screen==lp::Screen::Settings)heading=L"Perfis de show e arquivos";
-  else heading=L"Sobre · Versão 1.0";
-  lpui::text(dc,heading,{32,pageTop()-46,width-230,pageTop()-4},largeFont,lpui::white,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
-  lpui::line(dc,32,height-80,width-32,height-80,RGB(56,66,81),1);
-  return;
-  }
-  width-=20;height=pageOrigin+pageScroll.content+92;
-  if(!effects&&screen==lp::Screen::Keyboard){
-   lpui::text(dc,L"Clique nas teclas para tocar o timbre selecionado",{40,pageOrigin+8,width-40,pageOrigin+48},font,lpui::muted,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
-   drawKeyboard(dc);
-  }
-  if(effects){
-   int count=performanceControls()?4:16,rows=performanceControls()?2:8,cell=(height-92-192-12)/rows,half=(width-84)/2;
-   for(int i=0;i<count;++i){int x=28+(i/rows)*(half+28),y=192+(i%rows)*cell;lpui::surface(dc,{x,y,x+half,y+cell-8},lpui::panel,lpui::panel,RGB(52,63,80),12);}
-  }
-  if(!effects&&screen==lp::Screen::AudioMidi){
-   lpui::text(dc,L"Driver ASIO",{40,184,width-40,212},font,lpui::muted,DT_LEFT);
-   lpui::text(dc,L"Tamanho do buffer",{40,288,width-40,316},font,lpui::muted,DT_LEFT);
-   lpui::text(dc,L"Entrada MIDI",{40,392,width-40,420},font,lpui::muted,DT_LEFT);
-   auto rate=engine&&engine->running()?L"Sample rate automático: "+std::to_wstring(static_cast<int>(engine->sampleRate()))+L" Hz":L"Sample rate automático ao conectar o ASIO";
-   lpui::text(dc,rate,{340,590,width-40,646},font,lpui::gold);
-  }
-  if(!effects&&screen==lp::Screen::About)lpui::photo(dc,photo.get(),{36,194,width/2-36,height-110});
- }
+ #include "ui_studio.inc"
  void drawKeyboard(HDC dc){
   virtualKeys={};int whites=0;for(int note=36;note<=96;++note){int pc=note%12;if(pc!=1&&pc!=3&&pc!=6&&pc!=8&&pc!=10)++whites;}
   int index=0,w=keyboardRect.right-keyboardRect.left;

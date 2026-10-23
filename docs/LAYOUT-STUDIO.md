@@ -78,3 +78,9 @@ essa inspeção não equivale a um teste da janela Windows.
 O envio remoto desta etapa inclui um único blob binário novo para o atlas,
 agrupado com fonte, créditos e manifesto em um commit. Sem uploads repetidos de
 fotografias, sem samples e sem build hospedado.
+
+## Revisão posterior de todas as telas
+
+O cabeçalho e o rodapé foram unificados; a abertura e todas as páginas internas
+receberam revisão de composição, controles e hierarquia. Consulte
+`docs/STUDIO-REFINEMENT.md` para o escopo final e a validação desta etapa.
