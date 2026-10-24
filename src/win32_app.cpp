@@ -25,10 +25,14 @@
 #include <sstream>
 #include "ui_state.hpp"
 #include "ui_art.hpp"
+#ifdef LP_VISION_UI
+#include "vision_protocol.hpp"
+#include "vision_webview.hpp"
+#endif
 
 namespace {
 constexpr int Catalog=100,Favorites=101,Save=102,Open=103,Midi=104,Effects=105,Import=106,ImportSf2=114,AudioDriver=107,AudioBuffer=108,AudioStart=109,AudioStop=110,AudioPanel=111,Panic=112,Category=113,Knob=200,MidiLearnKnob=115,PerformanceButton=116,PerformanceModeControl=117,PerformancePartBase=118,PerformancePlay=122,PerformanceSave=123,PerformanceName=124,PerformanceEditPart=125,PerformanceClearBase=126,AudioMidiButton=140,SettingsButton=141,AboutButton=142,CategoryTile=143,PreviousCategory=144,NextCategory=145,InstrumentArt=146,AboutText=147,HomeButton=148,KeyboardButton=149,CategoryCardBase=400;
-constexpr UINT BeginParameterLearn=WM_APP+40,LoadLibraryMessage=WM_APP+41,ToggleFavoriteMessage=WM_APP+42,SelectSoundMessage=WM_APP+43,RevealFocusMessage=WM_APP+44;
+constexpr UINT BeginParameterLearn=WM_APP+40,LoadLibraryMessage=WM_APP+41,ToggleFavoriteMessage=WM_APP+42,SelectSoundMessage=WM_APP+43,RevealFocusMessage=WM_APP+44,VisionCommandMessage=WM_APP+45;
 LRESULT CALLBACK pageProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
 LRESULT CALLBACK focusProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
 LRESULT CALLBACK comboProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
@@ -111,10 +115,10 @@ struct App {
  bool pendingRestore=false;unsigned restoreAttempts=0;
  HMIDIIN midiHandle{};bool effects=false;
  std::filesystem::path base;
- ~App(){closeMidi();engine.reset();for(auto f:{font,titleFont,signatureFont,largeFont,smallFont,statusFont})if(f)DeleteObject(f);DeleteObject(background);DeleteObject(panelBackground);}
+ ~App(){closeVision();closeMidi();engine.reset();for(auto f:{font,titleFont,signatureFont,largeFont,smallFont,statusFont})if(f)DeleteObject(f);DeleteObject(background);DeleteObject(panelBackground);}
  void closeMidi(){router.cancelLearn();if(engine)engine->panic();if(midiHandle){midiInStop(midiHandle);midiInReset(midiHandle);midiInClose(midiHandle);midiHandle=nullptr;}}
- void message(const std::wstring& text){SetWindowTextW(status,text.c_str());}
- void error(const std::exception& e){auto s=std::string(e.what());std::wstring text(s.begin(),s.end());MessageBoxW(window,text.c_str(),L"Live Performance",MB_OK|MB_ICONERROR);}
+ void message(const std::wstring& text){SetWindowTextW(status,text.c_str());markVisionDirty();}
+ void error(const std::exception& e){recordVisionError(e);auto s=std::string(e.what());std::wstring text(s.begin(),s.end());MessageBoxW(window,text.c_str(),L"Live Performance",MB_OK|MB_ICONERROR);}
  HWND control(const wchar_t* kind,const wchar_t* text,DWORD style,int id){
   if(_wcsicmp(kind,L"BUTTON")==0)style=(style&~BS_TYPEMASK)|BS_OWNERDRAW;
   bool combo=_wcsicmp(kind,L"COMBOBOX")==0;if(combo)style|=CBS_OWNERDRAWFIXED|CBS_HASSTRINGS;
@@ -322,7 +326,7 @@ struct App {
   refreshParameters();message(L"MIDI Learn: mova o fader ou knob físico. ESC cancela o aprendizado.");
  }
  void cancelMidiLearn(){bool wasLearning=router.learning()||learningPerformanceParameter>=0||learningVolume>=0||learningMaster;learningVolume=-1;learningMaster=false;learningPerformanceParameter=-1;router.cancelLearn();refreshParameters();if(wasLearning)message(L"MIDI Learn cancelado.");}
- void refreshCatalog(){
+ void refreshCatalog(){markVisionDirty();
   SendMessageW(catalog,LB_RESETCONTENT,0,0);visibleInstruments.clear();visiblePerformances.clear();
   auto selected=SendMessageW(category,CB_GETCURSEL,0,0);
   if(selected==13){
@@ -357,8 +361,8 @@ struct App {
   refreshParameters();if(effects)layout();message(L"Performance carregada do perfil de show.");
  }
  std::wstring favoriteName(const lp::Patch& patch){if(patch.sfz.rfind("performance://",0)==0){auto index=static_cast<std::size_t>(std::stoul(patch.sfz.substr(14)));return index<show.performanceLibrary.size()?std::filesystem::u8path(show.performanceLibrary[index].name).wstring():L"Performance ausente";}return std::filesystem::u8path(lp::instrumentName(patch.sfz,instruments)).wstring();}
- void refreshFavorites(){SendMessageW(favorites,LB_RESETCONTENT,0,0);for(int i=0;i<20;++i){std::wstring name=std::to_wstring(i+1)+L". ";name+=show.performances[i]?std::filesystem::u8path(show.performances[i]->name).wstring():(show.favorites[i]?favoriteName(*show.favorites[i]):L"Vazio");SendMessageW(favorites,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(name.c_str()));}refreshParameters();}
- void refreshParameters(){
+ void refreshFavorites(){markVisionDirty();SendMessageW(favorites,LB_RESETCONTENT,0,0);for(int i=0;i<20;++i){std::wstring name=std::to_wstring(i+1)+L". ";name+=show.performances[i]?std::filesystem::u8path(show.performances[i]->name).wstring():(show.favorites[i]?favoriteName(*show.favorites[i]):L"Vazio");SendMessageW(favorites,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(name.c_str()));}refreshParameters();}
+ void refreshParameters(){markVisionDirty();
   bool perf=performanceControls();
   for(int i=0;i<16;++i){float value=0;int cc=-1;bool enabled=false;std::wstring name;
    if(perf){if(i<4){const auto& part=editingPerformance.parts[i];name=L"Camada "+std::to_wstring(i+1)+L" · Volume";value=part.patch.parameters[0];cc=part.patch.cc[0];enabled=part.enabled;}}
@@ -514,6 +518,7 @@ struct App {
   if(engine&&lp::forwardsToEngine(result,m))engine->send(m);
  }catch(const std::exception& e){error(e);}}
 
+ #include "vision_adapter.inc"
 };
 // Keep native combo interaction and accessibility while finishing the painted arrow.
 LRESULT CALLBACK comboProc(HWND control,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR id,DWORD_PTR){
@@ -580,12 +585,13 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
  if(msg==WM_NCCREATE){app=static_cast<App*>(reinterpret_cast<CREATESTRUCTW*>(lp)->lpCreateParams);SetWindowLongPtrW(w,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(app));}
  if(!app)return DefWindowProcW(w,msg,wp,lp);
  switch(msg){
- case WM_CREATE:try{app->initialize(w);SetWindowSubclass(app->catalog,listProc,Catalog,0);SetWindowSubclass(app->favorites,listProc,Favorites,0);}catch(const std::exception& e){app->error(e);return -1;}return 0;
+ case WM_CREATE:try{app->initialize(w);SetWindowSubclass(app->catalog,listProc,Catalog,0);SetWindowSubclass(app->favorites,listProc,Favorites,0);app->startVision();}catch(const std::exception& e){app->error(e);return -1;}return 0;
  case LoadLibraryMessage:try{if(wp==1)app->loadNextBank();else app->loadLibrary();}catch(const std::exception& e){app->loading=false;app->layout();app->error(e);}return 0;
+ case VisionCommandMessage:{std::unique_ptr<std::wstring> wire(reinterpret_cast<std::wstring*>(lp));if(wire)app->visionCommand(*wire);return 0;}
  case WM_TIMER:
-  if(wp==2){app->restoreAudio();return 0;}
+  if(wp==2){app->restoreAudio();app->flushVision();return 0;}
   if(app->effects&&!(GetKeyState(VK_LBUTTON)&0x8000)&&!app->loading&&app->parameterPanel.expired(GetTickCount64())){app->toggleParameters();}
-  if(app->engine&&app->engine->takeFault()){try{app->engine->stop();}catch(const std::exception& e){app->error(e);}app->message(L"Falha no motor/driver. Áudio interrompido; reconecte ASIO.");}return 0;
+  if(app->engine&&app->engine->takeFault()){try{app->engine->stop();}catch(const std::exception& e){app->error(e);}app->message(L"Falha no motor/driver. Áudio interrompido; reconecte ASIO.");}app->flushVision();return 0;
  case WM_SIZE:if(app->catalog)app->layout();return 0;
  case WM_PAINT:{PAINTSTRUCT ps{};auto dc=BeginPaint(w,&ps);RECT r{};GetClientRect(w,&r);auto buffer=CreateCompatibleDC(dc);auto bitmap=CreateCompatibleBitmap(dc,std::max(1L,r.right),std::max(1L,r.bottom));auto previous=SelectObject(buffer,bitmap);app->paint(buffer);BitBlt(dc,0,0,r.right,r.bottom,buffer,0,0,SRCCOPY);SelectObject(buffer,previous);DeleteObject(bitmap);DeleteDC(buffer);EndPaint(w,&ps);return 0;}
  case WM_NOTIFY:{auto custom=reinterpret_cast<NMCUSTOMDRAW*>(lp);if(custom->hdr.code==NM_CUSTOMDRAW){
@@ -610,12 +616,15 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
  case WM_ERASEBKGND:return 1;
  case WM_GETMINMAXINFO:reinterpret_cast<MINMAXINFO*>(lp)->ptMinTrackSize={1024,600};return 0;
  case WM_CLOSE:try{app->releaseVirtual();if(app->engine)app->persistAudioAndMidi();}catch(const std::exception& e){app->error(e);}break;
- case WM_DESTROY:app->closeMidi();PostQuitMessage(0);return 0;
+ case WM_DESTROY:app->closeVision();app->closeMidi();PostQuitMessage(0);return 0;
  }
  return DefWindowProcW(w,msg,wp,lp);
 }
 }
 int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show){
+ #ifdef LP_VISION_UI
+ HRESULT comResult=CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);
+#endif
  INITCOMMONCONTROLSEX common{sizeof(common),ICC_BAR_CLASSES|ICC_PROGRESS_CLASS};InitCommonControlsEx(&common);
  Gdiplus::GdiplusStartupInput input;ULONG_PTR token=0;if(Gdiplus::GdiplusStartup(&token,&input,nullptr)!=Gdiplus::Ok)return 1;
  int result=0;{
@@ -623,10 +632,15 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show){
  auto w=CreateWindowW(cls.lpszClassName,L"Live Performance by Hugo Sodré",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,CW_USEDEFAULT,CW_USEDEFAULT,1360,900,nullptr,nullptr,instance,&app);
  if(w){ShowWindow(w,show);UpdateWindow(w);MSG msg{};while(GetMessageW(&msg,nullptr,0,0)>0){
   if(app.effects&&(msg.message==WM_LBUTTONDOWN||msg.message==WM_RBUTTONDOWN||msg.message==WM_MOUSEWHEEL||msg.message==WM_LBUTTONUP))app.touchParameters();
+  if(app.visionVisible()){TranslateMessage(&msg);DispatchMessageW(&msg);continue;}
   if(app.keyCommand(msg))continue;
   if(app.wheelCommand(msg))continue;
   if(!IsDialogMessageW(w,&msg)){TranslateMessage(&msg);DispatchMessageW(&msg);}
  }result=static_cast<int>(msg.wParam);}else result=1;
  }
- Gdiplus::GdiplusShutdown(token);return result;
+ Gdiplus::GdiplusShutdown(token);
+#ifdef LP_VISION_UI
+ if(SUCCEEDED(comResult))CoUninitialize();
+#endif
+ return result;
 }

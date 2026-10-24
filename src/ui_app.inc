@@ -57,11 +57,15 @@
   std::vector<HWND> visible;
   auto finish=[&]{
    for(auto parent:{window,page})for(HWND child=GetWindow(parent,GW_CHILD);child;child=GetWindow(child,GW_HWNDNEXT)){
-    if(child==page)continue;
-    bool show=std::find(visible.begin(),visible.end(),child)!=visible.end();
+    if(child==page||child==visionContainer())continue;
+    bool show=!visionVisible()&&std::find(visible.begin(),visible.end(),child)!=visible.end();
     if(show!=static_cast<bool>(GetWindowLongPtrW(child,GWL_STYLE)&WS_VISIBLE))ShowWindow(child,show?SW_SHOW:SW_HIDE);
    }
-   ShowWindow(page,loading?SW_HIDE:SW_SHOW);placing=false;
+   ShowWindow(page,(loading||visionVisible())?SW_HIDE:SW_SHOW);placing=false;
+   markVisionDirty();
+#ifdef LP_VISION_UI
+   if(vision)vision->resize();
+#endif
    InvalidateRect(window,nullptr,FALSE);InvalidateRect(page,nullptr,FALSE);
   };
   auto place=[&](int id,int x,int y,int ww,int hh){auto h=item(id);if(GetParent(h)==page)y-=pageOrigin+pageScroll.offset;MoveWindow(h,x,y,std::max(1,ww),std::max(1,hh),TRUE);visible.push_back(h);};

@@ -1,0 +1,38 @@
+{
+  "version": "2.1.0",
+  "package": "Vision-Laiberry-Instruments-2.1-ASIO-Setup-Windows-x64.exe",
+  "package_sha256": "efe2a668004f10a51b78a83a4d3f2d2c327f5406bf92df39c27473dd192c0157",
+  "assets": {
+    "categories": {
+      "source": "categories-ref.jpg",
+      "bytes": 426014,
+      "sha256": "4e63ccc6ebeaf05d81ac2539a88300ff4c70e0a508d09032189876e9b2234e83"
+    },
+    "piano": {
+      "source": "timbres-ref.jpg",
+      "bytes": 357051,
+      "sha256": "30dcc3765653a06633783b0ebd5a9e60c50a4e25e6c72310bd9e0890cc804b92"
+    },
+    "favorites": {
+      "source": "favorites-ref.jpg",
+      "bytes": 339630,
+      "sha256": "e1207bb833798ee6d41e8b9a273624178dd94747b6c549112950f4df350a3bdd"
+    },
+    "DMSans": {
+      "source": "_next/static/media/5c285b27cdda1fe8-s.p.2_mbdogr7ni8i.woff2",
+      "bytes": 36980,
+      "sha256": "468d56b6b25b05b70190b6c233d773f6f1770e8579827ce022a57f03fa8002fb"
+    },
+    "PlusJakartaSans": {
+      "source": "_next/static/media/fba5a26ea33df6a3-s.p.18rizl4rsrl42.woff2",
+      "bytes": 27272,
+      "sha256": "cd8db90cd950e26bc8761f65d323588bd5cd112d326d6d322bc7c8ea86771215"
+    },
+    "portrait": {
+      "source": "LP-by-hs/recovery/extracted/live/assets/hugo.jpg",
+      "bytes": 179927,
+      "sha256": "d3cceb963063d4a21c792d202dc3e7340994a97e206ac9c709d7df19a509b9c1"
+    }
+  },
+  "changes": "Original bytes, encoded as data URLs. No image or font modification."
+}
