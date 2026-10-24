@@ -22,22 +22,23 @@ fs.mkdirSync(output,{recursive:true});
    favorites:Array.from({length:20},(_,id)=>({id,name:id===0?'Concert Grand':id===19?'Rhodes':'Vazio',occupied:id===0||id===19,loaded:false})),
    controls:parameters.map((name,id)=>({id,name,label:name+': 50%',value:500,enabled:id===15})),partMix:false,
    audio:{drivers:['Selecione driver ASIO','ASIO4ALL v2','TASCAM US-1800'],driver:0,buffers:['Buffer do driver','64','128','256','512','1024','2048'],buffer:0,midiInputs:['MIDI desligado','A-PRO'],midi:0,connected:false,sampleRate:48000,latencyMs:5.3},
-   performance:{mode:0,name:'Minha Performance',parts:[0,0,0,0],modes:['Camadas: quatro timbres','Dividir 2 + 2','Dividir 3 + 1','Dividir 2 + 1 + 1','Dividir quatro partes'],instruments:['Desativado','Concert Grand','Rhodes']},about:'Hugo Sodré\nMúsica, visão e propósito.\n\nCréditos dos instrumentos.'};
+   performance:{mode:0,name:'Minha Performance',parts:[0,0,0,0],editingPart:0,instrumentCategories:[-1,0,1,2],modes:['Camadas: quatro timbres','Dividir 2 + 2','Dividir 3 + 1','Dividir 2 + 1 + 1','Dividir quatro partes'],instruments:['Desativado','Concert Grand','Rhodes','Órgão']},about:'Hugo Sodré\nMúsica, visão e propósito.\n\nCréditos dos instrumentos.'};
   const emit=()=>receiver?.({data:JSON.parse(JSON.stringify(state))});window.__setLoading=value=>{state.loading=value;state.progress=value?35:100;emit();};
   window.chrome={webview:{addEventListener:(_,fn)=>{receiver=fn;},postMessage:wire=>{
    const [version,id,action,aa,bb,text]=wire.split('\t'),a=Number(aa),b=Number(bb);if(version!=='LP1')throw new Error('Wrong protocol');window.__commands.push({action,a,b,text:decodeURIComponent(text)});state.request=Number(id);state.error='';
-   if(action==='category'){state.category=a;state.screen='instruments';state.effects=false;state.selected=0;}
-   if(action==='select'){state.selected=a;state.loadedName=state.catalog[a].name;state.catalog.forEach(r=>r.loaded=r.id===a);state.controls.forEach(c=>c.enabled=true);}
+   if(action==='category'){state.category=a;state.screen='instruments';state.effects=false;state.selected=0;state.partMix=a===13;}
+   if(action==='select'){if(state.category!==13)state.partMix=false;state.selected=a;state.loadedName=state.catalog[a].name;state.catalog.forEach(r=>r.loaded=r.id===a);state.controls.forEach(c=>c.enabled=true);}
    if(action==='favorite'){const r=state.catalog[a];r.favorite=!r.favorite;state.favorites[0]={id:0,name:r.favorite?r.name:'Vazio',occupied:r.favorite,loaded:r.loaded};}
    if(action==='activateFavorite'){state.selected=a;if(state.favorites[a].occupied)state.loadedName=state.favorites[a].name;}
    if(action==='removeFavorite')state.favorites[a]={id:a,name:'Vazio',occupied:false,loaded:false};
-   if(action==='effects'){state.effects=!state.effects;if(!state.effects)state.screen='home';}
-   if(action==='escape'){state.effects=false;state.screen='home';}
+   if(action==='effects'){state.effects=!state.effects;if(!state.effects&&state.screen!=='performance')state.screen='home';}
+   if(action==='escape'){state.effects=false;if(state.screen!=='performance')state.screen='home';}
    if(action==='screen'){state.screen=['home','instruments','performance','audio','profiles','about','keyboard'][a];state.effects=false;}
    if(action==='parameter'){state.controls[a].value=b;state.controls[a].label=state.controls[a].name+': '+Math.round(b/10)+'%';}
    if(action==='driver'){state.audio.driver=a;state.audio.connected=a>0;}
    if(action==='buffer')state.audio.buffer=a;
    if(action==='midi')state.audio.midi=a;
+   if(action==='editPart')state.performance.editingPart=a;
    if(action==='performanceName')state.performance.name=decodeURIComponent(text);
    if(action==='performancePart')state.performance.parts[a]=b;
    if(action==='performanceMode')state.performance.mode=a;
@@ -71,7 +72,7 @@ fs.mkdirSync(output,{recursive:true});
  assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='parameter'&&c.a===1&&c.b===501)));
  await page.locator('#parameter-1').click({button:'right'});assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='learnParameter'&&c.a===1)));
  await page.screenshot({path:path.join(output,'parameters.png')});
- await page.keyboard.press('Escape');await page.locator('#favorites-nav').click();assert.equal(await page.locator('.sound-row').count(),20);
+ await page.keyboard.press('Escape');await page.locator('[data-category="15"]').click();assert.equal(await page.locator('.sound-row').count(),20);
  await page.locator('[data-select="0"]').click({button:'right'});assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='learnFavorite'&&c.a===0)));
  await page.locator('[data-select="19"]').click({button:'right'});assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='learnFavorite'&&c.a===19)));
  await page.screenshot({path:path.join(output,'favorites.png')});
@@ -80,9 +81,13 @@ fs.mkdirSync(output,{recursive:true});
  await page.getByRole('button',{name:'ASIO Control',exact:true}).click();assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='controlPanel')));
  await page.screenshot({path:path.join(output,'audio.png')});
  await page.locator('[data-screen="2"]').click();await page.locator('#performance-name').fill('Soul — apresentação');await page.keyboard.press('e');assert.ok((await page.locator('#performance-name').inputValue()).endsWith('e'),'E must type normally in text fields');
- await page.locator('#part-0').selectOption('1');await page.locator('#part-1').selectOption('2');await page.locator('#performance-mode').selectOption('1');await page.getByRole('button',{name:'Ativar Performance',exact:true}).click();
+ assert.equal(await page.locator('#favorites-nav').count(),0);assert.equal(await page.locator('[id^=part-category-]').count(),4);
+ await page.locator('#part-category-0').selectOption('0');assert.equal(await page.locator('#part-0 option[value="2"]').count(),0);
+ await page.locator('#part-0').selectOption('1');await page.locator('#part-category-1').selectOption('1');await page.locator('#part-1').selectOption('2');
+ await page.locator('#part-1').focus();await page.keyboard.press('e');assert.equal(await page.locator('.parameter').count(),16);assert.equal(await page.locator('#heading').textContent(),'Parâmetros da parte 2');await page.keyboard.press('Escape');assert.equal(await page.locator('#part-1').inputValue(),'2');await page.locator('#performance-mode').selectOption('1');await page.getByRole('button',{name:'Ativar Performance',exact:true}).click();
  assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='performancePlay')));
  await page.screenshot({path:path.join(output,'performance.png')});
+ await page.locator('#brand').click();await page.locator('[data-category="13"]').click();await page.locator('[data-select="0"]').click();await page.keyboard.press('e');assert.equal(await page.locator('.parameter').count(),4);assert.equal(await page.locator('#heading').textContent(),'Mix da Performance');await page.keyboard.press('Escape');
  await page.locator('[data-screen="4"]').click();await page.getByRole('button',{name:/Salvar perfil Escolha/}).click();await page.getByRole('button',{name:/Abrir perfil Carregue/}).click();assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='save')&&window.__commands.some(c=>c.action==='open')));
  await page.screenshot({path:path.join(output,'profiles.png')});
  await page.locator('#keyboard-nav').click();await page.locator('[data-note="60"]').focus();await page.keyboard.down('Space');await page.keyboard.up('Space');
@@ -93,6 +98,6 @@ fs.mkdirSync(output,{recursive:true});
  const priorCommands=await page.evaluate(()=>window.__commands.length);await page.emulateMedia({reducedMotion:'no-preference'});await page.reload({waitUntil:'networkidle'});await page.evaluate(()=>window.__setLoading(false));const openingReadyAt=await page.evaluate(()=>performance.now());await page.locator('#opening').waitFor({state:'hidden',timeout:6000});assert.ok((await page.evaluate(()=>performance.now()))-openingReadyAt>=2300,'automatic opening retains the original display time');
  assert.deepEqual(failures,[]);assert.deepEqual(external,[],'all assets must work offline');
  assert.equal(await page.evaluate(()=>Boolean(window.__vli||window.__vliAudioEffects)),false,'old browser synthesizer must not be loaded');
- const report={result:'PASS',scope:'Chromium renderer with a control-state fixture; not Windows/ASIO hardware',checks:['original full-screen opening with title-only composition, loading gate, keyboard skip and automatic display time','16 categories at 1360×900 and 1024×600','offline original artwork and fonts','arrows/Enter and automatic sound selection commands','safe instrument names','Space favorites and 20 numbered slots','E/ESC and text entry','16 parameters and context MIDI Learn','ASIO/MIDI selectors and ASIO Control command','Performance parts, name and activation','native save/open command routing','virtual keyboard releases and F12'],externalRequests:external,pageErrors:failures,commands:priorCommands+await page.evaluate(()=>window.__commands.length)};
+ const report={result:'PASS',scope:'Chromium renderer with a control-state fixture; not Windows/ASIO hardware',checks:['original full-screen opening with title-only composition, loading gate, keyboard skip and automatic display time','16 categories at 1360×900 and 1024×600','offline original artwork and fonts','arrows/Enter and automatic sound selection commands','safe instrument names','Space favorites and 20 numbered slots','E/ESC and text entry','16 parameters and context MIDI Learn','ASIO/MIDI selectors and ASIO Control command','Four independent category filters, native instrument IDs, contextual part editing with E and four-volume playback mix','native save/open command routing','virtual keyboard releases and F12'],externalRequests:external,pageErrors:failures,commands:priorCommands+await page.evaluate(()=>window.__commands.length)};
  fs.writeFileSync(path.join(output,'renderer-results.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));await browser.close();server.close();
 })().catch(async e=>{console.error(e);await browser?.close();server?.close();process.exitCode=1;});

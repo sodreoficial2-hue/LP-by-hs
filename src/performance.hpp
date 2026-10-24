@@ -39,6 +39,12 @@ struct Performance {
   return transposed>=0&&transposed<=127?transposed:-1;
  }
 };
+inline PerformanceMix performanceMix(const Performance& p){
+ PerformanceMix mix;for(std::size_t i=0;i<4;++i){mix.volumes[i]=p.parts[i].patch.parameters[0];mix.cc[i]=p.parts[i].patch.cc[0];}return mix;
+}
+inline void applyPerformanceMix(Performance& p,const PerformanceMix& mix){
+ for(std::size_t i=0;i<4;++i){p.parts[i].patch.parameters[0]=mix.volumes[i];p.parts[i].patch.cc[0]=mix.cc[i];}
+}
 inline SavedPerformance savePerformance(const Performance& p){
  if(!p.valid())throw std::invalid_argument("Invalid Performance");
  SavedPerformance result;result.name=p.name;result.split=p.mode==PerformanceMode::Split;

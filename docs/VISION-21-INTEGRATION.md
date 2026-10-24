@@ -161,3 +161,19 @@ O saldo autenticado de uso/quota permanece **desconhecido**: a conexão não for
 essa consulta. Nenhuma execução hospedada foi iniciada para esta etapa. O código
 deve ser preservado em uma única publicação da etapa validada, numa branch
 separada, cujos filtros atuais de workflow não disparam Actions automaticamente.
+
+## Ajuste do Performance Editor e memória dos favoritos (24/10/2026)
+
+O usuário confirmou que o portátil anterior com visual Vision funciona bem no Windows em simulação de palco. Esta etapa mantém o motor de áudio e a abertura, e altera somente o fluxo de edição/mix:
+
+- Cada parte tem uma categoria acima do timbre. O filtro preserva os IDs nativos; navegar por categorias não troca o áudio. A seleção atual continua identificada se estiver fora do filtro. Performance e Favoritos não são instrumentos para aninhar em outra parte.
+- A parte com foco fica destacada. E, inclusive com foco no seletor, ou seu botão Parâmetros abre os controles completos daquela parte. E/ESC retorna ao editor. Attack/Decay/Sustain/Release, efeitos, EQ e MIDI Learn pertencem à parte selecionada. Master continua global.
+- E prepara as seleções pendentes; se timbres e divisões já coincidem com o áudio ativo, abrir o painel não recarrega o motor nem interrompe as vozes. Salvar Performance também aplica as seleções pendentes antes de guardar a definição.
+- Fora do editor, uma Performance apresenta somente seus quatro volumes. Cada ajuste atualiza imediatamente o mix do favorito em memória. Trocar de som e voltar recupera sempre os últimos valores; também funciona ao selecionar a performance favoritada pela categoria Performance.
+- Uma Performance sem favorito usa um mix temporário; trocar de som descarta esses volumes, sem modificar a definição salva na biblioteca.
+- O perfil v8 inclui um registro MIX por favorito de Performance (quatro volumes e respectivos CCs); mantém leitura dos perfis v1–v7. Salvar perfil continua manual. Perfis salvos em v8 devem ser abertos nesta versão ou posterior.
+- O atalho redundante de Favoritos foi retirado do topo; a categoria Favoritos continua na grade.
+
+Validação: oito grupos CTest passaram, incluindo novos testes de leitura de perfil antigo, memória repetida do mix, isolamento dos parâmetros das partes e rejeição de MIX inválido. O renderer Chromium com ponte simulada passou nos filtros, índices originais, E contextual e mix de quatro volumes, sem erros de JavaScript ou recursos externos. Os dois aplicativos Windows x64 e o teste do dispatcher nativo compilaram localmente. Tentativa de executar o teste nativo com Wine foi bloqueada pelo ambiente (`wineserver: socket: Operation not permitted`); não equivale a execução no Windows. A confirmação de hardware do usuário refere-se ao portátil anterior.
+
+Nenhum Actions foi iniciado. Saldo autenticado GitHub desconhecido, sem ferramenta disponível para consultá-lo.

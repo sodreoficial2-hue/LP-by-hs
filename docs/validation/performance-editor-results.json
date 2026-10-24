@@ -1,0 +1,50 @@
+{
+  "base_commit": "7c639606fca31e446754aeeb208de12bbddd8985",
+  "stage": "Performance part editor and latest favorite mix",
+  "ctest": {
+    "passed": 8,
+    "failed": 0
+  },
+  "renderer": {
+    "result": "PASS",
+    "scope": "Chromium renderer with a control-state fixture; not Windows/ASIO hardware",
+    "checks": [
+      "original full-screen opening with title-only composition, loading gate, keyboard skip and automatic display time",
+      "16 categories at 1360×900 and 1024×600",
+      "offline original artwork and fonts",
+      "arrows/Enter and automatic sound selection commands",
+      "safe instrument names",
+      "Space favorites and 20 numbered slots",
+      "E/ESC and text entry",
+      "16 parameters and context MIDI Learn",
+      "ASIO/MIDI selectors and ASIO Control command",
+      "Four independent category filters, native instrument IDs, contextual part editing with E and four-volume playback mix",
+      "native save/open command routing",
+      "virtual keyboard releases and F12"
+    ],
+    "externalRequests": [],
+    "pageErrors": [],
+    "commands": 49
+  },
+  "windows_cross_compile": {
+    "LivePerformanceVision.exe": {
+      "bytes": 5031903,
+      "sha256": "83e2bf2d88b462a057c34fa8ef32070c8e2a4739e56a382a10adbb522d244447"
+    },
+    "LivePerformance.exe": {
+      "bytes": 4831941,
+      "sha256": "ecb6a3ccff3272fed72571571388484545ad66e7dd0e5ba14f67be0002a56c18"
+    },
+    "vision-adapter-test/lp_win32_vision_test.exe": {
+      "bytes": 4834253,
+      "sha256": "301cc61eafc15e0ef667749ecdb1641af5481ee141c8da3e3b49def3fbebd4d4"
+    }
+  },
+  "native_adapter_executed": false,
+  "native_adapter_execution_attempt": "Wine blocked: wineserver socket Operation not permitted",
+  "hardware_validation_of_this_change": false,
+  "user_confirmed_previous_portable_on_windows": true,
+  "github_actions_runs_started": 0,
+  "github_authenticated_remaining_allowance": "unknown",
+  "audio_core_unchanged": true
+}

@@ -71,7 +71,7 @@
   box.append(crop('categories',x,y,320,140));return box;
  }
  function field(label, id, values, selected, onChange){
-  const select=node('select',{id});values.forEach((name,i)=>select.append(node('option',{value:i},name)));select.value=String(selected);
+  const select=node('select',{id,'data-focus':id});values.forEach((name,i)=>select.append(node('option',{value:i},name)));select.value=String(selected);
   select.addEventListener('change',()=>onChange(Number(select.value)));
   return node('label',{class:'field',for:id},label,select);
  }
@@ -112,16 +112,26 @@
   const card=(name,description,action)=>button([node('strong',{},name),node('span',{},description)],()=>send(action),{class:'panel profile-card'});
   return node('div',{class:'form-grid'},card('Abrir perfil','Carregue os favoritos, parâmetros e mapeamentos de um show.','open'),card('Salvar perfil','Escolha o local do arquivo pelo diálogo do Windows.','save'),card('Importar SFZ','Adicione um instrumento à categoria Meus Sons.','importSfz'),card('Importar SF2','Adicione os presets de um SoundFont à sua biblioteca.','importSf2'),node('section',{class:'panel wide'},node('h2',{},'Um perfil para cada apresentação'),node('p',{class:'details'},'Use Salvar perfil para guardar favoritos, ajustes, performances e MIDI Learn. Cada arquivo .lphs pode conter o repertório de um artista ou show.')));
  }
+ let partCategories=[];
  function performance(){
   title('Monte sua Performance','ATÉ QUATRO PARTES · CAMADAS E DIVISÕES');const p=state.performance;
   const zones=field('Distribuição do teclado','performance-mode',p.modes,p.mode,i=>send('performanceMode',i));
   const parts=node('section',{class:'panel wide'},node('h2',{},'Instrumentos das quatro partes'));
-  p.parts.forEach((selected,i)=>parts.append(node('div',{class:'part-row'},node('span',{class:'part-number'},String(i+1)),field(`Timbre da parte ${i+1}`,`part-${i}`,p.instruments,selected,index=>send('performancePart',i,index)),button('Limpar',()=>send('clearPart',i)))));
+  p.parts.forEach((selected,i)=>{
+   const categoryIds=state.categories.map((_,n)=>n).filter(n=>n!==13&&n!==15);
+   let category=partCategories[i]??p.instrumentCategories[selected];if(!categoryIds.includes(category))category=categoryIds[0];partCategories[i]=category;
+   const categoryField=field(`Categoria da parte ${i+1}`,`part-category-${i}`,categoryIds.map(n=>state.categories[n]),categoryIds.indexOf(category),index=>{partCategories[i]=categoryIds[index];structure='';render();});
+   const soundField=field(`Timbre da parte ${i+1}`,`part-${i}`,[],selected,index=>send('performancePart',i,index));
+   const select=soundField.querySelector('select');
+   p.instruments.forEach((name,n)=>{if(n===0||n===selected||p.instrumentCategories[n]===category)select.append(node('option',{value:n},n===selected&&n>0&&p.instrumentCategories[n]!==category?`Atual: ${name}`:name));});select.value=String(selected);
+   const row=node('section',{class:'part-row'+(p.editingPart===i?' editing':''),'data-part':i},node('span',{class:'part-number'},String(i+1)),node('div',{class:'part-fields'},categoryField,soundField),node('div',{class:'part-actions'},button('Parâmetros · E',()=>{flushParameters();send('editPart',i);send('effects');},{'aria-label':`Editar parâmetros da parte ${i+1}`}),button('Limpar',()=>send('clearPart',i))));
+   row.addEventListener('focusin',()=>{if(state.performance.editingPart!==i)send('editPart',i);});parts.append(row);
+  });
   const name=node('input',{id:'performance-name',type:'text',maxlength:255,value:p.name,'data-focus':'performance-name'});name.addEventListener('change',()=>send('performanceName',0,0,name.value));
   return node('div',{class:'form-grid'},node('section',{class:'panel wide'},zones),parts,node('section',{class:'panel wide'},node('label',{class:'field',for:'performance-name'},'Nome da Performance',name),node('div',{class:'actions'},button('Ativar Performance',()=>{send('performanceName',0,0,name.value);send('performancePlay');},{class:'primary'}),button('Salvar Performance',()=>{send('performanceName',0,0,name.value);send('performanceSave');})),node('p',{class:'note'},'Ative para aplicar as partes ao áudio. Depois, salve o perfil para guardar a Performance em disco.')));
  }
  function parameters(){
-  title(state.partMix?'Mix da Performance':'Parâmetros do instrumento',state.partMix?'VOLUMES DAS QUATRO PARTES':'EXPRESSÃO · TEXTURA · AMBIENTE');
+  title(state.partMix?'Mix da Performance':state.screen==='performance'?`Parâmetros da parte ${state.performance.editingPart+1}`:'Parâmetros do instrumento',state.partMix?'VOLUMES DAS QUATRO PARTES':'EXPRESSÃO · TEXTURA · AMBIENTE');
   const grid=node('div',{class:`parameter-grid${state.partMix?' mix':''}`});
   state.controls.slice(0,state.partMix?4:16).forEach(c=>{
    const range=node('input',{type:'range',min:0,max:1000,step:1,value:c.value,id:`parameter-${c.id}`,'aria-label':c.name,'data-focus':`parameter-${c.id}`,disabled:!c.enabled});
@@ -150,7 +160,7 @@
  function render(){
   if(!state)return;
   const focus=document.activeElement?.getAttribute('data-focus'),scroll=$('content').scrollTop;
-  const key=JSON.stringify([state.screen,state.effects,state.category,state.loading,state.partMix,state.catalog.map(r=>r.name),state.category===15?state.favorites.map(r=>[r.name,r.occupied]):null,state.audio.drivers,state.audio.midiInputs,state.performance.instruments]);
+  const key=JSON.stringify([state.screen,state.effects,state.category,state.loading,state.partMix,state.catalog.map(r=>r.name),state.category===15?state.favorites.map(r=>[r.name,r.occupied]):null,state.audio.drivers,state.audio.midiInputs,state.performance.instruments,state.performance.instrumentCategories,state.screen==='performance'?state.performance.parts:null,state.screen==='performance'&&state.effects?state.performance.editingPart:null]);
   if(key!==structure){
    structure=key;let body;
    if(state.loading){title('Preparando seus instrumentos');body=node('section',{class:'waiting panel'},node('h2',{},'Carregando a biblioteca'),node('progress',{id:'progress',max:100,value:state.progress}),node('p',{class:'details'},state.status));}
@@ -171,12 +181,13 @@
   for(const c of state.controls){const range=$(`parameter-${c.id}`),cell=document.querySelector(`[data-parameter="${c.id}"]`);if(!range||!cell)continue;if(document.activeElement!==range){range.value=String(c.value);$(`value-${c.id}`).textContent=`${Math.round(c.value/10)}%`;cell.querySelector('.knob').style.setProperty('--angle',`${c.value*.27}deg`);}range.disabled=!c.enabled;cell.classList.toggle('disabled',!c.enabled);cell.querySelector('.learn').disabled=!c.enabled;$(`mapping-${c.id}`).textContent=c.label.includes(' · ')?c.label.split(' · ').slice(1).join(' · '):'Clique direito para mapear';}
   if($('audio-detail'))$('audio-detail').textContent=state.audio.connected?`ASIO conectado · ${state.audio.sampleRate} Hz · ${state.audio.latencyMs.toFixed(1)} ms de saída`:'ASIO desconectado';
   for(const [id,value] of [['driver',state.audio.driver],['buffer',state.audio.buffer],['midi',state.audio.midi],['performance-mode',state.performance.mode],['performance-name',state.performance.name],...state.performance.parts.map((p,i)=>[`part-${i}`,p])]){const target=$(id);if(target&&document.activeElement!==target)target.value=String(value);}
+  document.querySelectorAll('[data-part]').forEach(row=>row.classList.toggle('editing',Number(row.dataset.part)===state.performance.editingPart));
   if($('progress'))$('progress').value=state.progress;
  }
- function receive(event){const next=event?.data??event;if(!next||next.type!=='state'||next.version!==1)return;if(state?.screen==='keyboard'&&(next.screen!=='keyboard'||next.effects))releaseNotes();state=next;if(next.error)notice(next.error);render();finishOpening();}
+ function receive(event){const next=event?.data??event;if(!next||next.type!=='state'||next.version!==1)return;if(state?.screen==='keyboard'&&(next.screen!=='keyboard'||next.effects))releaseNotes();if(state?.screen!=='performance'&&next.screen==='performance')partCategories=[];state=next;if(next.error)notice(next.error);render();finishOpening();}
  $('brand').addEventListener('click',()=>{flushParameters();send('screen',0);});$('back').addEventListener('click',()=>{flushParameters();send('screen',0);});
  document.querySelectorAll('[data-screen]').forEach(b=>b.addEventListener('click',()=>{flushParameters();send('screen',Number(b.dataset.screen));}));
- $('favorites-nav').addEventListener('click',()=>{flushParameters();send('category',15);});$('keyboard-nav').addEventListener('click',()=>send('screen',6));$('effects-nav').addEventListener('click',()=>{flushParameters();send('effects');});$('panic').addEventListener('click',()=>{releaseNotes();send('panic');});
+ $('keyboard-nav').addEventListener('click',()=>send('screen',6));$('effects-nav').addEventListener('click',()=>{flushParameters();send('effects');});$('panic').addEventListener('click',()=>{releaseNotes();send('panic');});
  document.addEventListener('keydown',event=>{
   if(openingVisible&&event.key!=='F12'){
    if(['Enter',' ','Escape'].includes(event.key)){event.preventDefault();openingSkip=true;finishOpening();}
@@ -187,6 +198,7 @@
   if(event.key==='F12'){event.preventDefault();releaseNotes();send('panic');return;}
   if(event.key==='Escape'){event.preventDefault();flushParameters();releaseNotes();send('escape');return;}
   const target=event.target,entry=target.matches('select,textarea,input:not([type=range])');
+  if(state.screen==='performance'&&target.matches('select')&&event.key.toLowerCase()==='e'&&!event.ctrlKey&&!event.altKey&&!event.metaKey){event.preventDefault();flushParameters();send('effects');return;}
   if(entry||event.ctrlKey||event.altKey||event.metaKey)return;
   if(state.effects)send('touch');
   const key=event.key.toLowerCase();

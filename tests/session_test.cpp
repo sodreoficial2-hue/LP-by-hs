@@ -1,4 +1,4 @@
-#include "session.hpp"
+#include "performance.hpp"
 #include <iostream>
 #include <limits>
 void check(bool ok) { if(!ok) throw std::runtime_error("Regression failed"); }
@@ -33,6 +33,26 @@ int main(int argc,char** argv) {
  { std::ofstream bad(path); bad << "LPHS_PROFILE 1\n20 broken"; }
  bool rejected=false; try {restored.load(path);} catch(...) {rejected=true;}
  check(rejected && restored.favorites[19].has_value());
+ // Per-favorite Performance volumes survive repeated recalls and profile writes.
+ lp::Performance performance;performance.name="Split palco";performance.parts[0].enabled=true;performance.parts[0].instrument="Piano.sfz";performance.parts[0].patch.parameters[1]=.31f;performance.parts[0].patch.adsrEnabled=true;
+ performance.parts[1].enabled=true;performance.parts[1].instrument="Strings.sfz";performance.parts[1].patch.parameters[6]=.62f;
+ lp::Session mixShow;mixShow.performanceLibrary.push_back(lp::savePerformance(performance));mixShow.favorites[3]=lp::Patch{};mixShow.favorites[3]->sfz="performance://0";
+ for(float volume:{.27f,.84f,.19f}){
+  performance.parts[0].patch.parameters[0]=volume;performance.parts[1].patch.parameters[0]=1-volume;performance.parts[0].patch.cc[0]=21;
+  mixShow.favorites[3]->performanceMix=lp::performanceMix(performance);
+  auto recall=lp::restorePerformance(mixShow.performanceLibrary[0]);lp::applyPerformanceMix(recall,*mixShow.favorites[3]->performanceMix);
+  check(recall.parts[0].patch.parameters[0]==volume&&recall.parts[1].patch.parameters[0]==1-volume);
+  check(recall.parts[0].patch.parameters[1]==.31f&&recall.parts[0].patch.adsrEnabled&&recall.parts[1].patch.parameters[6]==.62f);
+  check(mixShow.performanceLibrary[0].parts[0].patch.parameters[0]==1); // base untouched by live mix
+  mixShow.save(path);lp::Session copy;copy.load(path);check(copy.favorites[3]->performanceMix->volumes[0]==volume&&copy.favorites[3]->performanceMix->cc[0]==21);
+ }
+ // Previous v7 profiles continue to open without a mix override.
+ mixShow.favorites[3]->performanceMix.reset();mixShow.save(path);
+ {std::ifstream f(path);std::string text((std::istreambuf_iterator<char>(f)),{});text.replace(0,14,"LPHS_PROFILE 7");std::ofstream(path)<<text;}
+ lp::Session v7;v7.load(path);check(!v7.favorites[3]->performanceMix&&v7.performanceLibrary[0].parts[0].patch.parameters[1]==.31f);
+ for(const auto& record:{"MIX 3 2 1 1 1 -1 -1 -1 -1", "MIX 3 .5 .5 .5 .5 64 -1 -1 -1", "MIX 19 .5 .5 .5 .5 -1 -1 -1 -1"}){
+  mixShow.save(path);std::ofstream(path,std::ios::app)<<record<<'\n';bool rejectedMix=false;try{v7.load(path);}catch(...){rejectedMix=true;}check(rejectedMix&&v7.performanceLibrary.size()==1);
+ }
  std::filesystem::remove(path);
  if(argc>1) check(lp::catalog(argv[1]).size()==3);
  std::cout << "PASS: favorite recall, PC 1-20, profile roundtrip, corrupt profile preservation, SFZ catalog\n";

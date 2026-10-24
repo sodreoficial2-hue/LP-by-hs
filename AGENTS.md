@@ -30,3 +30,7 @@ The user confirmed that stage 4 audio/ASIO, effects, volumes, keyboard commands,
 ## Performance MIDI (stage 8)
 
 Forward complete 14-bit pitch bend to sfizz, centered at signed zero. Keep CC64 dedicated to conventional pedal up/down (0–63/64–127); channel-mode CCs must not be learned as knobs. Forward CC1 natively even when it also changes a learned parameter. Preserve received performance controls across instrument and ASIO swaps; do not overwrite untouched SFZ defaults. Panic/overflow must release pedal and center wheels. Curated lead/MTG sax mappings are configured by scripts/configure_bank_performance.py; do not modify sample audio or recovered originals.
+
+## User validation and Performance editor follow-up (24 October 2026)
+
+The user confirmed the Vision frontend portable at `7c639606` works well on their Windows machine, including the layout and normal operation during a stage simulation. The authorized follow-up is limited to per-part category filters, complete parameters for the selected part inside the Performance Editor, four-volume-only playback mix, automatic latest mix recall for favorites, temporary mix for nonfavorites, and removal of the redundant header Favorites icon. A new local compilation and portable are explicitly requested. Preserve all unrelated working behavior. This confirmation covers the preceding portable, not untested changes in the follow-up.

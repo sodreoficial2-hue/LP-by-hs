@@ -24,7 +24,12 @@ struct ButtonBinding {
  bool valid() const {return (kind==0||kind==0xc0)&&channel>=0&&channel<16&&number>=0&&number<128;}
  bool same(const ButtonBinding& b) const {return kind!=0&&kind==b.kind&&channel==b.channel&&number==b.number;}
 };
+struct PerformanceMix {
+ std::array<float,4> volumes{1,1,1,1};
+ std::array<int,4> cc{-1,-1,-1,-1};
+};
 struct Patch {
+ std::optional<PerformanceMix> performanceMix;
  bool adsrEnabled=false;
  ButtonBinding button;
  std::string sfz;
@@ -55,7 +60,7 @@ struct Session {
  void save(const std::filesystem::path& path) const {
   // Caller chooses path; does not auto-save shows.
   std::ostringstream f;
-  f << "LPHS_PROFILE 7\n" << std::setprecision(9);
+  f << "LPHS_PROFILE 8\n" << std::setprecision(9);
   if(!std::isfinite(master)||master<0||master>1||masterCC< -1||masterCC>119||masterCC==64)throw std::runtime_error("Invalid Master");
   f<<"MASTER "<<master<<' '<<masterCC<<'\n';
   for(std::size_t i=0;i<favorites.size();++i) if(favorites[i]) {
@@ -69,6 +74,13 @@ struct Session {
    for(auto v:p.cc) f << ' ' << v;
    f << ' ' << p.button.kind << ' ' << p.button.channel << ' ' << p.button.number << ' ' << (p.adsrEnabled?1:0);
    f << '\n';
+   if(p.performanceMix){
+    if(p.sfz.rfind("performance://",0)!=0)throw std::runtime_error("Mix requires a Performance favorite");
+    f<<"MIX "<<i;
+    for(float v:p.performanceMix->volumes){if(!std::isfinite(v)||v<0||v>1)throw std::runtime_error("Invalid mix volume");f<<' '<<v;}
+    for(int cc:p.performanceMix->cc){if(cc< -1||cc>119||cc==64)throw std::runtime_error("Invalid mix CC");f<<' '<<cc;}
+    f<<'\n';
+   }
   }
   for(std::size_t a=0;a<favorites.size();++a)if(favorites[a])
    for(std::size_t b=a+1;b<favorites.size();++b)if(favorites[b]&&favorites[a]->button.same(favorites[b]->button))
@@ -95,7 +107,7 @@ struct Session {
  }
  void load(const std::filesystem::path& path) {
   std::ifstream f(path,std::ios::binary); std::string magic; int version=0;
-  if(!(f>>magic>>version) || magic!="LPHS_PROFILE" || (version<1||version>7))
+  if(!(f>>magic>>version) || magic!="LPHS_PROFILE" || (version<1||version>8))
    throw std::runtime_error("Invalid profile header");
   Session candidate; unsigned slot;
   for(;;) {
@@ -104,6 +116,14 @@ struct Session {
     std::string line;std::getline(f,line);
     std::istringstream record(line);
     std::string tag;record>>tag;
+    if(tag=="MIX"&&version>=8){
+     if(!(record>>slot)||slot>=20||!candidate.favorites[slot]||candidate.favorites[slot]->performanceMix||candidate.favorites[slot]->sfz.rfind("performance://",0)!=0)throw std::runtime_error("Invalid mix favorite");
+     PerformanceMix mix;
+     for(float& v:mix.volumes)if(!(record>>v)||!std::isfinite(v)||v<0||v>1)throw std::runtime_error("Invalid mix volume");
+     for(int& cc:mix.cc)if(!(record>>cc)||cc< -1||cc>119||cc==64)throw std::runtime_error("Invalid mix CC");
+     std::string extra;if(record>>extra)throw std::runtime_error("Trailing mix data");
+     candidate.favorites[slot]->performanceMix=mix;continue;
+    }
     if(tag=="MASTER"&&version>=7){
      if(!(record>>candidate.master>>candidate.masterCC)||!std::isfinite(candidate.master)||candidate.master<0||candidate.master>1||candidate.masterCC< -1||candidate.masterCC>119||candidate.masterCC==64)throw std::runtime_error("Invalid Master");
      std::string extra;if(record>>extra)throw std::runtime_error("Trailing Master data");continue;

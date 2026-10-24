@@ -42,7 +42,7 @@
   for(int i=0;i<16;++i){if(i)out<<',';out<<"{\"id\":"<<i<<",\"name\":"<<quote(visionText(sliders[i]))<<",\"label\":"<<quote(visionText(labels[i]))<<",\"value\":"<<SendMessageW(sliders[i],TBM_GETPOS,0,0)<<",\"enabled\":"<<(IsWindowEnabled(sliders[i])?"true":"false")<<'}';}out<<"],\"partMix\":"<<(performanceControls()?"true":"false")<<",\"audio\":{";
   auto options=[&](const char* name,HWND control){out<<quote(name)<<":[";auto count=SendMessageW(control,CB_GETCOUNT,0,0);for(int i=0;i<count;++i){if(i)out<<',';out<<quote(visionOption(control,i));}out<<']';};
   options("drivers",audioDriver);out<<",\"driver\":"<<SendMessageW(audioDriver,CB_GETCURSEL,0,0)<<',';options("buffers",audioBuffer);out<<",\"buffer\":"<<SendMessageW(audioBuffer,CB_GETCURSEL,0,0)<<',';options("midiInputs",midi);out<<",\"midi\":"<<SendMessageW(midi,CB_GETCURSEL,0,0)<<",\"connected\":"<<(engine&&engine->running()?"true":"false")<<",\"sampleRate\":"<<(engine?engine->sampleRate():0)<<",\"latencyMs\":"<<(engine&&engine->running()?engine->latency()*1000:0)<<"},\"performance\":{\"mode\":"<<SendMessageW(performanceMode,CB_GETCURSEL,0,0)<<",\"name\":"<<quote(visionText(performanceName))<<",\"parts\":[";
-  for(int i=0;i<4;++i){if(i)out<<',';out<<SendMessageW(performancePartControls[i],CB_GETCURSEL,0,0);}out<<"],";options("modes",performanceMode);out<<',';options("instruments",performancePartControls[0]);out<<"},\"about\":"<<quote(visionText(item(AboutText)))<<'}';return out.str();
+  for(int i=0;i<4;++i){if(i)out<<',';out<<SendMessageW(performancePartControls[i],CB_GETCURSEL,0,0);}out<<"],\"editingPart\":"<<editingPart<<",\"instrumentCategories\":[-1";for(const auto& instrument:instruments)out<<','<<instrument.category;out<<"],";options("modes",performanceMode);out<<',';options("instruments",performancePartControls[0]);out<<"},\"about\":"<<quote(visionText(item(AboutText)))<<'}';return out.str();
  }
  void flushVision(unsigned request=0){if(!visionVisible()||(!visionDirty&&!request))return;vision->post(visionWide(visionState(request)));visionDirty=false;}
  void startVision(){
@@ -84,7 +84,11 @@
     int id=c.action=="driver"?AudioDriver:(c.action=="buffer"?AudioBuffer:Midi);visionSelect(item(id),c.a);command(id,CBN_SELCHANGE);
    }
    else if(c.action=="performanceMode")visionSelect(performanceMode,c.a);
-   else if(c.action=="performancePart")visionSelect(performancePartControls[c.a],c.b);
+   else if(c.action=="performancePart"){visionSelect(performancePartControls[c.a],c.b);editingPart=c.a;refreshParameters();}
+   else if(c.action=="editPart"){
+    if(screen!=lp::Screen::PerformanceEditor)throw std::invalid_argument("Abra o Performance Editor");
+    cancelMidiLearn();editingPart=c.a;SendMessageW(performanceEditPart,CB_SETCURSEL,c.a,0);refreshParameters();
+   }
    else if(c.action=="performanceName"){auto name=visionWide(c.text);if(name.size()>255)throw std::invalid_argument("Nome muito longo");SetWindowTextW(performanceName,name.c_str());}
    else if(c.action=="clearPart")clearPerformancePart(c.a);
    else if(c.action=="noteOn"){if(screen!=lp::Screen::Keyboard||!engine||!engine->loaded())throw std::runtime_error("Selecione um timbre antes de tocar");if(c.b&&!visionNotes[c.a]){engine->send({0x90,static_cast<std::uint8_t>(c.a),static_cast<std::uint8_t>(c.b)});visionNotes[c.a]=true;}}

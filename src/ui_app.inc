@@ -30,10 +30,15 @@
  ULONGLONG loadingStart=0;
  RECT keyboardRect{};
  std::array<RECT,128> virtualKeys{};std::array<bool,128> keyDown{};
- bool performanceControls() const{return editingPerformanceValid&&engine&&engine->performanceActive();}
+ bool performanceActive() const{return editingPerformanceValid&&engine&&engine->performanceActive();}
+ bool editingPerformanceControls() const{return screen==lp::Screen::PerformanceEditor&&performanceActive();}
+ bool performanceControls() const{return screen!=lp::Screen::PerformanceEditor&&performanceActive();}
  void touchParameters(){if(effects)parameterPanel.touch(GetTickCount64());}
  std::wstring categoryName() const {return categoryIndex==15?L"Favoritos":std::filesystem::u8path(lp::instrumentCategories[categoryIndex]).wstring();}
- void syncPerformance(){if(activePerformanceIndex>=0&&editingPerformanceValid&&static_cast<std::size_t>(activePerformanceIndex)<show.performanceLibrary.size())show.performanceLibrary[activePerformanceIndex]=lp::savePerformance(editingPerformance);}
+ void syncPerformance(){
+  if(performanceActive()&&show.current&&show.favorites[*show.current]&&show.favorites[*show.current]->sfz=="performance://"+std::to_string(activePerformanceIndex))
+   show.favorites[*show.current]->performanceMix=lp::performanceMix(editingPerformance);
+ }
  void goHome(){pageScroll.seek(0);screen=lp::Screen::Home;performanceVisible=false;cancelMidiLearn();layout();SetFocus(item(CategoryCardBase+categoryIndex));}
  void openCategory(){pageScroll.seek(0);screen=lp::Screen::Instruments;performanceVisible=false;refreshCatalog();layout();
   // Browsing categories never loads a sample or interrupts the currently playing sound.
@@ -42,8 +47,10 @@
  }
  void toggleParameters(){
   if(loading)return;
+  if(!effects&&screen==lp::Screen::PerformanceEditor){try{activateEditorPerformance();}catch(const std::exception& e){error(e);return;}}
   cancelMidiLearn();parameterPanel.toggle(GetTickCount64());effects=parameterPanel.open;
   if(effects){pageScroll.seek(0);performanceVisible=false;refreshParameters();layout();SetFocus(sliders[0]);}
+  else if(screen==lp::Screen::PerformanceEditor){performanceVisible=true;pageScroll.seek(0);layout();SetFocus(performancePartControls[editingPart]);}
   else goHome();
  }
  void openScreen(lp::Screen next){if(loading)return;pageScroll.seek(0);effects=false;parameterPanel.open=false;screen=next;performanceVisible=next==lp::Screen::PerformanceEditor;cancelMidiLearn();layout();SetFocus(window);}
@@ -128,6 +135,10 @@
    if(index>=4||!editingPerformance.parts[index].enabled)return;
    auto& part=editingPerformance.parts[index];part.patch.parameters[0]=value;engine->setPerformancePartParameters(index,part.patch.parameters,part.patch.adsrEnabled);syncPerformance();
   }else if(index==15){show.master=value;if(engine)engine->masterVolume(value);}
+  else if(editingPerformanceControls()){
+   auto& part=editingPerformance.parts[editingPart];if(!part.enabled)return;
+   part.patch.parameters[index]=value;if(index>=1&&index<=4)part.patch.adsrEnabled=true;applyParameters();
+  }
   else if(show.current){show.parameter(index,value);applyParameters();}
   else if(previewActive){previewPatch.parameters[index]=value;if(index>=1&&index<=4)previewPatch.adsrEnabled=true;applyParameters();}
   refreshParameters();
