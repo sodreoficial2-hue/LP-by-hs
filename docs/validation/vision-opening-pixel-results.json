@@ -1,0 +1,12 @@
+{
+  "result": "PASS",
+  "scope": "Pixel comparison outside the title regions, including the original portrait, signature, accessibility text, waveform and background",
+  "viewport": [
+    1536,
+    864
+  ],
+  "outside_title_max_channel_difference": 0,
+  "outside_title_mean_channel_difference": 0.0,
+  "portrait_max_channel_difference": 0,
+  "portrait_mean_channel_difference": 0.0
+}

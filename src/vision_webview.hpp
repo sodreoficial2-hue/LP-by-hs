@@ -35,12 +35,12 @@ template<class I,class... A,class F> Handler<I,A...>* handler(F&& f){return new 
 class WebView {
  struct Life {WebView* self=nullptr;};std::shared_ptr<Life> life=std::make_shared<Life>();
  Com<ICoreWebView2Controller> controller;Com<ICoreWebView2> web;
- HMODULE loader=nullptr;HWND child=nullptr,owner=nullptr;bool shown=false;
+ HMODULE loader=nullptr;HWND child=nullptr,owner=nullptr;bool shown=false,starting=false;
  std::function<void(std::wstring)> receive;std::function<void(bool)> visibility;
  std::filesystem::path assets;
  static constexpr const wchar_t* origin=L"https://lp-vision.local/index.html";
  static bool trusted(const wchar_t* uri){return uri&&std::wstring(uri)==origin;}
- void fallback(){shown=false;if(child)ShowWindow(child,SW_HIDE);if(visibility)visibility(false);}
+ void fallback(){starting=false;shown=false;if(child)ShowWindow(child,SW_HIDE);if(visibility)visibility(false);}
  HRESULT setup(ICoreWebView2Controller* value){
   if(!value)return E_FAIL;value->AddRef();controller.reset(value);HRESULT hr=controller->get_CoreWebView2(web.put());if(FAILED(hr))return hr;
   Com<ICoreWebView2_3> map;if(FAILED(web->QueryInterface(__uuidof(ICoreWebView2_3),reinterpret_cast<void**>(map.put())))){fallback();return E_NOINTERFACE;}
@@ -69,8 +69,8 @@ class WebView {
 public:
  WebView(){life->self=this;}WebView(const WebView&)=delete;WebView& operator=(const WebView&)=delete;
  ~WebView(){close();}
- HWND container()const{return child;}bool active()const{return shown;}
- void close(){life->self=nullptr;if(controller)controller->Close();web.reset();controller.reset();if(child)DestroyWindow(child);child=nullptr;
+ HWND container()const{return child;}bool active()const{return shown;}bool pending()const{return starting;}void useClassic(){fallback();}
+ void close(){starting=false;shown=false;life->self=nullptr;if(controller)controller->Close();web.reset();controller.reset();if(child)DestroyWindow(child);child=nullptr;
   // WebView2 environment creation can still be pending; retain loader until process exit.
  }
  bool start(HWND window,const std::filesystem::path& folder,std::function<void(std::wstring)> callback,std::function<void(bool)> changed){
@@ -90,9 +90,9 @@ public:
    Com<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler> finished;
    finished.reset(handler<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler,HRESULT,ICoreWebView2Controller*>([weak](HRESULT result,ICoreWebView2Controller* controller){auto guard=weak.lock();if(!guard||!guard->self)return S_OK;if(FAILED(result)||FAILED(guard->self->setup(controller)))guard->self->fallback();return S_OK;}));
    return env->CreateCoreWebView2Controller(guard->self->child,finished.get());
-  }));return SUCCEEDED(create(nullptr,profile.c_str(),nullptr,environment.get()));
+  }));starting=true;HRESULT result=create(nullptr,profile.c_str(),nullptr,environment.get());if(FAILED(result))starting=false;return SUCCEEDED(result);
  }
- void reveal(){shown=true;ShowWindow(child,SW_SHOW);if(controller)controller->put_IsVisible(TRUE);resize();if(visibility)visibility(true);if(controller)controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);}
+ void reveal(){starting=false;shown=true;ShowWindow(child,SW_SHOW);if(controller)controller->put_IsVisible(TRUE);resize();if(visibility)visibility(true);if(controller)controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);}
  void resize(){if(!child)return;RECT bounds{};GetClientRect(owner,&bounds);SetWindowPos(child,HWND_TOP,0,0,bounds.right,bounds.bottom,SWP_NOACTIVATE);if(controller){RECT area{0,0,bounds.right,bounds.bottom};controller->put_Bounds(area);}}
  void post(const std::wstring& json){if(web&&shown)web->PostWebMessageAsJson(json.c_str());}
 };

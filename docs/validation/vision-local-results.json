@@ -1,5 +1,5 @@
 {
-  "base_commit": "61fd872dee34d980f85a5c506766c9487a23a00f",
+  "base_commit": "075eeafc3a5fdd74ce0acdf700a86bb737cf72d7",
   "ctest": {
     "platform": "Linux",
     "configuration": "Debug",
@@ -10,6 +10,7 @@
     "result": "PASS",
     "scope": "Chromium renderer with a control-state fixture; not Windows/ASIO hardware",
     "checks": [
+      "original full-screen opening with title-only composition, loading gate, keyboard skip and automatic display time",
       "16 categories at 1360×900 and 1024×600",
       "offline original artwork and fonts",
       "arrows/Enter and automatic sound selection commands",
@@ -24,7 +25,7 @@
     ],
     "externalRequests": [],
     "pageErrors": [],
-    "commands": 40
+    "commands": 41
   },
   "windows_cross_compile": {
     "target_arch": "x86-64",
@@ -34,18 +35,18 @@
     "targets": {
       "LivePerformanceVision.exe": {
         "result": "compiled and linked",
-        "bytes": 5024538,
-        "sha256": "d72bd6988a73bc27b9fb29d1945747a314c86082aabdb224d933bbd2e123dccc"
+        "bytes": 5025050,
+        "sha256": "4e01d5052ef2af25560e11c9dfefced6ce7473d9feacde3d667967df6bab67f7"
       },
       "LivePerformance.exe": {
         "result": "compiled and linked",
         "bytes": 4825271,
-        "sha256": "c3f7bcb02b45f308eae28775dacb71ab93705337086b08b7ff29a035f308ebfe"
+        "sha256": "820ee2df4c0304cd0c2e543dfdb31a4f0c948fb1975947025e6b9f6a4b476829"
       },
       "vision-adapter-test/lp_win32_vision_test.exe": {
         "result": "compiled and linked",
-        "bytes": 4825716,
-        "sha256": "23c2203f4c5292341e0d5faecd3367a134e8da9c1388138e0bdcf6e0be797150"
+        "bytes": 4826228,
+        "sha256": "193f90340eefa86484dd729d0b7c6c8aa43706f7c6d4713d75db838e4bcbce97"
       }
     }
   },
@@ -65,5 +66,18 @@
     "src/dsp.hpp",
     "src/midi.hpp",
     "src/session.hpp"
-  ]
+  ],
+  "stage": "Vision 2.1 original opening with Live Performance title",
+  "opening_pixel_comparison": {
+    "result": "PASS",
+    "scope": "Pixel comparison outside the title regions, including the original portrait, signature, accessibility text, waveform and background",
+    "viewport": [
+      1536,
+      864
+    ],
+    "outside_title_max_channel_difference": 0,
+    "outside_title_mean_channel_difference": 0.0,
+    "portrait_max_channel_difference": 0,
+    "portrait_mean_channel_difference": 0.0
+  }
 }

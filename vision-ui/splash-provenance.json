@@ -1,0 +1,39 @@
+{
+  "title": "Live Performance",
+  "original_version": "Vision Laiberry 2.1.0",
+  "original_sha256": "fa86e6a43c44b139e4d8df307e59bab618647d97c9906b5887e26960595c327c",
+  "title_edit_sha256": "5c778406b140a996a5ed849c4de950d95d394ada909762f9264acc7eb946ccdd",
+  "sizes": {
+    "original": [
+      1536,
+      864
+    ],
+    "titleEdit": [
+      1672,
+      941
+    ]
+  },
+  "title_clip_rectangles": [
+    [
+      550,
+      140,
+      770,
+      120
+    ],
+    [
+      565,
+      250,
+      875,
+      95
+    ]
+  ],
+  "preserved_waveform_rectangle": [
+    1320,
+    140,
+    120,
+    120
+  ],
+  "composition": "Original image everywhere; edited image only inside title rectangles, with the original waveform restored on top. No image pixels were recomposed on disk.",
+  "image_edit_prompt": "Replace only vision laiberry / INSTRUMENTS with Live / Performance. Preserve the portrait, studio, keyboard, light waves, loading ring, by Hugo Sodré and Acessibilidade para baixa visão.",
+  "image_edit_method": "Built-in image generation editor; title-only SVG clipping in the application."
+}

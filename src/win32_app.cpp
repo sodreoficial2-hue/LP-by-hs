@@ -589,6 +589,7 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
  case LoadLibraryMessage:try{if(wp==1)app->loadNextBank();else app->loadLibrary();}catch(const std::exception& e){app->loading=false;app->layout();app->error(e);}return 0;
  case VisionCommandMessage:{std::unique_ptr<std::wstring> wire(reinterpret_cast<std::wstring*>(lp));if(wire)app->visionCommand(*wire);return 0;}
  case WM_TIMER:
+  if(wp==3){app->visionLoadTimeout();return 0;}
   if(wp==2){app->restoreAudio();app->flushVision();return 0;}
   if(app->effects&&!(GetKeyState(VK_LBUTTON)&0x8000)&&!app->loading&&app->parameterPanel.expired(GetTickCount64())){app->toggleParameters();}
   if(app->engine&&app->engine->takeFault()){try{app->engine->stop();}catch(const std::exception& e){app->error(e);}app->message(L"Falha no motor/driver. Áudio interrompido; reconecte ASIO.");}app->flushVision();return 0;
@@ -630,7 +631,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show){
  int result=0;{
  App app;WNDCLASSW cls{};cls.lpfnWndProc=proc;cls.hInstance=instance;cls.lpszClassName=L"LPbyHSAccessible";cls.hCursor=LoadCursorW(nullptr,IDC_ARROW);cls.hIcon=LoadIconW(instance,MAKEINTRESOURCEW(3));RegisterClassW(&cls);
  auto w=CreateWindowW(cls.lpszClassName,L"Live Performance by Hugo Sodré",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,CW_USEDEFAULT,CW_USEDEFAULT,1360,900,nullptr,nullptr,instance,&app);
- if(w){ShowWindow(w,show);UpdateWindow(w);MSG msg{};while(GetMessageW(&msg,nullptr,0,0)>0){
+ if(w){if(!app.visionPending())ShowWindow(w,show);UpdateWindow(w);MSG msg{};while(GetMessageW(&msg,nullptr,0,0)>0){
   if(app.effects&&(msg.message==WM_LBUTTONDOWN||msg.message==WM_RBUTTONDOWN||msg.message==WM_MOUSEWHEEL||msg.message==WM_LBUTTONUP))app.touchParameters();
   if(app.visionVisible()){TranslateMessage(&msg);DispatchMessageW(&msg);continue;}
   if(app.keyCommand(msg))continue;

@@ -6,9 +6,35 @@
  const assets = window.LPVisionAssets || {};
  const native = window.chrome?.webview;
  let state = null, serial = 0, structure = '', errorTimer = null;
+ let openingVisible=true,openingClosing=false,openingSkip=false,openingTimer=null;
+ const openingStarted=window.performance.now();
  const held = new Set(), pendingParameters = new Map();
  let parameterTimer = null;
  const svgNS = 'http://www.w3.org/2000/svg';
+ function mountOpening(){
+  const splash=window.LPVisionSplash,host=$('opening-art');
+  document.querySelectorAll('.topbar,.page-heading,main,footer').forEach(el=>el.inert=true);
+  if(splash){
+   const svg=document.createElementNS(svgNS,'svg');svg.setAttribute('viewBox','0 0 1536 864');svg.setAttribute('preserveAspectRatio','xMidYMid meet');svg.setAttribute('aria-hidden','true');
+   const defs=document.createElementNS(svgNS,'defs');
+   const clip=(id,rectangles)=>{const path=document.createElementNS(svgNS,'clipPath');path.id=id;for(const [x,y,width,height]of rectangles){const rect=document.createElementNS(svgNS,'rect');for(const [key,value]of Object.entries({x,y,width,height}))rect.setAttribute(key,String(value));path.append(rect);}defs.append(path);};
+   clip('opening-title-clip',[[550,140,770,120],[565,250,875,95]]);
+   clip('opening-wave-clip',[[1320,140,120,120]]);svg.append(defs);
+   const layer=(href,clipId)=>{const image=document.createElementNS(svgNS,'image');image.setAttribute('href',href);image.setAttribute('width','1536');image.setAttribute('height','864');image.setAttribute('preserveAspectRatio','none');if(clipId)image.setAttribute('clip-path',`url(#${clipId})`);svg.append(image);};
+   layer(splash.original);layer(splash.titleEdit,'opening-title-clip');layer(splash.original,'opening-wave-clip');host.append(svg);
+  }else host.append(node('h1',{},'Live Performance'));
+  $('opening').addEventListener('click',()=>{openingSkip=true;finishOpening();});$('opening').focus();
+ }
+ function finishOpening(){
+  if(!openingVisible||openingClosing||!state)return;
+  if(state.loading){clearTimeout(openingTimer);return;}
+  $('opening-status').textContent='Instrumentos prontos. Pressione Enter para continuar.';
+  clearTimeout(openingTimer);openingTimer=setTimeout(()=>{
+   openingClosing=true;$('opening').classList.add('leaving');
+   const delay=matchMedia('(prefers-reduced-motion: reduce)').matches?0:800;
+   setTimeout(()=>{openingVisible=false;$('opening').hidden=true;document.querySelectorAll('.topbar,.page-heading,main,footer').forEach(el=>el.inert=false);if(state.screen==='home')document.querySelector(`[data-category="${state.category}"]`)?.focus({preventScroll:true});else $('content').focus();},delay);
+  },openingSkip?0:Math.max(0,3500-(window.performance.now()-openingStarted)));
+ }
  function node(tag, attrs = {}, ...children) {
   const result = document.createElement(tag);
   for (const [key, value] of Object.entries(attrs)) {
@@ -147,11 +173,16 @@
   for(const [id,value] of [['driver',state.audio.driver],['buffer',state.audio.buffer],['midi',state.audio.midi],['performance-mode',state.performance.mode],['performance-name',state.performance.name],...state.performance.parts.map((p,i)=>[`part-${i}`,p])]){const target=$(id);if(target&&document.activeElement!==target)target.value=String(value);}
   if($('progress'))$('progress').value=state.progress;
  }
- function receive(event){const next=event?.data??event;if(!next||next.type!=='state'||next.version!==1)return;if(state?.screen==='keyboard'&&(next.screen!=='keyboard'||next.effects))releaseNotes();state=next;if(next.error)notice(next.error);render();}
+ function receive(event){const next=event?.data??event;if(!next||next.type!=='state'||next.version!==1)return;if(state?.screen==='keyboard'&&(next.screen!=='keyboard'||next.effects))releaseNotes();state=next;if(next.error)notice(next.error);render();finishOpening();}
  $('brand').addEventListener('click',()=>{flushParameters();send('screen',0);});$('back').addEventListener('click',()=>{flushParameters();send('screen',0);});
  document.querySelectorAll('[data-screen]').forEach(b=>b.addEventListener('click',()=>{flushParameters();send('screen',Number(b.dataset.screen));}));
  $('favorites-nav').addEventListener('click',()=>{flushParameters();send('category',15);});$('keyboard-nav').addEventListener('click',()=>send('screen',6));$('effects-nav').addEventListener('click',()=>{flushParameters();send('effects');});$('panic').addEventListener('click',()=>{releaseNotes();send('panic');});
  document.addEventListener('keydown',event=>{
+  if(openingVisible&&event.key!=='F12'){
+   if(['Enter',' ','Escape'].includes(event.key)){event.preventDefault();openingSkip=true;finishOpening();}
+   else if(!event.altKey&&!event.ctrlKey&&!event.metaKey)event.preventDefault();
+   return;
+  }
   if(!state||state.loading)return;
   if(event.key==='F12'){event.preventDefault();releaseNotes();send('panic');return;}
   if(event.key==='Escape'){event.preventDefault();flushParameters();releaseNotes();send('escape');return;}
@@ -176,6 +207,7 @@
  $('content').addEventListener('pointerdown',()=>{if(state?.effects)send('touch');});$('content').addEventListener('wheel',()=>{if(state?.effects)send('touch');},{passive:true});
  window.addEventListener('blur',releaseNotes);document.addEventListener('visibilitychange',()=>{if(document.hidden)releaseNotes();});window.addEventListener('pagehide',releaseNotes);
  if(assets.fontCss){const style=node('style');style.textContent=assets.fontCss;document.head.append(style);}if(assets.portrait)$('portrait').src=assets.portrait;
+ mountOpening();
  if(native?.addEventListener){native.addEventListener('message',receive);send('ready');}
  else $('connection-message').textContent='Abra o Live Performance Vision no Windows. A interface não cria áudio por conta própria.';
  window.LPVision=Object.freeze({receive,send,get state(){return state;}});

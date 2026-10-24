@@ -17,13 +17,13 @@ fs.mkdirSync(output,{recursive:true});
   const categories=['Pianos acústicos','Pianos elétricos','Órgãos','Cordas','Metais','Leads','Pads','Percussão','Bateria','Acordeons','Outros','Contrabaixos','Guitarras','Performance','Meus Sons','Favoritos'];
   const parameters=['Volume','Attack','Decay','Sustain','Release','Filtro','Reverb','Delay','Chorus','Tremolo','Compressor','Grave','Médio','Agudo','Glide','Master'];
   let receiver=null;window.__commands=[];
-  const state={type:'state',version:1,request:0,error:'',screen:'home',effects:false,loading:false,progress:100,status:'ASIO desconectado. Escolha um driver.',loadedName:'',category:0,selected:0,categories,
+  const state={type:'state',version:1,request:0,error:'',screen:'home',effects:false,loading:true,progress:35,status:'ASIO desconectado. Escolha um driver.',loadedName:'',category:0,selected:0,categories,
    catalog:[{id:0,name:'Concert Grand',favorite:false,loaded:false},{id:1,name:'Piano "Soul" <b>Seguro</b>',favorite:false,loaded:false}],
    favorites:Array.from({length:20},(_,id)=>({id,name:id===0?'Concert Grand':id===19?'Rhodes':'Vazio',occupied:id===0||id===19,loaded:false})),
    controls:parameters.map((name,id)=>({id,name,label:name+': 50%',value:500,enabled:id===15})),partMix:false,
    audio:{drivers:['Selecione driver ASIO','ASIO4ALL v2','TASCAM US-1800'],driver:0,buffers:['Buffer do driver','64','128','256','512','1024','2048'],buffer:0,midiInputs:['MIDI desligado','A-PRO'],midi:0,connected:false,sampleRate:48000,latencyMs:5.3},
    performance:{mode:0,name:'Minha Performance',parts:[0,0,0,0],modes:['Camadas: quatro timbres','Dividir 2 + 2','Dividir 3 + 1','Dividir 2 + 1 + 1','Dividir quatro partes'],instruments:['Desativado','Concert Grand','Rhodes']},about:'Hugo Sodré\nMúsica, visão e propósito.\n\nCréditos dos instrumentos.'};
-  const emit=()=>receiver?.({data:JSON.parse(JSON.stringify(state))});
+  const emit=()=>receiver?.({data:JSON.parse(JSON.stringify(state))});window.__setLoading=value=>{state.loading=value;state.progress=value?35:100;emit();};
   window.chrome={webview:{addEventListener:(_,fn)=>{receiver=fn;},postMessage:wire=>{
    const [version,id,action,aa,bb,text]=wire.split('\t'),a=Number(aa),b=Number(bb);if(version!=='LP1')throw new Error('Wrong protocol');window.__commands.push({action,a,b,text:decodeURIComponent(text)});state.request=Number(id);state.error='';
    if(action==='category'){state.category=a;state.screen='instruments';state.effects=false;state.selected=0;}
@@ -46,6 +46,10 @@ fs.mkdirSync(output,{recursive:true});
   }}};
  });
  await page.goto('http://127.0.0.1:8766',{waitUntil:'networkidle'});await page.evaluate(()=>document.fonts.ready);
+ await page.setViewportSize({width:1536,height:864});await page.screenshot({path:path.join(output,'opening-1536.png')});
+ assert.equal(await page.locator('#opening').isVisible(),true);assert.equal(await page.locator('main').evaluate(el=>el.inert),true);
+ await page.keyboard.press('Enter');assert.equal(await page.locator('#opening').isVisible(),true,'opening cannot skip unfinished loading');
+ await page.evaluate(()=>window.__setLoading(false));await page.locator('#opening').waitFor({state:'hidden'});assert.equal(await page.locator('main').evaluate(el=>el.inert),false);
  assert.equal(await page.locator('.category-card').count(),16);
  for(const size of [{width:1360,height:900},{width:1024,height:600}]){
   await page.setViewportSize(size);
@@ -86,8 +90,9 @@ fs.mkdirSync(output,{recursive:true});
  await page.keyboard.down('Space');await page.keyboard.press('F12');await page.keyboard.up('Space');assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='releaseNotes')&&window.__commands.some(c=>c.action==='panic')));
  await page.locator('[data-note="60"]').focus();await page.keyboard.down('Space');await page.keyboard.press('e');await page.keyboard.up('Space');assert.equal(await page.locator('.key.down').count(),0);assert.ok(await page.evaluate(()=>window.__commands.filter(c=>c.action==='releaseNotes').length>=2));
  await page.keyboard.press('Escape');await page.locator('#keyboard-nav').click();await page.screenshot({path:path.join(output,'keyboard.png')});
+ const priorCommands=await page.evaluate(()=>window.__commands.length);await page.emulateMedia({reducedMotion:'no-preference'});await page.reload({waitUntil:'networkidle'});await page.evaluate(()=>window.__setLoading(false));const openingReadyAt=await page.evaluate(()=>performance.now());await page.locator('#opening').waitFor({state:'hidden',timeout:6000});assert.ok((await page.evaluate(()=>performance.now()))-openingReadyAt>=2300,'automatic opening retains the original display time');
  assert.deepEqual(failures,[]);assert.deepEqual(external,[],'all assets must work offline');
  assert.equal(await page.evaluate(()=>Boolean(window.__vli||window.__vliAudioEffects)),false,'old browser synthesizer must not be loaded');
- const report={result:'PASS',scope:'Chromium renderer with a control-state fixture; not Windows/ASIO hardware',checks:['16 categories at 1360×900 and 1024×600','offline original artwork and fonts','arrows/Enter and automatic sound selection commands','safe instrument names','Space favorites and 20 numbered slots','E/ESC and text entry','16 parameters and context MIDI Learn','ASIO/MIDI selectors and ASIO Control command','Performance parts, name and activation','native save/open command routing','virtual keyboard releases and F12'],externalRequests:external,pageErrors:failures,commands:await page.evaluate(()=>window.__commands.length)};
+ const report={result:'PASS',scope:'Chromium renderer with a control-state fixture; not Windows/ASIO hardware',checks:['original full-screen opening with title-only composition, loading gate, keyboard skip and automatic display time','16 categories at 1360×900 and 1024×600','offline original artwork and fonts','arrows/Enter and automatic sound selection commands','safe instrument names','Space favorites and 20 numbered slots','E/ESC and text entry','16 parameters and context MIDI Learn','ASIO/MIDI selectors and ASIO Control command','Performance parts, name and activation','native save/open command routing','virtual keyboard releases and F12'],externalRequests:external,pageErrors:failures,commands:priorCommands+await page.evaluate(()=>window.__commands.length)};
  fs.writeFileSync(path.join(output,'renderer-results.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));await browser.close();server.close();
 })().catch(async e=>{console.error(e);await browser?.close();server?.close();process.exitCode=1;});

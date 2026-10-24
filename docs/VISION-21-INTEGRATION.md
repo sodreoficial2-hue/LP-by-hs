@@ -41,6 +41,30 @@ componentes de navegação e conecta os controles ao modelo nativo existente.
 É uma adaptação para as 16 categorias atuais, não uma cópia de pixels da antiga
 grade de 12 categorias.
 
+## Abertura igual à referência, com o novo título
+
+A abertura agora usa a arte original do Vision 2.1 em tela cheia, com o título
+**Live Performance**. `vision-ui/splash-assets.js` guarda a arte original e a
+edição do título. O SVG aplica a edição somente em dois retângulos do título e
+restaura o símbolo de ondas original por cima; foto, assinatura, frase de
+acessibilidade, estúdio, teclas, ondas azuis e indicador circular permanecem
+na imagem original. A procedência e o prompt estão em
+`vision-ui/splash-provenance.json`; a reprodução pode ser feita com
+`scripts/prepare_vision_splash.py` e os dois arquivos de origem.
+
+A comparação da captura em 1536×864 encontrou **diferença de pixels igual a zero
+fora das áreas do título**, inclusive na foto. O resultado está em
+`docs/validation/vision-opening-pixel-results.json`.
+
+O tempo de apresentação é o da referência: 3,5 segundos, seguido de transição de
+0,8 segundo (sem animação quando o sistema pede redução de movimento). Clique,
+Enter, Espaço ou ESC podem antecipar a passagem **depois** de o catálogo ficar
+pronto. O restante da interface fica inerte enquanto a abertura aparece.
+O primeiro quadro do alvo Vision aguarda a interface web para evitar que a
+abertura clássica apareça antes; se a inicialização falhar ou não responder em
+10 segundos, os controles clássicos ficam disponíveis. Nenhum arquivo do motor
+de áudio foi alterado nesta etapa.
+
 ## Comportamentos integrados
 
 - As 16 categorias ficam na tela inicial, com foco e setas. Navegar por categorias

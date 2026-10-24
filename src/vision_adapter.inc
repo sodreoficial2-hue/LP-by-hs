@@ -15,11 +15,13 @@
  static std::string visionOption(HWND control,int index){auto n=SendMessageW(control,CB_GETLBTEXTLEN,index,0);if(n<0||n>1000000)return {};std::wstring value(static_cast<std::size_t>(n)+1,L'\0');SendMessageW(control,CB_GETLBTEXT,index,reinterpret_cast<LPARAM>(value.data()));value.resize(n);return visionUtf8(value);}
  static void visionSelect(HWND control,int index){auto count=SendMessageW(control,CB_GETCOUNT,0,0);if(index<0||index>=count)throw std::invalid_argument("Seleção indisponível");SendMessageW(control,CB_SETCURSEL,index,0);}
  bool visionVisible()const{return vision&&vision->active();}
+ bool visionPending()const{return vision&&vision->pending();}
+ void visionLoadTimeout(){KillTimer(window,3);if(visionPending())vision->useClassic();}
  HWND visionContainer()const{return vision?vision->container():nullptr;}
  void markVisionDirty(){visionDirty=true;}
  void recordVisionError(const std::exception& e){visionLastError=e.what();markVisionDirty();}
  void releaseVisionNotes(){for(unsigned n=0;n<128;++n)if(visionNotes[n]){if(engine)engine->send({0x80,static_cast<std::uint8_t>(n),0});visionNotes[n]=false;}}
- void closeVision(){releaseVisionNotes();vision.reset();MSG pending{};while(PeekMessageW(&pending,window,VisionCommandMessage,VisionCommandMessage,PM_REMOVE))delete reinterpret_cast<std::wstring*>(pending.lParam);}
+ void closeVision(){KillTimer(window,3);releaseVisionNotes();vision.reset();MSG pending{};while(PeekMessageW(&pending,window,VisionCommandMessage,VisionCommandMessage,PM_REMOVE))delete reinterpret_cast<std::wstring*>(pending.lParam);}
  std::string visionState(unsigned request=0){
   using lp::vision::quote;std::ostringstream out;out.imbue(std::locale::classic());
   static const char* screens[]={"home","instruments","performance","audio","profiles","about","keyboard"};
@@ -49,7 +51,8 @@
 #endif
   try{
   vision=std::make_unique<lp::vision::WebView>();
-  bool started=vision->start(window,base/L"vision-ui",[this](std::wstring wire){auto text=std::make_unique<std::wstring>(std::move(wire));if(PostMessageW(window,VisionCommandMessage,0,reinterpret_cast<LPARAM>(text.get())))text.release();},[this](bool active){if(!active)releaseVisionNotes();markVisionDirty();layout();if(!active)SetFocus(item(CategoryCardBase+categoryIndex));});
+  bool started=vision->start(window,base/L"vision-ui",[this](std::wstring wire){auto text=std::make_unique<std::wstring>(std::move(wire));if(PostMessageW(window,VisionCommandMessage,0,reinterpret_cast<LPARAM>(text.get())))text.release();},[this](bool active){KillTimer(window,3);if(!active)releaseVisionNotes();markVisionDirty();layout();if(!IsWindowVisible(window)){ShowWindow(window,SW_SHOW);UpdateWindow(window);}if(!active)SetFocus(item(CategoryCardBase+categoryIndex));});
+  if(started)SetTimer(window,3,10000,nullptr);
   if(!started){vision.reset();message(L"Interface clássica ativa. Para o visual Vision, instale o Microsoft Edge WebView2 Runtime e mantenha vision-ui e WebView2Loader.dll ao lado do programa.");}
   }catch(const std::exception&){vision.reset();message(L"Interface clássica ativa. Não foi possível iniciar o visual Vision neste Windows.");}
  }
@@ -96,6 +99,6 @@
   markVisionDirty();flushVision(sequence);
  }
 #else
- bool visionVisible()const{return false;}HWND visionContainer()const{return nullptr;}
+ bool visionVisible()const{return false;}bool visionPending()const{return false;}void visionLoadTimeout(){}HWND visionContainer()const{return nullptr;}
  void markVisionDirty(){}void recordVisionError(const std::exception&){}void closeVision(){}void flushVision(unsigned=0){}void startVision(){}void visionCommand(const std::wstring&){}
 #endif
