@@ -1,11 +1,12 @@
 name: Windows portable ASIO build
 # Portable builds are triggered only by explicit edits to this workflow on the
-# validated feature branch, or manually. Avoid building on every source commit.
+# current layout branch, or manually.
+# Hosted build explicitly requested by the user; remaining usage allowance unknown. Avoid building on every source commit.
 on:
   workflow_dispatch:
   push:
     branches:
-      - feature/sf2-engine
+      - layout/accessible-v1
     paths:
       - '.github/workflows/windows-portable.yml'
 
@@ -79,9 +80,9 @@ jobs:
           }
           if(-not (Test-Path "$dest/libfluidsynth-3.dll")){throw 'Missing FluidSynth runtime'}
           Set-Content -Path "$dest/LEIA-ME.txt" -Value 'Teste Windows ASIO: LivePerformance.exe com cinco bancos SF2 e tres SFZ recuperados. Outros SFZ aguardam amostras.' -Encoding UTF8
-          Compress-Archive -Path "$dest/*" -DestinationPath 'LivePerformance-Windows-x64-ASIO-Teste.zip'
+          Compress-Archive -Path "$dest/*" -DestinationPath 'LivePerformance-Layout-Atual-Windows-x64-Portatil.zip'
       - uses: actions/upload-artifact@v4
         with:
-          name: LivePerformance-Windows-x64-ASIO-Teste
-          path: LivePerformance-Windows-x64-ASIO-Teste.zip
+          name: LivePerformance-Layout-Atual-Windows-x64-Portatil
+          path: LivePerformance-Layout-Atual-Windows-x64-Portatil.zip
           retention-days: 7
