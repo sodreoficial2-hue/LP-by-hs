@@ -34,3 +34,7 @@ Forward complete 14-bit pitch bend to sfizz, centered at signed zero. Keep CC64 
 ## User validation and Performance editor follow-up (24 October 2026)
 
 The user confirmed the Vision frontend portable at `7c639606` works well on their Windows machine, including the layout and normal operation during a stage simulation. The authorized follow-up is limited to per-part category filters, complete parameters for the selected part inside the Performance Editor, four-volume-only playback mix, automatic latest mix recall for favorites, temporary mix for nonfavorites, and removal of the redundant header Favorites icon. A new local compilation and portable are explicitly requested. Preserve all unrelated working behavior. This confirmation covers the preceding portable, not untested changes in the follow-up.
+
+## Mouse knob follow-up (24 October 2026)
+
+The user confirmed the Performance Editor at `1f2f9cf0` works perfectly, including individual part parameters. The next authorized source change enables mouse adjustment of the painted knobs while preserving MIDI Learn and physical control. Keep this frontend-only when possible; preserve the validated engine, per-part routing and favorite memory.

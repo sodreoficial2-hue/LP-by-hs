@@ -9,7 +9,7 @@
  let openingVisible=true,openingClosing=false,openingSkip=false,openingTimer=null;
  const openingStarted=window.performance.now();
  const held = new Set(), pendingParameters = new Map();
- let parameterTimer = null;
+ let parameterTimer = null, parameterDrag = null;
  const svgNS = 'http://www.w3.org/2000/svg';
  function mountOpening(){
   const splash=window.LPVisionSplash,host=$('opening-art');
@@ -57,6 +57,35 @@
  }
  function flushParameters(){clearTimeout(parameterTimer);parameterTimer=null;for(const [id,value] of pendingParameters)send('parameter',id,value);pendingParameters.clear();}
  function setParameter(id,value,immediate=false){pendingParameters.set(id,Number(value));if(immediate)flushParameters();else if(!parameterTimer)parameterTimer=setTimeout(flushParameters,25);}
+ // The painted knob and the native range share the same host parameter route.
+ function bindMouseKnob(knob,range){
+  const update=value=>{range.value=String(Math.round(Math.max(0,Math.min(1000,value))));range.dispatchEvent(new Event('input'));};
+  const finish=(flush=true)=>{
+   if(!parameterDrag||parameterDrag.knob!==knob)return;
+   const pointer=parameterDrag.pointer;parameterDrag=null;knob.classList.remove('dragging');
+   if(knob.hasPointerCapture(pointer))knob.releasePointerCapture(pointer);
+   if(flush)flushParameters();
+  };
+  knob.title='Arraste para cima ou para a direita para aumentar; para baixo ou esquerda para diminuir. Shift: ajuste fino. Clique direito: MIDI Learn.';
+  knob.addEventListener('pointerdown',event=>{
+   if(event.button!==0||!event.isPrimary||range.disabled)return;
+   event.preventDefault();parameterDrag?.finish();range.focus({preventScroll:true});
+   parameterDrag={knob,range,pointer:event.pointerId,x:event.clientX,y:event.clientY,value:Number(range.value),finish};
+   knob.setPointerCapture(event.pointerId);knob.classList.add('dragging');
+  });
+  knob.addEventListener('pointermove',event=>{
+   const drag=parameterDrag;if(!drag||drag.knob!==knob||drag.pointer!==event.pointerId)return;
+   if(range.disabled){finish();return;}
+   const delta=(event.clientX-drag.x)+(drag.y-event.clientY);drag.x=event.clientX;drag.y=event.clientY;
+   drag.value=Math.max(0,Math.min(1000,drag.value+delta*(event.shiftKey?1:5)));update(drag.value);
+  });
+  for(const type of ['pointerup','pointercancel','lostpointercapture'])knob.addEventListener(type,event=>{if(parameterDrag?.pointer===event.pointerId)finish();});
+  knob.addEventListener('wheel',event=>{
+   if(range.disabled||parameterDrag||event.ctrlKey)return;
+   const delta=event.deltaY||event.deltaX;if(!delta)return;
+   event.preventDefault();range.focus({preventScroll:true});update(Number(range.value)-Math.sign(delta)*(event.shiftKey?1:10));flushParameters();
+  },{passive:false});
+ }
  function releaseNotes(){if(!held.size)return;held.clear();document.querySelectorAll('.key.down').forEach(e=>e.classList.remove('down'));send('releaseNotes');}
  function crop(asset, x, y, width, height) {
   const svg = document.createElementNS(svgNS,'svg');svg.setAttribute('viewBox',`${x} ${y} ${width} ${height}`);svg.setAttribute('preserveAspectRatio','xMidYMid meet');svg.setAttribute('aria-hidden','true');
@@ -137,6 +166,7 @@
    const range=node('input',{type:'range',min:0,max:1000,step:1,value:c.value,id:`parameter-${c.id}`,'aria-label':c.name,'data-focus':`parameter-${c.id}`,disabled:!c.enabled});
    const knob=node('div',{class:'knob','aria-hidden':'true'}),out=node('output',{for:`parameter-${c.id}`,id:`value-${c.id}`},`${Math.round(c.value/10)}%`);
    range.addEventListener('input',()=>{out.textContent=`${Math.round(range.value/10)}%`;knob.style.setProperty('--angle',`${Number(range.value)*.27}deg`);setParameter(c.id,range.value);});range.addEventListener('change',()=>setParameter(c.id,range.value,true));
+   bindMouseKnob(knob,range);
    const learn=()=>send('learnParameter',c.id),cell=node('section',{class:'panel parameter','data-parameter':c.id},node('h2',{},c.name),knob,range,out,node('span',{class:'mapping',id:`mapping-${c.id}`}),button('MIDI Learn',learn,{class:'learn',disabled:!c.enabled,'aria-label':`Aprender controle MIDI: ${c.name}`}));
    cell.addEventListener('contextmenu',e=>{e.preventDefault();learn();});range.addEventListener('keydown',e=>{if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10')||(e.ctrlKey&&e.key.toLowerCase()==='l')){e.preventDefault();learn();}});grid.append(cell);
   });return grid;
@@ -178,13 +208,13 @@
   document.querySelectorAll('nav [data-screen]').forEach(b=>b.setAttribute('aria-current',String(!state.effects&&Number(b.dataset.screen)===['home','instruments','performance','audio','profiles','about','keyboard'].indexOf(state.screen))));
   const rows=state.category===15?state.favorites:state.catalog;
   for(const row of document.querySelectorAll('.sound-row')){const r=rows[Number(row.dataset.row)];if(!r)continue;row.classList.toggle('selected',Number(row.dataset.row)===state.selected);row.classList.toggle('loaded',Boolean(r.loaded));row.querySelector('.sound-select')?.setAttribute('aria-pressed',String(Boolean(r.loaded)));const star=row.querySelector('.favorite-toggle');if(star&&state.category!==15){star.textContent=r.favorite?'★':'☆';star.setAttribute('aria-pressed',String(r.favorite));star.setAttribute('aria-label',`${r.favorite?'Remover dos favoritos:':'Favoritar'} ${r.name}`);}}
-  for(const c of state.controls){const range=$(`parameter-${c.id}`),cell=document.querySelector(`[data-parameter="${c.id}"]`);if(!range||!cell)continue;if(document.activeElement!==range){range.value=String(c.value);$(`value-${c.id}`).textContent=`${Math.round(c.value/10)}%`;cell.querySelector('.knob').style.setProperty('--angle',`${c.value*.27}deg`);}range.disabled=!c.enabled;cell.classList.toggle('disabled',!c.enabled);cell.querySelector('.learn').disabled=!c.enabled;$(`mapping-${c.id}`).textContent=c.label.includes(' · ')?c.label.split(' · ').slice(1).join(' · '):'Clique direito para mapear';}
+  for(const c of state.controls){const range=$(`parameter-${c.id}`),cell=document.querySelector(`[data-parameter="${c.id}"]`);if(!range||!cell)continue;if(parameterDrag?.range!==range&&!range.matches(':active')&&!pendingParameters.has(c.id)){range.value=String(c.value);$(`value-${c.id}`).textContent=`${Math.round(c.value/10)}%`;cell.querySelector('.knob').style.setProperty('--angle',`${c.value*.27}deg`);}range.disabled=!c.enabled;cell.classList.toggle('disabled',!c.enabled);cell.querySelector('.learn').disabled=!c.enabled;$(`mapping-${c.id}`).textContent=c.label.includes(' · ')?c.label.split(' · ').slice(1).join(' · '):'Clique direito para mapear';}
   if($('audio-detail'))$('audio-detail').textContent=state.audio.connected?`ASIO conectado · ${state.audio.sampleRate} Hz · ${state.audio.latencyMs.toFixed(1)} ms de saída`:'ASIO desconectado';
   for(const [id,value] of [['driver',state.audio.driver],['buffer',state.audio.buffer],['midi',state.audio.midi],['performance-mode',state.performance.mode],['performance-name',state.performance.name],...state.performance.parts.map((p,i)=>[`part-${i}`,p])]){const target=$(id);if(target&&document.activeElement!==target)target.value=String(value);}
   document.querySelectorAll('[data-part]').forEach(row=>row.classList.toggle('editing',Number(row.dataset.part)===state.performance.editingPart));
   if($('progress'))$('progress').value=state.progress;
  }
- function receive(event){const next=event?.data??event;if(!next||next.type!=='state'||next.version!==1)return;if(state?.screen==='keyboard'&&(next.screen!=='keyboard'||next.effects))releaseNotes();if(state?.screen!=='performance'&&next.screen==='performance')partCategories=[];state=next;if(next.error)notice(next.error);render();finishOpening();}
+ function receive(event){const next=event?.data??event;if(!next||next.type!=='state'||next.version!==1)return;if(state?.screen==='keyboard'&&(next.screen!=='keyboard'||next.effects))releaseNotes();if(state&&JSON.stringify([state.screen,state.effects,state.loadedName,state.performance.editingPart])!==JSON.stringify([next.screen,next.effects,next.loadedName,next.performance.editingPart])){parameterDrag?.finish(false);clearTimeout(parameterTimer);parameterTimer=null;pendingParameters.clear();}if(state?.screen!=='performance'&&next.screen==='performance')partCategories=[];state=next;if(next.error)notice(next.error);render();finishOpening();}
  $('brand').addEventListener('click',()=>{flushParameters();send('screen',0);});$('back').addEventListener('click',()=>{flushParameters();send('screen',0);});
  document.querySelectorAll('[data-screen]').forEach(b=>b.addEventListener('click',()=>{flushParameters();send('screen',Number(b.dataset.screen));}));
  $('keyboard-nav').addEventListener('click',()=>send('screen',6));$('effects-nav').addEventListener('click',()=>{flushParameters();send('effects');});$('panic').addEventListener('click',()=>{releaseNotes();send('panic');});
@@ -217,7 +247,7 @@
   if(['ArrowDown','ArrowUp','PageDown','PageUp'].includes(event.key)&&!target.matches('input,select,textarea')&&state.screen!=='keyboard'){event.preventDefault();const delta=event.key==='ArrowDown'?60:event.key==='ArrowUp'?-60:event.key==='PageDown'?$('content').clientHeight-50:50-$('content').clientHeight;$('content').scrollBy({top:delta,behavior:'instant'});}
  });
  $('content').addEventListener('pointerdown',()=>{if(state?.effects)send('touch');});$('content').addEventListener('wheel',()=>{if(state?.effects)send('touch');},{passive:true});
- window.addEventListener('blur',releaseNotes);document.addEventListener('visibilitychange',()=>{if(document.hidden)releaseNotes();});window.addEventListener('pagehide',releaseNotes);
+ window.addEventListener('blur',()=>{parameterDrag?.finish();releaseNotes();});document.addEventListener('visibilitychange',()=>{if(document.hidden)releaseNotes();});window.addEventListener('pagehide',releaseNotes);
  if(assets.fontCss){const style=node('style');style.textContent=assets.fontCss;document.head.append(style);}if(assets.portrait)$('portrait').src=assets.portrait;
  mountOpening();
  if(native?.addEventListener){native.addEventListener('message',receive);send('ready');}

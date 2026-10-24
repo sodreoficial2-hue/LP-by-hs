@@ -177,3 +177,13 @@ O usuário confirmou que o portátil anterior com visual Vision funciona bem no 
 Validação: oito grupos CTest passaram, incluindo novos testes de leitura de perfil antigo, memória repetida do mix, isolamento dos parâmetros das partes e rejeição de MIX inválido. O renderer Chromium com ponte simulada passou nos filtros, índices originais, E contextual e mix de quatro volumes, sem erros de JavaScript ou recursos externos. Os dois aplicativos Windows x64 e o teste do dispatcher nativo compilaram localmente. Tentativa de executar o teste nativo com Wine foi bloqueada pelo ambiente (`wineserver: socket: Operation not permitted`); não equivale a execução no Windows. A confirmação de hardware do usuário refere-se ao portátil anterior.
 
 Nenhum Actions foi iniciado. Saldo autenticado GitHub desconhecido, sem ferramenta disponível para consultá-lo.
+
+## Knobs com mouse e controlador MIDI (24/10/2026)
+
+Após o usuário confirmar o funcionamento completo do Performance Editor do portátil anterior, os knobs circulares passam a aceitar arraste com o botão esquerdo: cima/direita aumenta, baixo/esquerda diminui. Shift reduz a sensibilidade para ajuste fino; a roda do mouse ajusta 1% por passo (0,1% com Shift). O valor é limitado a 0–100%. Os sliders e as setas do teclado continuam disponíveis; clique direito e o botão MIDI Learn mantêm a função anterior.
+
+O gesto envia os mesmos comandos `parameter` já usados pelo host, inclusive na edição individual das partes e no mix de quatro volumes. Portanto, a memória dos favoritos e o salvamento de perfis continuam nativos. Sem mudanças no motor de áudio, na ponte C++, nos formatos de perfil ou nos mapeamentos físicos. O valor recebido do controlador volta a atualizar o desenho mesmo quando o slider permanece com foco, desde que não haja um gesto de edição em andamento.
+
+Captura de ponteiro mantém o arraste fora do círculo; soltar, cancelar ou perder a captura encerra o gesto. Troca de contexto descarta eventos pendentes para evitar aplicar o ajuste antigo ao próximo timbre/parte. Controles desabilitados não emitem alterações com mouse.
+
+Validação: renderer Chromium aprovado com ponte simulada, usando eventos reais de mouse para arraste, roda, limites, Shift, parâmetros de parte e mix; verificação de cancelamento ao fechar o painel, controles desabilitados, atualização recebida do host e MIDI Learn. Sem erros JavaScript ou pedidos externos. Estes testes não representam nova validação física Windows/ASIO. Código atualizado; sem novo pacote portátil ou Actions nesta etapa. A franquia autenticada GitHub permanece desconhecida, sem ferramenta de consulta disponível.

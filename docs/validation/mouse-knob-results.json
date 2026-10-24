@@ -1,0 +1,25 @@
+{
+  "result": "PASS",
+  "scope": "Chromium renderer with a control-state fixture; not Windows/ASIO hardware",
+  "checks": [
+    "original full-screen opening with title-only composition, loading gate, keyboard skip and automatic display time",
+    "16 categories at 1360×900 and 1024×600",
+    "offline original artwork and fonts",
+    "arrows/Enter and automatic sound selection commands",
+    "safe instrument names",
+    "Space favorites and 20 numbered slots",
+    "E/ESC and text entry",
+    "Mouse drag, Shift precision, wheel, bounds, disabled knobs, live controller repaint, per-part parameters, performance mix and preserved MIDI Learn",
+    "ASIO/MIDI selectors and ASIO Control command",
+    "Four independent category filters, native instrument IDs, contextual part editing with E and four-volume playback mix",
+    "native save/open command routing",
+    "virtual keyboard releases and F12"
+  ],
+  "externalRequests": [],
+  "pageErrors": [],
+  "commands": 78,
+  "base_commit": "1f2f9cf0c36d3ce482d5acbdb85bf5021c569842",
+  "windows_hardware_validation": false,
+  "github_actions_runs_started": 0,
+  "github_authenticated_remaining_allowance": "unknown"
+}

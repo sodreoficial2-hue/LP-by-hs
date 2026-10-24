@@ -25,3 +25,5 @@ footer{height:80px;display:flex;align-items:center;gap:14px;padding:12px 24px;bo
 @media(prefers-reduced-motion:reduce){.opening{transition:none}}
 
 .part-fields{display:grid;gap:16px}.part-actions{display:grid;gap:12px}.part-actions button{font-size:16px}.part-row{padding:18px 12px;border:2px solid transparent;border-radius:14px}.part-row.editing{border-color:var(--bright);background:#0b2238}.part-row .field{min-width:0}
+
+.knob{cursor:ns-resize;touch-action:none;user-select:none}.knob.dragging{border-color:var(--bright);box-shadow:0 0 0 5px #040e1e,0 0 24px #00bfff88}.parameter.disabled .knob{cursor:not-allowed}
