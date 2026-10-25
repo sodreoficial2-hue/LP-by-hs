@@ -17,6 +17,8 @@
 #include "midi.hpp"
 #include "audio_host.hpp"
 #include "sf2_reference.hpp"
+#include "sf2_expansion.hpp"
+#include "sf2_headers.hpp"
 #include "audio_preferences.hpp"
 #include <memory>
 #include <string>
@@ -215,8 +217,8 @@ struct App {
    // Keep SF2 entries in memory only; the original curated catalog remains intact.
    // Scan standard banks and a user-owned "Red Pianos" folder placed beside the EXE.
    // Never package or redistribute purchased banks with the public executable.
-   const std::array<std::filesystem::path,2> sf2Folders={
-    base/L"soundbank/sf2",base/L"Red Pianos SF2 Punch Pack - Vol 1"};
+   const std::array<std::filesystem::path,3> sf2Folders={
+    base/L"soundbank/sf2",base/L"Red Pianos SF2 Punch Pack - Vol 1",base/lp::sf2ExpansionFolder};
    std::vector<std::filesystem::path> bankFiles;
    for(const auto& folder:sf2Folders)if(std::filesystem::is_directory(folder)){
     for(auto it=std::filesystem::recursive_directory_iterator(folder,std::filesystem::directory_options::skip_permission_denied);it!=std::filesystem::recursive_directory_iterator();++it){
@@ -235,7 +237,8 @@ struct App {
   const auto& bankFile=startupBanks[startupCompleted];std::filesystem::directory_entry entry(bankFile);
   updateSplash(15+static_cast<int>(75*startupCompleted/startupBanks.size()),L"Carregando "+std::to_wstring(startupCompleted+1)+L" de "+std::to_wstring(startupBanks.size())+L": "+std::filesystem::u8path(lp::soundDisplayName(bankFile.stem().u8string())).wstring());
      try{
-      auto presets=engine->sf2Presets(entry.path());
+      auto presets=lp::expansionSf2Category(base,entry.path(),0,0)
+       ?lp::readSf2PresetHeaders(entry.path()):engine->sf2Presets(entry.path());
       auto file=entry.path().stem().u8string();
       // Licensed Red Punch Pack: category by original filename prefix, never by guessed preset.
       unsigned category=10;
@@ -256,7 +259,7 @@ struct App {
        lp::Instrument p;
        p.sfz=std::filesystem::u8path(lp::makeSf2Reference(entry.path(),preset.bank,preset.program));
        p.name=file+" / "+preset.name;
-       p.category=category;
+       p.category=lp::expansionSf2Category(base,entry.path(),preset.bank,preset.program).value_or(category);
        instruments.push_back(std::move(p));
       }
      }catch(const std::exception& e){

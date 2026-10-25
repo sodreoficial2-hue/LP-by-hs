@@ -204,3 +204,7 @@ endif()
 add_executable(lp_reverb_test tests/reverb_test.cpp src/dsp.cpp)
 target_include_directories(lp_reverb_test PRIVATE src)
 add_test(NAME large_hall_reverb COMMAND lp_reverb_test)
+
+add_executable(lp_sf2_expansion_test tests/sf2_expansion_test.cpp)
+target_include_directories(lp_sf2_expansion_test PRIVATE src)
+add_test(NAME sf2_expansion_categories COMMAND lp_sf2_expansion_test)
