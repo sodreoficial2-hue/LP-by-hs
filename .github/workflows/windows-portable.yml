@@ -1,15 +1,7 @@
 name: Windows portable ASIO build
-# Portable builds are triggered only by explicit edits to this workflow on the
-# current layout branch, or manually.
-# Hosted build explicitly requested by the user; remaining usage allowance unknown. Avoid building on every source commit.
+# Manual builds only. Local compilation is preferred while allowance is unknown.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - layout/accessible-v1
-      - vision21-correcoes-finais
-    paths:
-      - '.github/workflows/windows-portable.yml'
 
 jobs:
   portable:
@@ -29,9 +21,9 @@ jobs:
       - name: Configure Windows ASIO executable
         shell: pwsh
         run: |
-          cmake -S . -B build-portable -A x64 "-DLP_PORTAUDIO_SOURCE=$env:RUNNER_TEMP/portaudio" "-DASIOSDK_ROOT_DIR=$env:ASIOSDK_ROOT" -DLP_COPY_RECOVERED_ASSETS=ON
+          cmake -S . -B build-portable -A x64 "-DLP_PORTAUDIO_SOURCE=$env:RUNNER_TEMP/portaudio" "-DASIOSDK_ROOT_DIR=$env:ASIOSDK_ROOT" -DLP_COPY_RECOVERED_ASSETS=ON -DLP_ENABLE_VISION_UI=ON
       - name: Compile full application
-        run: cmake --build build-portable --config Release --target LivePerformance --parallel 2
+        run: cmake --build build-portable --config Release --target LivePerformanceVision --parallel 2
       - name: Install FluidSynth runtime
         uses: msys2/setup-msys2@v2
         with:
@@ -54,7 +46,15 @@ jobs:
         run: |
           $dest='portable/LivePerformance'
           New-Item -ItemType Directory -Force $dest | Out-Null
-          Copy-Item 'build-portable/Release/LivePerformance.exe' $dest
+          Copy-Item 'build-portable/Release/LivePerformanceVision.exe' (Join-Path $dest 'LivePerformance.exe')
+          Copy-Item 'build-portable/Release/WebView2Loader.dll' $dest
+          Copy-Item 'build-portable/Release/vision-ui' $dest -Recurse
+          foreach($asset in @('index.html','vision.js','vision.css','assets.js','splash-assets.js')) {
+            if(-not (Test-Path (Join-Path $dest "vision-ui/$asset"))){throw "Vision asset missing: $asset"}
+          }
+          New-Item -ItemType Directory -Force "$dest/Licencas" | Out-Null
+          Copy-Item 'build-portable/_deps/webview2/LICENSE.txt' "$dest/Licencas/WebView2.txt"
+          Copy-Item 'build-portable/_deps/webview2/NOTICE.txt' "$dest/Licencas/WebView2-Notices.txt"
           foreach($dll in @('sfizz.dll','sndfile.dll','SDL3.dll')) { Copy-Item "recovery/extracted/live/$dll" $dest }
           New-Item -ItemType Directory -Force "$dest/samples" | Out-Null
           foreach($name in @('CP80','Pianet T','Wurlitzer EP200')) { Copy-Item "recovery/extracted/live/samples/$name" "$dest/samples/$name" -Recurse }
@@ -80,7 +80,9 @@ jobs:
             }
           }
           if(-not (Test-Path "$dest/libfluidsynth-3.dll")){throw 'Missing FluidSynth runtime'}
-          Set-Content -Path "$dest/LEIA-ME.txt" -Value 'Teste Windows ASIO: LivePerformance.exe com cinco bancos SF2 e tres SFZ recuperados. Outros SFZ aguardam amostras.' -Encoding UTF8
+          Set-Content -Path "$dest/LEIA-ME.txt" -Value 'LivePerformance.exe abre o visual Vision. Mantenha vision-ui e WebView2Loader.dll na mesma pasta. Requer Microsoft Edge WebView2 Runtime no Windows. Inclui cinco bancos SF2 e tres SFZ recuperados.' -Encoding UTF8
+          python scripts/verify_vision_portable.py $dest
+          if($LASTEXITCODE -ne 0){throw 'Vision portable verification failed'}
           Compress-Archive -Path "$dest/*" -DestinationPath 'LivePerformance-Layout-Atual-Windows-x64-Portatil.zip'
       - uses: actions/upload-artifact@v4
         with:

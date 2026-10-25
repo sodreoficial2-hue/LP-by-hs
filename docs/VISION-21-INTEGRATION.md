@@ -177,3 +177,13 @@ O usuário confirmou que o portátil anterior com visual Vision funciona bem no 
 Validação: oito grupos CTest passaram, incluindo novos testes de leitura de perfil antigo, memória repetida do mix, isolamento dos parâmetros das partes e rejeição de MIX inválido. O renderer Chromium com ponte simulada passou nos filtros, índices originais, E contextual e mix de quatro volumes, sem erros de JavaScript ou recursos externos. Os dois aplicativos Windows x64 e o teste do dispatcher nativo compilaram localmente. Tentativa de executar o teste nativo com Wine foi bloqueada pelo ambiente (`wineserver: socket: Operation not permitted`); não equivale a execução no Windows. A confirmação de hardware do usuário refere-se ao portátil anterior.
 
 Nenhum Actions foi iniciado. Saldo autenticado GitHub desconhecido, sem ferramenta disponível para consultá-lo.
+
+## Correção da entrega das quatro correções
+
+O ZIP `LivePerformance-Vision21-Quatro-Correcoes-Portatil-Pronto.zip` continha somente o alvo clássico. A configuração do workflow não habilitava `LP_ENABLE_VISION_UI`, compilava `LivePerformance` e não copiava `vision-ui`/`WebView2Loader.dll`. A inspeção confirmou a ausência dos recursos e do marcador UTF-16 de origem Vision no EXE original.
+
+O executável Vision foi compilado localmente do mesmo commit `6537645f4b1033a171712156b67f9e4352069905`, preservando o código das quatro correções. No pacote corrigido ele recebe o nome `LivePerformance.exe`; recursos visuais e loader completos acompanham o arquivo. DLLs e bancos do último pacote foram preservados.
+
+O workflow agora habilita o alvo Vision, copia todos os recursos e roda `scripts/verify_vision_portable.py` antes de compactar. O verificador rejeita EXE clássico, arquitetura errada ou recursos ausentes. Disparo automático do workflow foi removido; execuções futuras são manuais. Esta correção foi compilada localmente, sem iniciar Actions. Uso/quota autenticada permanece desconhecido porque não há ferramenta disponível para consulta.
+
+Validação: 8/8 CTest, renderer com ponte simulada, marcador do EXE Vision, arquitetura x64 e fechamento das dependências DLL conferidos. A ausência de WebView2 Runtime no Windows ainda pode levar ao fallback clássico; loader e recursos não são o runtime completo. Não houve novo teste físico Windows/ASIO nesta sessão.
