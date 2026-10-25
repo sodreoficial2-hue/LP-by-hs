@@ -9,7 +9,7 @@ class MonoGlide {
  std::array<int,128> held{},velocities{};int count=0,active=-1;float pitch=0,target=0,step=0;bool seen=false;
 public:
  float amount=0;int wheel=0;
- void reset(){count=0;active=-1;seen=false;step=0;wheel=0;}
+ void reset(){count=0;active=-1;seen=false;step=0;pitch=target=0;wheel=0;}
  template<class On,class Off,class Bend> void on(int note,int velocity,float rate,On start,Off stop,Bend bend){
   remove(note);held[count]=note;velocities[count++]=velocity;
   select(note,velocity,rate,start,stop,bend);
@@ -17,7 +17,7 @@ public:
  template<class On,class Off,class Bend> void off(int note,float rate,On start,Off stop,Bend bend){
   remove(note);if(note!=active)return;
   if(count)select(held[count-1],velocities[count-1],rate,start,stop,bend);
-  else {stop(active);active=-1;}
+  else {stop(active);active=-1;seen=false;step=0;pitch=target; bend(this->bend());}
  }
  int bend() const {float offset=(active>=0?pitch-target:0)+wheel/8192.f*2.f;return std::clamp(static_cast<int>(offset*8192.f/96.f),-8192,8191);}
  void advance(int frames){if(step>0)pitch=std::min(target,pitch+step*frames);else if(step<0)pitch=std::max(target,pitch+step*frames);}
