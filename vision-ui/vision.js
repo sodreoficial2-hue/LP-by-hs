@@ -137,6 +137,16 @@
    const range=node('input',{type:'range',min:0,max:1000,step:1,value:c.value,id:`parameter-${c.id}`,'aria-label':c.name,'data-focus':`parameter-${c.id}`,disabled:!c.enabled});
    const knob=node('div',{class:'knob','aria-hidden':'true'}),out=node('output',{for:`parameter-${c.id}`,id:`value-${c.id}`},`${Math.round(c.value/10)}%`);
    range.addEventListener('input',()=>{out.textContent=`${Math.round(range.value/10)}%`;knob.style.setProperty('--angle',`${Number(range.value)*.27}deg`);setParameter(c.id,range.value);});range.addEventListener('change',()=>setParameter(c.id,range.value,true));
+   // Drag the visible knob vertically; the range remains keyboard accessible.
+   if(c.enabled){
+    knob.style.touchAction='none';
+    knob.style.pointerEvents='auto';
+    let drag=null;
+    knob.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();drag={y:e.clientY,value:Number(range.value)};knob.setPointerCapture(e.pointerId);});
+    knob.addEventListener('pointermove',e=>{if(!drag)return;const next=Math.max(0,Math.min(1000,Math.round(drag.value+(drag.y-e.clientY)*5)));if(Number(range.value)===next)return;range.value=String(next);range.dispatchEvent(new Event('input',{bubbles:true}));});
+    const finish=e=>{if(!drag)return;drag=null;range.dispatchEvent(new Event('change',{bubbles:true}));if(knob.hasPointerCapture(e.pointerId))knob.releasePointerCapture(e.pointerId);};
+    knob.addEventListener('pointerup',finish);knob.addEventListener('pointercancel',finish);
+   }
    const learn=()=>send('learnParameter',c.id),cell=node('section',{class:'panel parameter','data-parameter':c.id},node('h2',{},c.name),knob,range,out,node('span',{class:'mapping',id:`mapping-${c.id}`}),button('MIDI Learn',learn,{class:'learn',disabled:!c.enabled,'aria-label':`Aprender controle MIDI: ${c.name}`}));
    cell.addEventListener('contextmenu',e=>{e.preventDefault();learn();});range.addEventListener('keydown',e=>{if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10')||(e.ctrlKey&&e.key.toLowerCase()==='l')){e.preventDefault();learn();}});grid.append(cell);
   });return grid;
