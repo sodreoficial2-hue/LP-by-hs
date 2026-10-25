@@ -9,7 +9,7 @@
   switch(screen){case lp::Screen::Home:return 316;case lp::Screen::Keyboard:return 360;case lp::Screen::Instruments:return 400;case lp::Screen::AudioMidi:return 580;case lp::Screen::Settings:return 580;case lp::Screen::PerformanceEditor:return 748;case lp::Screen::About:return 600;}
   return 580;
  }
- void scrollPage(int delta){touchParameters();if(pageScroll.move(delta))layout();}
+ void scrollPage(int delta){if(pageScroll.move(delta))layout();}
  void revealFocus(HWND child){
   if(loading||placing||GetParent(child)!=page||!IsWindowVisible(child)||GetFocus()!=child)return;
   RECT r{};GetWindowRect(child,&r);MapWindowPoints(nullptr,page,reinterpret_cast<POINT*>(&r),2);
@@ -33,7 +33,6 @@
  bool performanceActive() const{return editingPerformanceValid&&engine&&engine->performanceActive();}
  bool editingPerformanceControls() const{return screen==lp::Screen::PerformanceEditor&&performanceActive();}
  bool performanceControls() const{return screen!=lp::Screen::PerformanceEditor&&performanceActive();}
- void touchParameters(){if(effects)parameterPanel.touch(GetTickCount64());}
  std::wstring categoryName() const {return categoryIndex==15?L"Favoritos":std::filesystem::u8path(lp::instrumentCategories[categoryIndex]).wstring();}
  void syncPerformance(){
   if(performanceActive()&&show.current&&show.favorites[*show.current]&&show.favorites[*show.current]->sfz=="performance://"+std::to_string(activePerformanceIndex))
@@ -48,7 +47,7 @@
  void toggleParameters(){
   if(loading)return;
   if(!effects&&screen==lp::Screen::PerformanceEditor){try{activateEditorPerformance();}catch(const std::exception& e){error(e);return;}}
-  cancelMidiLearn();parameterPanel.toggle(GetTickCount64());effects=parameterPanel.open;
+  cancelMidiLearn();parameterPanel.toggle();effects=parameterPanel.open;
   if(effects){pageScroll.seek(0);performanceVisible=false;refreshParameters();layout();SetFocus(sliders[0]);}
   else if(screen==lp::Screen::PerformanceEditor){performanceVisible=true;pageScroll.seek(0);layout();SetFocus(performancePartControls[editingPart]);}
   else goHome();
@@ -130,7 +129,7 @@
  void releaseVirtual(){if(virtualNote>=0&&engine)engine->send({0x80,static_cast<std::uint8_t>(virtualNote),0});if(virtualNote>=0)keyDown[virtualNote]=false;virtualNote=-1;InvalidateRect(page,nullptr,FALSE);}
  void virtualKey(POINT point){int note=keyAt(point);if(note==virtualNote)return;releaseVirtual();if(note>=0&&engine&&engine->loaded()){virtualNote=note;keyDown[note]=true;engine->send({0x90,static_cast<std::uint8_t>(note),100});InvalidateRect(page,nullptr,FALSE);}}
  void setPanelValue(int index,float value){
-  touchParameters();
+
   if(performanceControls()){
    if(index>=4||!editingPerformance.parts[index].enabled)return;
    auto& part=editingPerformance.parts[index];part.patch.parameters[0]=value;engine->setPerformancePartParameters(index,part.patch.parameters,part.patch.adsrEnabled);syncPerformance();
@@ -145,10 +144,9 @@
  }
  bool keyCommand(MSG& msg){
   if(msg.message!=WM_KEYDOWN||loading)return false;
-  if(effects)touchParameters();
   auto key=msg.wParam;wchar_t kind[32]{};GetClassNameW(GetFocus(),kind,32);bool textControl=_wcsicmp(kind,L"EDIT")==0;bool typing=textControl&&!(GetWindowLongPtrW(GetFocus(),GWL_STYLE)&ES_READONLY);
   if(key==VK_F12){command(Panic,0);return true;}
-  if(key==VK_ESCAPE){if(effects){cancelMidiLearn();toggleParameters();return true;}goHome();return true;}
+  if(key==VK_ESCAPE){if(effects){cancelMidiLearn();return true;}goHome();return true;}
   if(!typing&&!(GetKeyState(VK_CONTROL)&0x8000)&&!(GetKeyState(VK_MENU)&0x8000)){
    if(key=='E'){toggleParameters();return true;}
    if(!effects){

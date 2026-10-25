@@ -77,7 +77,7 @@
     releaseVisionNotes();constexpr int ids[]={HomeButton,HomeButton,PerformanceButton,AudioMidiButton,SettingsButton,AboutButton,KeyboardButton};if(c.a==1){effects=false;parameterPanel.open=false;openCategory();}else command(ids[c.a],BN_CLICKED);
    }
    else if(c.action=="effects"){releaseVisionNotes();toggleParameters();}
-   else if(c.action=="escape"){cancelMidiLearn();releaseVisionNotes();if(effects)toggleParameters();else command(HomeButton,BN_CLICKED);}
+   else if(c.action=="escape"){cancelMidiLearn();releaseVisionNotes();if(!effects)command(HomeButton,BN_CLICKED);}
    else if(c.action=="parameter"){if(!effects||!IsWindowEnabled(sliders[c.a]))throw std::runtime_error("Controle indisponível");setPanelValue(c.a,c.b/1000.0f);}
    else if(c.action=="learnParameter")beginParameterLearn(c.a);
    else if(c.action=="driver"||c.action=="buffer"||c.action=="midi"){
@@ -94,7 +94,7 @@
    else if(c.action=="noteOn"){if(screen!=lp::Screen::Keyboard||!engine||!engine->loaded())throw std::runtime_error("Selecione um timbre antes de tocar");if(c.b&&!visionNotes[c.a]){engine->send({0x90,static_cast<std::uint8_t>(c.a),static_cast<std::uint8_t>(c.b)});visionNotes[c.a]=true;}}
    else if(c.action=="noteOff"){if(visionNotes[c.a]){if(engine)engine->send({0x80,static_cast<std::uint8_t>(c.a),0});visionNotes[c.a]=false;}}
    else if(c.action=="releaseNotes")releaseVisionNotes();
-   else if(c.action=="touch")touchParameters();
+   else if(c.action=="touch"){/* Compatibility with earlier frontends; no inactivity timer. */}
    else{
     const std::pair<const char*,int> actions[]={{"connect",AudioStart},{"disconnect",AudioStop},{"controlPanel",AudioPanel},{"panic",Panic},{"save",Save},{"open",Open},{"importSfz",Import},{"importSf2",ImportSf2},{"performancePlay",PerformancePlay},{"performanceSave",PerformanceSave}};
     bool found=false;for(const auto& action:actions)if(c.action==action.first){if(c.action=="panic")releaseVisionNotes();command(action.second,BN_CLICKED);found=true;break;}if(!found)throw std::invalid_argument("Comando indisponível");

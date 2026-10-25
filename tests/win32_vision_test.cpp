@@ -22,7 +22,9 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
   command(L"effects");assert(app.effects);command(L"parameter",1,420);assert(app.show.favorites[0]->parameters[1]==.42f);
   command(L"parameter",15,350);assert(app.show.master==.35f);
   app.visionCommand(L"LP1\t1\tparameter\t15\t1001\t");assert(!app.visionLastError.empty()&&app.show.master==.35f);
-  command(L"escape");assert(app.screen==lp::Screen::Home&&!app.effects);
+  for(int tick=0;tick<1000;++tick)SendMessageW(app.window,WM_TIMER,1,0);assert(app.effects);
+  command(L"escape");assert(app.effects);
+  command(L"effects");assert(app.screen==lp::Screen::Home&&!app.effects);
   command(L"screen",2);command(L"performanceMode",1);command(L"performancePart",0,1);command(L"performancePart",1,2);command(L"performanceName",0,0,L"Apresenta%C3%A7%C3%A3o%20Soul");command(L"performancePlay");
   assert(app.editingPerformanceControls()&&app.editingPerformance.parts[0].high==47&&app.editingPerformance.parts[2].low==0);
   command(L"performanceSave");assert(app.show.performanceLibrary.size()==1&&app.show.performanceLibrary[0].name=="Apresentação Soul");
@@ -30,15 +32,15 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
   command(L"parameter",1,430);command(L"parameter",6,620);assert(app.editingPerformance.parts[1].patch.parameters[1]==.43f&&app.editingPerformance.parts[1].patch.adsrEnabled);
   assert(app.editingPerformance.parts[0].patch.parameters[1]!=.43f);
   app.learningPerformanceParameter=3;app.midiEvent(0x7f16b0);assert(app.editingPerformance.parts[1].patch.cc[3]==22&&app.editingPerformance.parts[1].patch.parameters[3]==1.f);assert(app.editingPerformance.parts[0].patch.cc[3]==-1);
-  command(L"escape");assert(app.screen==lp::Screen::PerformanceEditor&&!app.effects);
-  command(L"editPart",0);command(L"effects");command(L"parameter",11,810);command(L"escape");command(L"performanceSave");
+  command(L"effects");assert(app.screen==lp::Screen::PerformanceEditor&&!app.effects);
+  command(L"editPart",0);command(L"effects");command(L"parameter",11,810);command(L"effects");command(L"performanceSave");
   assert(app.show.performanceLibrary[0].parts[0].patch.parameters[11]==.81f&&app.show.performanceLibrary[0].parts[1].patch.parameters[6]==.62f);
   command(L"category",13);command(L"select",0);command(L"effects");assert(app.performanceControls());
-  command(L"parameter",0,270);command(L"escape");command(L"activateFavorite",0);command(L"category",13);command(L"select",0);
+  command(L"parameter",0,270);command(L"effects");command(L"activateFavorite",0);command(L"category",13);command(L"select",0);
   assert(app.editingPerformance.parts[0].patch.parameters[0]==1.f); // unfavorited live mix discarded
   command(L"favorite",0);assert(app.show.favorites[1]&&app.show.current==1);
   for(int volume:{310,740,180}){
-   command(L"effects");command(L"parameter",0,volume);command(L"parameter",1,650);command(L"escape");
+   command(L"effects");command(L"parameter",0,volume);command(L"parameter",1,650);command(L"effects");
    command(L"activateFavorite",0);command(L"activateFavorite",1);
    assert(app.editingPerformance.parts[0].patch.parameters[0]==volume/1000.f&&app.editingPerformance.parts[1].patch.parameters[0]==.65f);
    assert(app.show.performanceLibrary[0].parts[0].patch.parameters[0]==1.f);

@@ -315,7 +315,7 @@ struct App {
  }catch(const std::exception& e){error(e);}}
  std::wstring parameterName(int index){return std::wstring(lp::parameterNames[index],lp::parameterNames[index]+std::char_traits<char>::length(lp::parameterNames[index]));}
  void beginParameterLearn(std::size_t index){
-  touchParameters();if(!effects||index>=sliders.size())return;
+  if(!effects||index>=sliders.size())return;
   if(!midiHandle){message(L"Selecione a entrada MIDI em Áudio / MIDI antes de mapear.");return;}
   cancelMidiLearn();
   if(performanceControls()){if(index>=4||!editingPerformance.parts[index].enabled)return;learningVolume=static_cast<int>(index);}
@@ -524,12 +524,12 @@ struct App {
     for(int i=0;i<15;++i)if(previewPatch.cc[i]==binding){previewPatch.parameters[i]=lp::knobValue(m);if(i>=1&&i<=4)previewPatch.adsrEnabled=true;applyParameters();consumed=true;}
    }
   }
-  if(consumed){touchParameters();refreshParameters();if(engine&&m.data1==1)engine->send(m);return;}
+  if(consumed){refreshParameters();if(engine&&m.data1==1)engine->send(m);return;}
   auto result=router.route(m);
   if(result.action==lp::MidiAction::WrongProgram)message(L"Aguardando Program Change "+std::to_wstring(result.index+1)+L".");
   else if(result.action==lp::MidiAction::FavoriteLearned)message(L"Program Change aprendido. Use Salvar perfil para guardar.");
   else if(result.action==lp::MidiAction::Favorite)activate(result.index);
-  else if(result.action==lp::MidiAction::Parameter||result.action==lp::MidiAction::Learned){touchParameters();applyParameters();refreshParameters();}
+  else if(result.action==lp::MidiAction::Parameter||result.action==lp::MidiAction::Learned){applyParameters();refreshParameters();}
   if(engine&&lp::forwardsToEngine(result,m))engine->send(m);
  }catch(const std::exception& e){error(e);}}
 
@@ -572,7 +572,7 @@ LRESULT CALLBACK pageProc(HWND page,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR id,DWO
    case SB_THUMBTRACK:case SB_THUMBPOSITION:target=info.nTrackPos;break;
    case SB_TOP:target=0;break;case SB_BOTTOM:target=app.pageScroll.maximum();break;default:return 0;
   }
-  app.touchParameters();if(app.pageScroll.seek(target))app.layout();return 0;
+  if(app.pageScroll.seek(target))app.layout();return 0;
  }
  case WM_LBUTTONDOWN:if(!app.effects&&app.screen==lp::Screen::Keyboard){auto point=app.pagePoint(lp);if(PtInRect(&app.keyboardRect,point)){SetCapture(page);app.virtualKey(point);return 0;}}SetFocus(app.window);return 0;
  case WM_MOUSEMOVE:if(GetCapture()==page){app.virtualKey(app.pagePoint(lp));return 0;}break;
@@ -606,7 +606,6 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
  case WM_TIMER:
   if(wp==3){app->visionLoadTimeout();return 0;}
   if(wp==2){app->restoreAudio();app->flushVision();return 0;}
-  if(app->effects&&!(GetKeyState(VK_LBUTTON)&0x8000)&&!app->loading&&app->parameterPanel.expired(GetTickCount64())){app->toggleParameters();}
   if(app->engine&&app->engine->takeFault()){try{app->engine->stop();}catch(const std::exception& e){app->error(e);}app->message(L"Falha no motor/driver. Áudio interrompido; reconecte ASIO.");}app->flushVision();return 0;
  case WM_SIZE:if(app->catalog)app->layout();return 0;
  case WM_PAINT:{PAINTSTRUCT ps{};auto dc=BeginPaint(w,&ps);RECT r{};GetClientRect(w,&r);auto buffer=CreateCompatibleDC(dc);auto bitmap=CreateCompatibleBitmap(dc,std::max(1L,r.right),std::max(1L,r.bottom));auto previous=SelectObject(buffer,bitmap);app->paint(buffer);BitBlt(dc,0,0,r.right,r.bottom,buffer,0,0,SRCCOPY);SelectObject(buffer,previous);DeleteObject(bitmap);DeleteDC(buffer);EndPaint(w,&ps);return 0;}
@@ -615,7 +614,7 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
  }break;}
  case WM_DRAWITEM:{auto item=reinterpret_cast<DRAWITEMSTRUCT*>(lp);if(item->CtlType==ODT_BUTTON)app->drawButton(item);else if(item->CtlType==ODT_LISTBOX)app->drawList(item);else if(item->CtlType==ODT_COMBOBOX)app->drawCombo(item);return TRUE;}
  case WM_MEASUREITEM:{auto item=reinterpret_cast<MEASUREITEMSTRUCT*>(lp);if(item->CtlType==ODT_LISTBOX){item->itemHeight=68;return TRUE;}if(item->CtlType==ODT_COMBOBOX){item->itemHeight=40;return TRUE;}break;}
- case WM_COMMAND:app->touchParameters();app->command(LOWORD(wp),HIWORD(wp));return 0;
+ case WM_COMMAND:app->command(LOWORD(wp),HIWORD(wp));return 0;
  case MM_MIM_DATA:if(reinterpret_cast<HMIDIIN>(wp)==app->midiHandle)app->midiEvent(static_cast<DWORD>(lp));return 0;
  case ToggleFavoriteMessage:app->favorite();return 0;
  case SelectSoundMessage:if(reinterpret_cast<HWND>(wp)==app->catalog)app->audition();else {auto slot=SendMessageW(app->favorites,LB_GETCURSEL,0,0);if(slot>=0)app->activate(static_cast<unsigned>(slot));}return 0;
@@ -647,7 +646,6 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show){
  App app;WNDCLASSW cls{};cls.lpfnWndProc=proc;cls.hInstance=instance;cls.lpszClassName=L"LPbyHSAccessible";cls.hCursor=LoadCursorW(nullptr,IDC_ARROW);cls.hIcon=LoadIconW(instance,MAKEINTRESOURCEW(3));RegisterClassW(&cls);
  auto w=CreateWindowW(cls.lpszClassName,L"Live Performance by Hugo Sodré",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,CW_USEDEFAULT,CW_USEDEFAULT,1360,900,nullptr,nullptr,instance,&app);
  if(w){if(!app.visionPending())ShowWindow(w,show);UpdateWindow(w);MSG msg{};while(GetMessageW(&msg,nullptr,0,0)>0){
-  if(app.effects&&(msg.message==WM_LBUTTONDOWN||msg.message==WM_RBUTTONDOWN||msg.message==WM_MOUSEWHEEL||msg.message==WM_LBUTTONUP))app.touchParameters();
   if(app.visionVisible()){TranslateMessage(&msg);DispatchMessageW(&msg);continue;}
   if(app.keyCommand(msg))continue;
   if(app.wheelCommand(msg))continue;

@@ -42,3 +42,9 @@ The user reported that the compiled SF2 Portamento knob still did not produce sm
 ## Large-hall reverb (25 October 2026)
 
 The user requests deeper, large-room/worship reverb above 70%. Preserve the existing four-comb response through 70%, add a smoothly blended damped eight-line hall only in the upper range, and keep the parameter/profile/UI contract unchanged. This shared DSP affects SF2 and SFZ; no new portable upload was requested. Validate decay, bounded output, reset, automation and existing glide regression locally.
+
+## Parameter panel persistence (25 October 2026)
+
+Remove the 30-second idle close. Parameter views remain open during inactivity and close explicitly with E. Escape may cancel MIDI Learn but must keep the parameter panel open in both Vision and native fallback; regular navigation keeps its existing behavior. Preserve the native SF2 glide and large-hall reverb commits. No portable release requested at this stage.
+
+Validation: local UI-state regression passed; JavaScript syntax checks passed. Production Windows Vision executable and updated native/Vision test harnesses compiled locally. Windows harnesses were not executed (no Windows/Wine runtime), and the browser fixture could not run because Chromium is not installed. Authenticated GitHub quota remains unknown because no quota tool is exposed; no Actions or binaries are uploaded.

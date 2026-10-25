@@ -27,10 +27,9 @@ struct PageScroll {
  }
 };
 struct ParameterPanel {
- bool open=false;std::uint64_t lastUse=0;
- void touch(std::uint64_t now){lastUse=now;}
- void toggle(std::uint64_t now){open=!open;touch(now);}
- bool expired(std::uint64_t now) const{return open&&now-lastUse>=30000;}
+ // No inactivity deadline: the user closes the panel explicitly.
+ bool open=false;
+ void toggle(){open=!open;}
 };
 // MIDI convention: C4 = 60. B2 (Si2) is MIDI 47, next zone begins at C3 = 48.
 inline std::array<int,2> splitZone(int mode,int part){

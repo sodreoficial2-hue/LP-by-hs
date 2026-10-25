@@ -32,7 +32,7 @@ fs.mkdirSync(output,{recursive:true});
    if(action==='activateFavorite'){state.selected=a;if(state.favorites[a].occupied)state.loadedName=state.favorites[a].name;}
    if(action==='removeFavorite')state.favorites[a]={id:a,name:'Vazio',occupied:false,loaded:false};
    if(action==='effects'){state.effects=!state.effects;if(!state.effects&&state.screen!=='performance')state.screen='home';}
-   if(action==='escape'){state.effects=false;if(state.screen!=='performance')state.screen='home';}
+   if(action==='escape'&&!state.effects){state.screen='home';}
    if(action==='screen'){state.screen=['home','instruments','performance','audio','profiles','about','keyboard'][a];state.effects=false;}
    if(action==='parameter'){state.controls[a].value=b;state.controls[a].label=state.controls[a].name+': '+Math.round(b/10)+'%';}
    if(action==='driver'){state.audio.driver=a;state.audio.connected=a>0;}
@@ -72,7 +72,7 @@ fs.mkdirSync(output,{recursive:true});
  assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='parameter'&&c.a===1&&c.b===501)));
  await page.locator('#parameter-1').click({button:'right'});assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='learnParameter'&&c.a===1)));
  await page.screenshot({path:path.join(output,'parameters.png')});
- await page.keyboard.press('Escape');await page.locator('[data-category="15"]').click();assert.equal(await page.locator('.sound-row').count(),20);
+ await page.keyboard.press('Escape');assert.equal(await page.locator('.parameter').count(),16,'Escape keeps parameters open');await page.keyboard.press('e');await page.locator('[data-category="15"]').click();assert.equal(await page.locator('.sound-row').count(),20);
  await page.locator('[data-select="0"]').click({button:'right'});assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='learnFavorite'&&c.a===0)));
  await page.locator('[data-select="19"]').click({button:'right'});assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='learnFavorite'&&c.a===19)));
  await page.screenshot({path:path.join(output,'favorites.png')});
@@ -84,17 +84,17 @@ fs.mkdirSync(output,{recursive:true});
  assert.equal(await page.locator('#favorites-nav').count(),0);assert.equal(await page.locator('[id^=part-category-]').count(),4);
  await page.locator('#part-category-0').selectOption('0');assert.equal(await page.locator('#part-0 option[value="2"]').count(),0);
  await page.locator('#part-0').selectOption('1');await page.locator('#part-category-1').selectOption('1');await page.locator('#part-1').selectOption('2');
- await page.locator('#part-1').focus();await page.keyboard.press('e');assert.equal(await page.locator('.parameter').count(),16);assert.equal(await page.locator('#heading').textContent(),'Parâmetros da parte 2');await page.keyboard.press('Escape');assert.equal(await page.locator('#part-1').inputValue(),'2');await page.locator('#performance-mode').selectOption('1');await page.getByRole('button',{name:'Ativar Performance',exact:true}).click();
+ await page.locator('#part-1').focus();await page.keyboard.press('e');assert.equal(await page.locator('.parameter').count(),16);assert.equal(await page.locator('#heading').textContent(),'Parâmetros da parte 2');await page.keyboard.press('e');assert.equal(await page.locator('#part-1').inputValue(),'2');await page.locator('#performance-mode').selectOption('1');await page.getByRole('button',{name:'Ativar Performance',exact:true}).click();
  assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='performancePlay')));
  await page.screenshot({path:path.join(output,'performance.png')});
- await page.locator('#brand').click();await page.locator('[data-category="13"]').click();await page.locator('[data-select="0"]').click();await page.keyboard.press('e');assert.equal(await page.locator('.parameter').count(),4);assert.equal(await page.locator('#heading').textContent(),'Mix da Performance');await page.keyboard.press('Escape');
+ await page.locator('#brand').click();await page.locator('[data-category="13"]').click();await page.locator('[data-select="0"]').click();await page.keyboard.press('e');assert.equal(await page.locator('.parameter').count(),4);assert.equal(await page.locator('#heading').textContent(),'Mix da Performance');await page.keyboard.press('e');
  await page.locator('[data-screen="4"]').click();await page.getByRole('button',{name:/Salvar perfil Escolha/}).click();await page.getByRole('button',{name:/Abrir perfil Carregue/}).click();assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='save')&&window.__commands.some(c=>c.action==='open')));
  await page.screenshot({path:path.join(output,'profiles.png')});
  await page.locator('#keyboard-nav').click();await page.locator('[data-note="60"]').focus();await page.keyboard.down('Space');await page.keyboard.up('Space');
  assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='noteOn'&&c.a===60)&&window.__commands.some(c=>c.action==='noteOff'&&c.a===60)));
  await page.keyboard.down('Space');await page.keyboard.press('F12');await page.keyboard.up('Space');assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='releaseNotes')&&window.__commands.some(c=>c.action==='panic')));
  await page.locator('[data-note="60"]').focus();await page.keyboard.down('Space');await page.keyboard.press('e');await page.keyboard.up('Space');assert.equal(await page.locator('.key.down').count(),0);assert.ok(await page.evaluate(()=>window.__commands.filter(c=>c.action==='releaseNotes').length>=2));
- await page.keyboard.press('Escape');await page.locator('#keyboard-nav').click();await page.screenshot({path:path.join(output,'keyboard.png')});
+ await page.keyboard.press('e');await page.locator('#keyboard-nav').click();await page.screenshot({path:path.join(output,'keyboard.png')});
  const priorCommands=await page.evaluate(()=>window.__commands.length);await page.emulateMedia({reducedMotion:'no-preference'});await page.reload({waitUntil:'networkidle'});await page.evaluate(()=>window.__setLoading(false));const openingReadyAt=await page.evaluate(()=>performance.now());await page.locator('#opening').waitFor({state:'hidden',timeout:6000});assert.ok((await page.evaluate(()=>performance.now()))-openingReadyAt>=2300,'automatic opening retains the original display time');
  assert.deepEqual(failures,[]);assert.deepEqual(external,[],'all assets must work offline');
  assert.equal(await page.evaluate(()=>Boolean(window.__vli||window.__vliAudioEffects)),false,'old browser synthesizer must not be loaded');
