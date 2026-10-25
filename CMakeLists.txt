@@ -200,3 +200,7 @@ if(LP_REAL_FLUIDSYNTH)
  target_link_libraries(lp_real_sf2_glide_probe PRIVATE lp_engine)
  add_test(NAME real_sf2_glide COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/tests/real_sf2_glide_test.py" $<TARGET_FILE:lp_real_sf2_glide_probe> "${LP_REAL_FLUIDSYNTH}" "${CMAKE_BINARY_DIR}/sf2-glide-validation")
 endif()
+
+add_executable(lp_reverb_test tests/reverb_test.cpp src/dsp.cpp)
+target_include_directories(lp_reverb_test PRIVATE src)
+add_test(NAME large_hall_reverb COMMAND lp_reverb_test)

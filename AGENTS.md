@@ -38,3 +38,7 @@ The user confirmed the Vision frontend portable at `7c639606` works well on thei
 ## SF2 portamento investigation (25 October 2026)
 
 The user reported that the compiled SF2 Portamento knob still did not produce smooth glide and requested a thorough investigation with research into the SF2 engine. Native FluidSynth portamento replaces the SF2-only bend simulation after reproducing the invalid 96-semitone sensitivity call (API maximum 72). Preserve Vision, ASIO, SFZ, profiles and per-part routing. Validate the audio pitch trajectory with a real library, including polyphony at zero, sustain, pitch wheel, rapid legato and panic. This source investigation does not request a new portable release.
+
+## Large-hall reverb (25 October 2026)
+
+The user requests deeper, large-room/worship reverb above 70%. Preserve the existing four-comb response through 70%, add a smoothly blended damped eight-line hall only in the upper range, and keep the parameter/profile/UI contract unchanged. This shared DSP affects SF2 and SFZ; no new portable upload was requested. Validate decay, bounded output, reset, automation and existing glide regression locally.

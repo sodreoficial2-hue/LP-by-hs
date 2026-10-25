@@ -20,10 +20,47 @@ float Dsp::Comb::tick(float x) noexcept {
  if(++cursor==samples.size())cursor=0;
  return y;
 }
+float Dsp::Hall::Diffuser::tick(float x) noexcept {
+ float delayed=samples[at],y=delayed-.6f*x;
+ samples[at]=x+.6f*y;if(++at==samples.size())at=0;return y;
+}
+void Dsp::Hall::prepare(float rate,int channel) {
+ constexpr float seconds[]{.0311f,.0379f,.0433f,.0531f,.0617f,.0713f,.0797f,.0893f};
+ constexpr float diffuse[]{.0047f,.0073f,.0113f,.0137f};
+ for(int k=0;k<8;++k)lines[k].samples.resize(static_cast<std::size_t>(rate*(seconds[k]+channel*.0011f)));
+ for(int k=0;k<4;++k)diffusion[k].samples.resize(static_cast<std::size_t>(rate*(diffuse[k]+channel*.0003f)));
+ preDelay.resize(static_cast<std::size_t>(rate*.028f));
+ hp=1-std::exp(-2*pi*180/rate);damping=1-std::exp(-2*pi*6000/rate);
+ smooth=1-std::exp(-1/(rate*.03f));decay(rate,2.5f);
+ for(auto& line:lines)line.gain=line.target;
+}
+void Dsp::Hall::decay(float rate,float seconds) {
+ for(auto& line:lines)line.target=std::pow(10.f,-3.f*line.samples.size()/(rate*seconds));
+}
+void Dsp::Hall::reset() noexcept {
+ inputLow=0;preAt=0;std::fill(preDelay.begin(),preDelay.end(),0);
+ for(auto& line:lines){line.at=0;line.low=0;line.gain=line.target;std::fill(line.samples.begin(),line.samples.end(),0);}
+ for(auto& d:diffusion){d.at=0;std::fill(d.samples.begin(),d.samples.end(),0);}
+}
+float Dsp::Hall::tick(float x) noexcept {
+ inputLow+=hp*(x-inputLow);x-=inputLow;
+ float input=preDelay[preAt];preDelay[preAt]=x;if(++preAt==preDelay.size())preAt=0;
+ input=diffusion[1].tick(diffusion[0].tick(input));
+ std::array<float,8> y{};float sum=0,out=0;
+ constexpr float signs[]{1,-1,-1,1,-1,1,1,-1};
+ for(int k=0;k<8;++k){auto& line=lines[k];float v=line.samples[line.at];
+  line.low+=damping*(v-line.low);line.gain+=smooth*(line.target-line.gain);
+  y[k]=line.low*line.gain;sum+=y[k];out+=v*signs[k];}
+ // I - 2 vv^T with v=(1,...,1)/sqrt(8): energy-preserving mixing.
+ for(int k=0;k<8;++k){auto& line=lines[k];line.samples[line.at]=y[k]-.25f*sum+input*signs[k]*.35355339f;
+  if(++line.at==line.samples.size())line.at=0;}
+ return diffusion[3].tick(diffusion[2].tick(out*.35355339f));
+}
 Dsp::Dsp(float sampleRate):rate(sampleRate) {
  if(!std::isfinite(rate)||rate<8000||rate>384000)throw std::invalid_argument("Invalid DSP sample rate");
  constexpr float lengths[]{.0297f,.0371f,.0411f,.0437f};
  for(int c=0;c<2;++c){
+  hall[c].prepare(rate,c);
   delay[c].resize(static_cast<std::size_t>(rate*.32f));
   chorus[c].resize(static_cast<std::size_t>(rate*.05f)+2);
   for(int k=0;k<4;++k)reverb[c][k].samples.resize(static_cast<std::size_t>(rate*(lengths[k]+c*.0013f)));
@@ -37,10 +74,14 @@ Dsp::Dsp(float sampleRate):rate(sampleRate) {
 void Dsp::parameters(const std::array<float,15>& values) {
  for(float v:values)if(!std::isfinite(v)||v<0||v>1)throw std::invalid_argument("Invalid DSP parameter");
  p=values;
+ float upper=std::clamp((p[6]-.7f)/.3f,0.f,1.f);
+ hallTarget=upper*upper*(3-2*upper);
+ for(auto& room:hall)room.decay(rate,2.5f+6.5f*hallTarget);
  constexpr float frequencies[]{120,1000,6000};
  for(auto& channel:eq)for(int k=0;k<3;++k)channel[k].peak(rate,frequencies[k],24*(p[11+k]-.5f));
 }
 void Dsp::reset() noexcept {
+ for(auto& room:hall)room.reset();hallMix=hallTarget;
  filter.fill({});follower=0;envelope=phase=chorusPhase=0;delayAt=chorusAt=0;
  for(auto& channel:eq)for(auto& band:channel)band.z1=band.z2=0;
  for(int c=0;c<2;++c){std::fill(delay[c].begin(),delay[c].end(),0);std::fill(chorus[c].begin(),chorus[c].end(),0);
@@ -50,7 +91,9 @@ void Dsp::process(float* left,float* right,int frames) noexcept {
  if(!left||!right||left==right||frames<=0)return;
  const float attack=std::exp(-1.f/(rate*.005f)),release=std::exp(-1.f/(rate*.10f));
  const float threshold=std::pow(10.f,(-6-24*p[10])/20),ratio=1+7*p[10];
+ const float hallSmoothing=1-std::exp(-1/(rate*.03f));
  for(int i=0;i<frames;++i){
+  hallMix+=hallSmoothing*(hallTarget-hallMix);
   float x[]{clean(left[i]),clean(right[i])};
   float detector=std::max(std::abs(x[0]),std::abs(x[1]));
   float followerCoefficient=detector>follower?followerAttack:followerRelease;
@@ -82,7 +125,9 @@ void Dsp::process(float* left,float* right,int frames) noexcept {
    auto a=static_cast<std::size_t>(read),b=(a+1)%chorus[c].size();float frac=read-a;
    float mod=chorus[c][a]*(1-frac)+chorus[c][b]*frac;chorus[c][chorusAt]=dry;
    float room=0;for(auto& comb:reverb[c])room+=comb.tick(dry*.25f);
-   float out=(dry+p[7]*echo*.5f+p[8]*mod*.4f+p[6]*room*.35f)*p[0];
+   float largeRoom=hall[c].tick(dry*hallMix);
+   float reverberation=p[6]*room*.35f*(1-.5f*hallMix)+largeRoom*.65f*hallMix;
+   float out=(dry+p[7]*echo*.5f+p[8]*mod*.4f+reverberation)*p[0];
    (c?right:left)[i]=clean(out);
   }
   if(++delayAt==delay[0].size())delayAt=0;
