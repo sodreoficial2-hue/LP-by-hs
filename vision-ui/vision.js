@@ -200,6 +200,11 @@
   const target=event.target,entry=target.matches('select,textarea,input:not([type=range])');
   if(state.screen==='performance'&&target.matches('select')&&event.key.toLowerCase()==='e'&&!event.ctrlKey&&!event.altKey&&!event.metaKey){event.preventDefault();flushParameters();send('effects');return;}
   if(entry||event.ctrlKey||event.altKey||event.metaKey)return;
+  // Keyboard shortcuts are additive; MIDI Program Change/Learn routing is unchanged.
+  if(!event.repeat && /^[0-9]$/.test(event.key) && !event.shiftKey && !target.matches('input,select,textarea,[contenteditable="true"]')){
+   const slot=event.key==='0'?9:Number(event.key)-1;
+   if(state.favorites?.[slot] && !state.favorites[slot].empty){event.preventDefault();flushParameters();send('activateFavorite',slot);return;}
+  }
   if(state.effects)send('touch');
   const key=event.key.toLowerCase();
   if(key==='e'){event.preventDefault();flushParameters();send('effects');return;}
