@@ -12,7 +12,7 @@
 #endif
 namespace lp {
 namespace {
-struct Settings;struct Synth;struct Font;struct Preset;
+struct Settings;struct Synth;struct Font;struct Preset;struct Mod;
 #ifdef _WIN32
 using Lib=HMODULE;
 Lib open(const std::filesystem::path& p){return LoadLibraryExW(std::filesystem::absolute(p).c_str(),nullptr,LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR|LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);}
@@ -40,6 +40,7 @@ struct Sf2Engine::Impl {
  int (*on)(Synth*,int,int,int){};int (*off)(Synth*,int,int){};
  int (*cc)(Synth*,int,int,int){};int (*bend)(Synth*,int,int){};
  int (*sensitivity)(Synth*,int,int){};
+ Mod* (*newMod)(){};void (*deleteMod)(Mod*){};void (*modSource1)(Mod*,int,int){};void (*modSource2)(Mod*,int,int){};void (*modDest)(Mod*,int){};int (*removeDefaultMod)(Synth*,const Mod*){};
  int (*silence)(Synth*,int){};int (*setGen)(Synth*,int,int,float){};int (*write)(Synth*,int,void*,int,int,void*,int,int){};
  ~Impl(){if(synth)deleteSynth(synth);if(settings)deleteSettings(settings);close(lib);}
 };
@@ -54,10 +55,24 @@ Sf2Engine::Sf2Engine(const std::filesystem::path& path,int rate):impl(new Impl){
  B(select,"fluid_synth_program_select");B(on,"fluid_synth_noteon");B(off,"fluid_synth_noteoff");
  B(sensitivity,"fluid_synth_pitch_wheel_sens");B(cc,"fluid_synth_cc");B(bend,"fluid_synth_pitch_bend");B(silence,"fluid_synth_all_sounds_off");
  B(write,"fluid_synth_write_float");B(setGen,"fluid_synth_set_gen");
+ B(newMod,"new_fluid_mod");B(deleteMod,"delete_fluid_mod");B(modSource1,"fluid_mod_set_source1");B(modSource2,"fluid_mod_set_source2");B(modDest,"fluid_mod_set_dest");B(removeDefaultMod,"fluid_synth_remove_default_mod");
 #undef B
  x.settings=x.newSettings();if(!x.settings)throw std::runtime_error("FluidSynth settings failed");
  x.setNum(x.settings,"synth.sample-rate",rate);x.synth=x.newSynth(x.settings);
  if(!x.synth)throw std::runtime_error("FluidSynth synth failed");
+ // SF2.01's default CC1 -> vibrato LFO modulator is additive even for
+ // SoundFonts which use CC1 for filter/other destinations. Remove only
+ // that default; embedded SF2 modulators and CC1 messages stay untouched.
+ // Flags: CC | linear | unipolar | positive = 0x80; destination 6
+ // (vibLfoToPitch), as specified by SoundFont 2.01.
+ if(auto* mod=x.newMod()){
+  x.modSource1(mod,1,0x80);
+  x.modSource2(mod,0,0);
+  x.modDest(mod,6);
+  x.removeDefaultMod(x.synth,mod);
+  x.deleteMod(mod);
+ }
+
 }
 Sf2Engine::~Sf2Engine()=default;
 void Sf2Engine::load(const std::filesystem::path& path){
