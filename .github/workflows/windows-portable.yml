@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - layout/accessible-v1
+      - vision21-correcoes-finais
     paths:
       - '.github/workflows/windows-portable.yml'
 
