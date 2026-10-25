@@ -1,0 +1,304 @@
+{
+  "base_commit": "28005ed58306550afaaa4f9ea3dd2b56b7380d08",
+  "root_cause": {
+    "old_pitch_wheel_sensitivity_requested": 96,
+    "api_maximum": 72,
+    "status_at_96": -1,
+    "status_at_72": 0,
+    "return_was_ignored": true
+  },
+  "real_audio_comparison": {
+    "scenario": "A4 to A5, glide amount 0.9, 243.15 ms after second note",
+    "expected_hz": 488.21056770985183,
+    "before_hz": 869.0658966633118,
+    "after_hz": 487.67518419329474
+  },
+  "ctest": {
+    "passed": 10,
+    "failed": 0
+  },
+  "real_fluidsynth_261": {
+    "result": "PASS",
+    "scope": "Real FluidSynth audio, offline",
+    "cases": {
+      "slow_up": {
+        "duration_ms": 1621.0,
+        "pitch_points": [
+          {
+            "seconds_after_note": 0.24314999999999998,
+            "hz": 487.67518419329474,
+            "expected_hz": 488.2105677098517
+          },
+          {
+            "seconds_after_note": 0.6484000000000001,
+            "hz": 580.0115789091484,
+            "expected_hz": 580.5834807400734
+          },
+          {
+            "seconds_after_note": 1.1346999999999998,
+            "hz": 713.9459533074015,
+            "expected_hz": 714.7821087934875
+          },
+          {
+            "seconds_after_note": 1.9451999999999998,
+            "hz": 880.0002332318022,
+            "expected_hz": 880.0
+          }
+        ]
+      },
+      "medium_down": {
+        "duration_ms": 504.0,
+        "pitch_points": [
+          {
+            "seconds_after_note": 0.0756,
+            "hz": 794.5380871195699,
+            "expected_hz": 793.1004070975308
+          },
+          {
+            "seconds_after_note": 0.2016,
+            "hz": 668.0292767748031,
+            "expected_hz": 666.9152892645752
+          },
+          {
+            "seconds_after_note": 0.3528,
+            "hz": 542.2260435795637,
+            "expected_hz": 541.703541871763
+          },
+          {
+            "seconds_after_note": 0.6048,
+            "hz": 439.99986173446865,
+            "expected_hz": 440.0
+          }
+        ]
+      },
+      "fast_up": {
+        "duration_ms": 50.0,
+        "pitch_points": [
+          {
+            "seconds_after_note": 0.0075,
+            "hz": 479.5585131503831,
+            "expected_hz": 488.2105677098517
+          },
+          {
+            "seconds_after_note": 0.020000000000000004,
+            "hz": 568.2432091905782,
+            "expected_hz": 580.5834807400734
+          },
+          {
+            "seconds_after_note": 0.034999999999999996,
+            "hz": 698.2640686579025,
+            "expected_hz": 714.7821087934875
+          },
+          {
+            "seconds_after_note": 0.06,
+            "hz": 879.9994731552189,
+            "expected_hz": 880.0
+          }
+        ]
+      },
+      "bend_disabled_font": {
+        "duration_ms": 1621.0,
+        "pitch_points": [
+          {
+            "seconds_after_note": 0.24314999999999998,
+            "hz": 487.67518419329474,
+            "expected_hz": 488.2105677098517
+          },
+          {
+            "seconds_after_note": 0.6484000000000001,
+            "hz": 580.0115789091484,
+            "expected_hz": 580.5834807400734
+          },
+          {
+            "seconds_after_note": 1.1346999999999998,
+            "hz": 713.9459533074015,
+            "expected_hz": 714.7821087934875
+          },
+          {
+            "seconds_after_note": 1.9451999999999998,
+            "hz": 880.0002332318022,
+            "expected_hz": 880.0
+          }
+        ]
+      },
+      "large_interval": {
+        "duration_ms": 1621.0,
+        "pitch_points": [
+          {
+            "seconds_after_note": 0.24314999999999998,
+            "hz": 166.109860792916,
+            "expected_hz": 166.72882231614383
+          },
+          {
+            "seconds_after_note": 0.6484000000000001,
+            "hz": 332.767889860942,
+            "expected_hz": 333.45764463228767
+          },
+          {
+            "seconds_after_note": 1.1346999999999998,
+            "hz": 763.4904227586476,
+            "expected_hz": 766.084495700589
+          },
+          {
+            "seconds_after_note": 1.9451999999999998,
+            "hz": 1760.000271441898,
+            "expected_hz": 1760.0
+          }
+        ]
+      }
+    }
+  },
+  "real_fluidsynth_234": {
+    "result": "PASS",
+    "scope": "Real FluidSynth audio, offline",
+    "cases": {
+      "slow_up": {
+        "duration_ms": 1621.0,
+        "pitch_points": [
+          {
+            "seconds_after_note": 0.24314999999999998,
+            "hz": 487.67518449847665,
+            "expected_hz": 488.2105677098517
+          },
+          {
+            "seconds_after_note": 0.6484000000000001,
+            "hz": 580.0115789388626,
+            "expected_hz": 580.5834807400734
+          },
+          {
+            "seconds_after_note": 1.1346999999999998,
+            "hz": 713.9459533427748,
+            "expected_hz": 714.7821087934875
+          },
+          {
+            "seconds_after_note": 1.9451999999999998,
+            "hz": 880.000233222363,
+            "expected_hz": 880.0
+          }
+        ]
+      },
+      "medium_down": {
+        "duration_ms": 504.0,
+        "pitch_points": [
+          {
+            "seconds_after_note": 0.0756,
+            "hz": 794.5380870647508,
+            "expected_hz": 793.1004070975308
+          },
+          {
+            "seconds_after_note": 0.2016,
+            "hz": 668.0292771117097,
+            "expected_hz": 666.9152892645752
+          },
+          {
+            "seconds_after_note": 0.3528,
+            "hz": 542.2260435013895,
+            "expected_hz": 541.703541871763
+          },
+          {
+            "seconds_after_note": 0.6048,
+            "hz": 439.99986169301434,
+            "expected_hz": 440.0
+          }
+        ]
+      },
+      "fast_up": {
+        "duration_ms": 50.0,
+        "pitch_points": [
+          {
+            "seconds_after_note": 0.0075,
+            "hz": 479.55851612016806,
+            "expected_hz": 488.2105677098517
+          },
+          {
+            "seconds_after_note": 0.020000000000000004,
+            "hz": 568.2432103833653,
+            "expected_hz": 580.5834807400734
+          },
+          {
+            "seconds_after_note": 0.034999999999999996,
+            "hz": 698.2640717127198,
+            "expected_hz": 714.7821087934875
+          },
+          {
+            "seconds_after_note": 0.06,
+            "hz": 879.9994724949803,
+            "expected_hz": 880.0
+          }
+        ]
+      },
+      "bend_disabled_font": {
+        "duration_ms": 1621.0,
+        "pitch_points": [
+          {
+            "seconds_after_note": 0.24314999999999998,
+            "hz": 487.67518449847665,
+            "expected_hz": 488.2105677098517
+          },
+          {
+            "seconds_after_note": 0.6484000000000001,
+            "hz": 580.0115789388626,
+            "expected_hz": 580.5834807400734
+          },
+          {
+            "seconds_after_note": 1.1346999999999998,
+            "hz": 713.9459533427748,
+            "expected_hz": 714.7821087934875
+          },
+          {
+            "seconds_after_note": 1.9451999999999998,
+            "hz": 880.000233222363,
+            "expected_hz": 880.0
+          }
+        ]
+      },
+      "large_interval": {
+        "duration_ms": 1621.0,
+        "pitch_points": [
+          {
+            "seconds_after_note": 0.24314999999999998,
+            "hz": 166.10986126923248,
+            "expected_hz": 166.72882231614383
+          },
+          {
+            "seconds_after_note": 0.6484000000000001,
+            "hz": 332.76789000482785,
+            "expected_hz": 333.45764463228767
+          },
+          {
+            "seconds_after_note": 1.1346999999999998,
+            "hz": 763.4904229117196,
+            "expected_hz": 766.084495700589
+          },
+          {
+            "seconds_after_note": 1.9451999999999998,
+            "hz": 1760.0002714535829,
+            "expected_hz": 1760.0
+          }
+        ]
+      }
+    }
+  },
+  "additional_audio_checks": [
+    "continuous rapid legato",
+    "last-held-note return",
+    "staccato",
+    "physical pitch bend independent of glide",
+    "panic first-note tuning",
+    "sustain and pedal release",
+    "polyphony at zero and after disabling glide",
+    "reserved controller ownership",
+    "CC121 restores portamento"
+  ],
+  "windows_cross_compile": {
+    "target": "LivePerformanceVision.exe",
+    "result": "PASS",
+    "bytes": 5035833,
+    "sha256": "a76c59a9c38ea62c18cdc0f44bb55df734aa1999942b9117ee6197c549621851",
+    "vision_marker": true
+  },
+  "windows_hardware_validation": false,
+  "github_actions_started": 0,
+  "github_authenticated_remaining_allowance": "unknown",
+  "portable_generated": false
+}

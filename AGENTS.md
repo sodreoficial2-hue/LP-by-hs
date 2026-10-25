@@ -34,3 +34,7 @@ Forward complete 14-bit pitch bend to sfizz, centered at signed zero. Keep CC64 
 ## User validation and Performance editor follow-up (24 October 2026)
 
 The user confirmed the Vision frontend portable at `7c639606` works well on their Windows machine, including the layout and normal operation during a stage simulation. The authorized follow-up is limited to per-part category filters, complete parameters for the selected part inside the Performance Editor, four-volume-only playback mix, automatic latest mix recall for favorites, temporary mix for nonfavorites, and removal of the redundant header Favorites icon. A new local compilation and portable are explicitly requested. Preserve all unrelated working behavior. This confirmation covers the preceding portable, not untested changes in the follow-up.
+
+## SF2 portamento investigation (25 October 2026)
+
+The user reported that the compiled SF2 Portamento knob still did not produce smooth glide and requested a thorough investigation with research into the SF2 engine. Native FluidSynth portamento replaces the SF2-only bend simulation after reproducing the invalid 96-semitone sensitivity call (API maximum 72). Preserve Vision, ASIO, SFZ, profiles and per-part routing. Validate the audio pitch trajectory with a real library, including polyphony at zero, sustain, pitch wheel, rapid legato and panic. This source investigation does not request a new portable release.

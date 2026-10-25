@@ -192,3 +192,11 @@ if(WIN32 AND LP_ENABLE_VISION_UI)
   COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:lp_fake_sfizz>" "$<TARGET_FILE_DIR:lp_win32_vision_test>/sfizz.dll"
   COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/recovery/extracted/live/samples" "$<TARGET_FILE_DIR:lp_win32_vision_test>/samples")
 endif()
+
+# Deterministic, audible pitch-trajectory regression using a real FluidSynth library.
+if(LP_REAL_FLUIDSYNTH)
+ find_package(Python3 COMPONENTS Interpreter REQUIRED)
+ add_executable(lp_real_sf2_glide_probe tests/real_sf2_glide_probe.cpp)
+ target_link_libraries(lp_real_sf2_glide_probe PRIVATE lp_engine)
+ add_test(NAME real_sf2_glide COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/tests/real_sf2_glide_test.py" $<TARGET_FILE:lp_real_sf2_glide_probe> "${LP_REAL_FLUIDSYNTH}" "${CMAKE_BINARY_DIR}/sf2-glide-validation")
+endif()
