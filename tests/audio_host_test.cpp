@@ -56,8 +56,8 @@ int main(int argc,char** argv){
  host.masterVolume(1);fakeSampleRate(48000);
  host.unload();check(!host.loaded()&&host.running());fakePump(left,right,2048);check(left[0]==0);host.stop();check(!host.running());
  }
- {lp::AudioHost reopened(argv[1]);auto saved=lp::restoreRememberedAudio(reopened,preferences);check(reopened.running()&&reopened.selectedDevice()==1&&reopened.bufferSize()==128&&saved.driver=="ASIO4ALL");lp::connectAndRemember(reopened,3,256,preferences);}
- {lp::AudioHost reopened(argv[1]);auto saved=lp::restoreRememberedAudio(reopened,preferences);check(reopened.running()&&reopened.selectedDevice()==3&&reopened.bufferSize()==256&&saved.driver=="TASCAM US-1800");}
+ {lp::AudioHost reopened(argv[1]);auto saved=lp::restoreRememberedAudio(reopened,preferences);check(reopened.running()&&reopened.selectedDevice()==1&&reopened.bufferSize()==0&&saved.driver=="ASIO4ALL");lp::connectAndRemember(reopened,3,256,preferences);}
+ {lp::AudioHost reopened(argv[1]);auto saved=lp::restoreRememberedAudio(reopened,preferences);check(reopened.running()&&reopened.selectedDevice()==3&&reopened.bufferSize()==0&&saved.driver=="TASCAM US-1800");}
  lp::AudioSettings{"Unavailable driver",128}.save(preferences);
  {lp::AudioHost reopened(argv[1]);bool unavailable=false;try{lp::restoreRememberedAudio(reopened,preferences);}catch(...){unavailable=true;}check(unavailable&&!reopened.running());}
  check(lp::resolveAsioDriver({{8,"TASCAM"},{13,"ASIO4ALL"}},"ASIO4ALL")==13);

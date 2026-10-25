@@ -20,6 +20,7 @@ inline void connectAndRemember(AudioHost& host,int device,unsigned long buffer,c
  host.start(device,buffer);rememberConnectedAudio(host,path);
 }
 inline AudioSettings restoreRememberedAudio(AudioHost& host,const std::filesystem::path& path){
- auto saved=AudioSettings::load(path);host.start(resolveAsioDriver(host.devices(),saved.driver),saved.buffer);return saved;
+ // Legacy files remain readable; the driver now owns the buffer selection.
+ auto saved=AudioSettings::load(path);host.start(resolveAsioDriver(host.devices(),saved.driver),0);return saved;
 }
 }

@@ -21,7 +21,7 @@ fs.mkdirSync(output,{recursive:true});
    catalog:[{id:0,name:'Concert Grand',favorite:false,loaded:false},{id:1,name:'Piano "Soul" <b>Seguro</b>',favorite:false,loaded:false}],
    favorites:Array.from({length:20},(_,id)=>({id,name:id===0?'Concert Grand':id===19?'Rhodes':'Vazio',occupied:id===0||id===19,loaded:false})),
    controls:parameters.map((name,id)=>({id,name,label:name+': 50%',value:500,enabled:id===15})),partMix:false,
-   audio:{drivers:['Selecione driver ASIO','ASIO4ALL v2','TASCAM US-1800'],driver:0,buffers:['Buffer do driver','64','128','256','512','1024','2048'],buffer:0,midiInputs:['MIDI desligado','A-PRO'],midi:0,connected:false,sampleRate:48000,latencyMs:5.3},
+   audio:{drivers:['Selecione driver ASIO','ASIO4ALL v2','TASCAM US-1800'],driver:0,midiInputs:['MIDI desligado','A-PRO'],midi:0,connected:false,sampleRate:48000,latencyMs:5.3},
    performance:{mode:0,name:'Minha Performance',parts:[0,0,0,0],editingPart:0,instrumentCategories:[-1,0,1,2],modes:['Camadas: quatro timbres','Dividir 2 + 2','Dividir 3 + 1','Dividir 2 + 1 + 1','Dividir quatro partes'],instruments:['Desativado','Concert Grand','Rhodes','Órgão']},about:'Hugo Sodré\nMúsica, visão e propósito.\n\nCréditos dos instrumentos.'};
   const emit=()=>receiver?.({data:JSON.parse(JSON.stringify(state))});window.__setLoading=value=>{state.loading=value;state.progress=value?35:100;emit();};
   window.chrome={webview:{addEventListener:(_,fn)=>{receiver=fn;},postMessage:wire=>{
@@ -36,7 +36,6 @@ fs.mkdirSync(output,{recursive:true});
    if(action==='screen'){state.screen=['home','instruments','performance','audio','profiles','about','keyboard'][a];state.effects=false;}
    if(action==='parameter'){state.controls[a].value=b;state.controls[a].label=state.controls[a].name+': '+Math.round(b/10)+'%';}
    if(action==='driver'){state.audio.driver=a;state.audio.connected=a>0;}
-   if(action==='buffer')state.audio.buffer=a;
    if(action==='midi')state.audio.midi=a;
    if(action==='editPart')state.performance.editingPart=a;
    if(action==='performanceName')state.performance.name=decodeURIComponent(text);
@@ -76,7 +75,7 @@ fs.mkdirSync(output,{recursive:true});
  await page.locator('[data-select="0"]').click({button:'right'});assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='learnFavorite'&&c.a===0)));
  await page.locator('[data-select="19"]').click({button:'right'});assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='learnFavorite'&&c.a===19)));
  await page.screenshot({path:path.join(output,'favorites.png')});
- await page.locator('[data-screen="3"]').click();await page.locator('#driver').selectOption('1');await page.locator('#midi').selectOption('1');await page.locator('#buffer').selectOption('3');
+ await page.locator('[data-screen="3"]').click();await page.locator('#driver').selectOption('1');await page.locator('#midi').selectOption('1');assert.equal(await page.locator('#buffer').count(),0);
  assert.equal(await page.locator('#audio-dot').getAttribute('class'),'dot connected');
  await page.getByRole('button',{name:'ASIO Control',exact:true}).click();assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='controlPanel')));
  await page.screenshot({path:path.join(output,'audio.png')});

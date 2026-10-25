@@ -51,7 +51,6 @@ inline Command parse(std::string_view wire) {
  else if(c.action=="parameter")limit(15,1000);
  else if(c.action=="learnParameter")limit(15,0);
  else if(c.action=="driver"||c.action=="midi")limit(4096,0);
- else if(c.action=="buffer")limit(6,0);
  else if(c.action=="performanceMode")limit(4,0);
  else if(c.action=="performancePart")limit(3,100000);
  else if(c.action=="clearPart"||c.action=="editPart")limit(3,0);

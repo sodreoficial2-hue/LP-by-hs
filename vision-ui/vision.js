@@ -103,8 +103,8 @@
  }
  function audio(){
   title('Áudio e MIDI','SUA CONEXÃO DE PALCO');const a=state.audio;
-  const io=node('section',{class:'panel wide'},node('h2',{},'Driver ASIO e controlador MIDI'),field('Driver ASIO','driver',a.drivers,a.driver,i=>send('driver',i)),field('Buffer de áudio','buffer',a.buffers,a.buffer,i=>send('buffer',i)),field('Entrada MIDI','midi',a.midiInputs,a.midi,i=>send('midi',i)),node('div',{class:'actions'},button('Conectar ASIO',()=>send('connect'),{class:'primary'}),button('Desconectar',()=>send('disconnect')),button('ASIO Control',()=>send('controlPanel'))));
-  const info=node('section',{class:'panel wide'},node('h2',{},'Estado da conexão'),node('p',{class:'metric',id:'audio-detail'}),node('p',{class:'note'},'Áudio e MIDI são processados pelo motor nativo. As configurações de áudio são salvas automaticamente.'));
+  const io=node('section',{class:'panel wide'},node('h2',{},'Driver ASIO e controlador MIDI'),field('Driver ASIO','driver',a.drivers,a.driver,i=>send('driver',i)),field('Entrada MIDI','midi',a.midiInputs,a.midi,i=>send('midi',i)),node('div',{class:'actions'},button('Conectar ASIO',()=>send('connect'),{class:'primary'}),button('Desconectar',()=>send('disconnect')),button('ASIO Control',()=>send('controlPanel'))));
+  const info=node('section',{class:'panel wide'},node('h2',{},'Estado da conexão'),node('p',{class:'metric',id:'audio-detail'}),node('p',{class:'note'},'Ajuste o buffer no ASIO Control. As configurações de áudio são salvas automaticamente.'));
   return node('div',{class:'form-grid'},io,info);
  }
  function profiles(){
@@ -190,7 +190,7 @@
   for(const row of document.querySelectorAll('.sound-row')){const r=rows[Number(row.dataset.row)];if(!r)continue;row.classList.toggle('selected',Number(row.dataset.row)===state.selected);row.classList.toggle('loaded',Boolean(r.loaded));row.querySelector('.sound-select')?.setAttribute('aria-pressed',String(Boolean(r.loaded)));const star=row.querySelector('.favorite-toggle');if(star&&state.category!==15){star.textContent=r.favorite?'★':'☆';star.setAttribute('aria-pressed',String(r.favorite));star.setAttribute('aria-label',`${r.favorite?'Remover dos favoritos:':'Favoritar'} ${r.name}`);}}
   for(const c of state.controls){const range=$(`parameter-${c.id}`),cell=document.querySelector(`[data-parameter="${c.id}"]`);if(!range||!cell)continue;if(document.activeElement!==range){range.value=String(c.value);$(`value-${c.id}`).textContent=`${Math.round(c.value/10)}%`;cell.querySelector('.knob').style.setProperty('--angle',`${c.value*.27}deg`);}range.disabled=!c.enabled;cell.classList.toggle('disabled',!c.enabled);cell.querySelector('.learn').disabled=!c.enabled;$(`mapping-${c.id}`).textContent=c.label.includes(' · ')?c.label.split(' · ').slice(1).join(' · '):'Clique direito para mapear';}
   if($('audio-detail'))$('audio-detail').textContent=state.audio.connected?`ASIO conectado · ${state.audio.sampleRate} Hz · ${state.audio.latencyMs.toFixed(1)} ms de saída`:'ASIO desconectado';
-  for(const [id,value] of [['driver',state.audio.driver],['buffer',state.audio.buffer],['midi',state.audio.midi],['performance-mode',state.performance.mode],['performance-name',state.performance.name],...state.performance.parts.map((p,i)=>[`part-${i}`,p])]){const target=$(id);if(target&&document.activeElement!==target)target.value=String(value);}
+  for(const [id,value] of [['driver',state.audio.driver],['midi',state.audio.midi],['performance-mode',state.performance.mode],['performance-name',state.performance.name],...state.performance.parts.map((p,i)=>[`part-${i}`,p])]){const target=$(id);if(target&&document.activeElement!==target)target.value=String(value);}
   document.querySelectorAll('[data-part]').forEach(row=>row.classList.toggle('editing',Number(row.dataset.part)===state.performance.editingPart));
   if($('progress'))$('progress').value=state.progress;
  }

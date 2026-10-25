@@ -31,7 +31,7 @@
 #endif
 
 namespace {
-constexpr int Catalog=100,Favorites=101,Save=102,Open=103,Midi=104,Effects=105,Import=106,ImportSf2=114,AudioDriver=107,AudioBuffer=108,AudioStart=109,AudioStop=110,AudioPanel=111,Panic=112,Category=113,Knob=200,MidiLearnKnob=115,PerformanceButton=116,PerformanceModeControl=117,PerformancePartBase=118,PerformancePlay=122,PerformanceSave=123,PerformanceName=124,PerformanceEditPart=125,PerformanceClearBase=126,AudioMidiButton=140,SettingsButton=141,AboutButton=142,CategoryTile=143,PreviousCategory=144,NextCategory=145,InstrumentArt=146,AboutText=147,HomeButton=148,KeyboardButton=149,CategoryCardBase=400;
+constexpr int Catalog=100,Favorites=101,Save=102,Open=103,Midi=104,Effects=105,Import=106,ImportSf2=114,AudioDriver=107,AudioStart=109,AudioStop=110,AudioPanel=111,Panic=112,Category=113,Knob=200,MidiLearnKnob=115,PerformanceButton=116,PerformanceModeControl=117,PerformancePartBase=118,PerformancePlay=122,PerformanceSave=123,PerformanceName=124,PerformanceEditPart=125,PerformanceClearBase=126,AudioMidiButton=140,SettingsButton=141,AboutButton=142,CategoryTile=143,PreviousCategory=144,NextCategory=145,InstrumentArt=146,AboutText=147,HomeButton=148,KeyboardButton=149,CategoryCardBase=400;
 constexpr UINT BeginParameterLearn=WM_APP+40,LoadLibraryMessage=WM_APP+41,ToggleFavoriteMessage=WM_APP+42,SelectSoundMessage=WM_APP+43,RevealFocusMessage=WM_APP+44,VisionCommandMessage=WM_APP+45;
 LRESULT CALLBACK pageProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
 LRESULT CALLBACK focusProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
@@ -61,7 +61,7 @@ struct App {
  lp::Patch previewPatch{};
  bool previewActive=false;
  std::unique_ptr<lp::AudioHost> engine;
- HWND audioDriver{},audioBuffer{},performanceMode{},performancePlay{},performanceName{},performanceEditPart{},performanceSave{};
+ HWND audioDriver{},performanceMode{},performancePlay{},performanceName{},performanceEditPart{},performanceSave{};
  lp::Performance editingPerformance{};
  bool editingPerformanceValid=false;
  int editingPart=0;
@@ -70,7 +70,6 @@ struct App {
  std::array<HWND,4> performanceClearButtons{};
  bool performanceVisible=false;
  std::vector<lp::AudioDevice> audioDevices;
- const std::array<unsigned long,7> buffers{0,64,128,256,512,1024,2048};
  std::filesystem::path settingsPath;
  std::filesystem::path mySoundsPath() const {return settingsPath.parent_path()/L"my_sounds.catalog";}
  bool addMySound(lp::Instrument item){
@@ -173,7 +172,6 @@ struct App {
   status=control(L"STATIC",L"Selecione seu driver ASIO, clique em Conectar ASIO e escolha um timbre.",SS_LEFT|SS_NOPREFIX,2);
   SendMessageW(status,WM_SETFONT,reinterpret_cast<WPARAM>(statusFont),TRUE);
   audioDriver=control(L"COMBOBOX",L"",CBS_DROPDOWNLIST|WS_VSCROLL|WS_TABSTOP,AudioDriver);
-  audioBuffer=control(L"COMBOBOX",L"",CBS_DROPDOWNLIST|WS_VSCROLL|WS_TABSTOP,AudioBuffer);
   control(L"BUTTON",L"Conectar ASIO",BS_PUSHBUTTON|WS_TABSTOP,AudioStart);
   control(L"BUTTON",L"Desconectar",BS_PUSHBUTTON|WS_TABSTOP,AudioStop);
   control(L"BUTTON",L"ASIO Control",BS_PUSHBUTTON|WS_TABSTOP,AudioPanel);
@@ -197,8 +195,6 @@ struct App {
   control(L"BUTTON",L"Pânico (F12)",BS_PUSHBUTTON|WS_TABSTOP,Panic);
   SendMessageW(audioDriver,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Selecione driver ASIO"));
   SendMessageW(audioDriver,CB_SETCURSEL,0,0);
-  for(auto size:buffers){auto text=size?L"Buffer "+std::to_wstring(size):L"Buffer do driver";SendMessageW(audioBuffer,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(text.c_str()));}
-  SendMessageW(audioBuffer,CB_SETCURSEL,0,0);
   for(int i=0;i<16;++i){labels[i]=control(L"STATIC",L"",SS_LEFT|SS_NOTIFY,Knob+100+i);sliders[i]=control(TRACKBAR_CLASSW,L"",TBS_HORZ|WS_TABSTOP,Knob+i);SendMessageW(sliders[i],TBM_SETRANGE,TRUE,MAKELPARAM(0,1000));
    if(!SetWindowSubclass(sliders[i],parameterProc,i,0)||!SetWindowSubclass(labels[i],parameterProc,i,0))throw std::runtime_error("Não foi possível habilitar o clique direito dos parâmetros");}
   for(int i=0;i<4;++i){SendMessageW(performancePartControls[i],CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Desativado"));SendMessageW(performancePartControls[i],CB_SETCURSEL,0,0);}
@@ -283,8 +279,6 @@ struct App {
    if(std::filesystem::exists(settingsPath)){
     auto saved=lp::AudioSettings::load(settingsPath);int device=lp::resolveAsioDriver(audioDevices,saved.driver);
     for(std::size_t i=0;i<audioDevices.size();++i)if(audioDevices[i].id==device)SendMessageW(audioDriver,CB_SETCURSEL,i+1,0);
-    auto buffer=std::find(buffers.begin(),buffers.end(),saved.buffer);if(buffer==buffers.end())throw std::runtime_error("Buffer ASIO salvo inválido");
-    SendMessageW(audioBuffer,CB_SETCURSEL,buffer-buffers.begin(),0);
     if(!saved.midi.empty()){for(UINT i=0;i<midiInGetNumDevs();++i){MIDIINCAPSW caps{};if(midiInGetDevCapsW(i,&caps,sizeof(caps))==MMSYSERR_NOERROR&&std::filesystem::path(caps.szPname).u8string()==saved.midi){SendMessageW(midi,CB_SETCURSEL,i+1,0);openMidiSelection();break;}}}
 
     pendingRestore=true;SetTimer(window,2,750,nullptr);message(L"Reconectando automaticamente o último driver ASIO...");
@@ -446,8 +440,8 @@ struct App {
   if(id==AudioMidiButton){openScreen(lp::Screen::AudioMidi);return;}if(id==SettingsButton){openScreen(lp::Screen::Settings);return;}if(id==AboutButton){openScreen(lp::Screen::About);return;}
 
   if(id>=PerformanceClearBase&&id<PerformanceClearBase+4){clearPerformancePart(id-PerformanceClearBase);return;}
-  if((id==AudioDriver||id==AudioBuffer)&&event==CBN_SELCHANGE&&SendMessageW(audioDriver,CB_GETCURSEL,0,0)<1)return;
-  if(id==AudioStart||((id==AudioDriver||id==AudioBuffer)&&event==CBN_SELCHANGE)){cancelAudioRestore();if(!engine)throw std::runtime_error("Audio engine unavailable; check sfizz.dll and ASIO");auto index=driverIndex();auto selected=SendMessageW(audioBuffer,CB_GETCURSEL,0,0);if(selected<0||static_cast<std::size_t>(selected)>=buffers.size())throw std::runtime_error("Select ASIO buffer");lp::connectAndRemember(*engine,audioDevices[index].id,buffers[selected],settingsPath);persistAudioAndMidi();audioStatus();}
+  if(id==AudioDriver&&event==CBN_SELCHANGE&&SendMessageW(audioDriver,CB_GETCURSEL,0,0)<1)return;
+  if(id==AudioStart||(id==AudioDriver&&event==CBN_SELCHANGE)){cancelAudioRestore();if(!engine)throw std::runtime_error("Audio engine unavailable; check sfizz.dll and ASIO");auto index=driverIndex();lp::connectAndRemember(*engine,audioDevices[index].id,0,settingsPath);persistAudioAndMidi();audioStatus();}
   if(id==AudioStop&&engine){cancelAudioRestore();engine->stop();audioStatus();}
   if(id==AudioPanel){if(!engine)throw std::runtime_error("Audio engine unavailable");engine->controlPanel(audioDevices[driverIndex()].id,window);audioStatus();}
   if(id==MidiLearnKnob){int selected=-1;auto focus=GetFocus();for(int i=0;i<14;++i)if(focus==sliders[i]||focus==labels[i]){selected=i;break;}if(selected<0){message(L"Abra Parâmetros (E), selecione o knob desejado com TAB e clique MIDI Learn ou pressione Ctrl+L.");}else beginParameterLearn(static_cast<std::size_t>(selected));}

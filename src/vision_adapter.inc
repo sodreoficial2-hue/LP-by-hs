@@ -41,7 +41,7 @@
   for(unsigned i=0;i<20;++i){if(i)out<<',';auto name=show.performances[i]?show.performances[i]->name:(show.favorites[i]?visionUtf8(favoriteName(*show.favorites[i])):"Vazio");out<<"{\"id\":"<<i<<",\"name\":"<<quote(name)<<",\"occupied\":"<<(show.favorites[i]?"true":"false")<<",\"loaded\":"<<(show.current&&*show.current==i&&engine&&engine->loaded()?"true":"false")<<'}';}out<<"],\"controls\":[";
   for(int i=0;i<16;++i){if(i)out<<',';out<<"{\"id\":"<<i<<",\"name\":"<<quote(visionText(sliders[i]))<<",\"label\":"<<quote(visionText(labels[i]))<<",\"value\":"<<SendMessageW(sliders[i],TBM_GETPOS,0,0)<<",\"enabled\":"<<(IsWindowEnabled(sliders[i])?"true":"false")<<'}';}out<<"],\"partMix\":"<<(performanceControls()?"true":"false")<<",\"audio\":{";
   auto options=[&](const char* name,HWND control){out<<quote(name)<<":[";auto count=SendMessageW(control,CB_GETCOUNT,0,0);for(int i=0;i<count;++i){if(i)out<<',';out<<quote(visionOption(control,i));}out<<']';};
-  options("drivers",audioDriver);out<<",\"driver\":"<<SendMessageW(audioDriver,CB_GETCURSEL,0,0)<<',';options("buffers",audioBuffer);out<<",\"buffer\":"<<SendMessageW(audioBuffer,CB_GETCURSEL,0,0)<<',';options("midiInputs",midi);out<<",\"midi\":"<<SendMessageW(midi,CB_GETCURSEL,0,0)<<",\"connected\":"<<(engine&&engine->running()?"true":"false")<<",\"sampleRate\":"<<(engine?engine->sampleRate():0)<<",\"latencyMs\":"<<(engine&&engine->running()?engine->latency()*1000:0)<<"},\"performance\":{\"mode\":"<<SendMessageW(performanceMode,CB_GETCURSEL,0,0)<<",\"name\":"<<quote(visionText(performanceName))<<",\"parts\":[";
+  options("drivers",audioDriver);out<<",\"driver\":"<<SendMessageW(audioDriver,CB_GETCURSEL,0,0)<<',';options("midiInputs",midi);out<<",\"midi\":"<<SendMessageW(midi,CB_GETCURSEL,0,0)<<",\"connected\":"<<(engine&&engine->running()?"true":"false")<<",\"sampleRate\":"<<(engine?engine->sampleRate():0)<<",\"latencyMs\":"<<(engine&&engine->running()?engine->latency()*1000:0)<<"},\"performance\":{\"mode\":"<<SendMessageW(performanceMode,CB_GETCURSEL,0,0)<<",\"name\":"<<quote(visionText(performanceName))<<",\"parts\":[";
   for(int i=0;i<4;++i){if(i)out<<',';out<<SendMessageW(performancePartControls[i],CB_GETCURSEL,0,0);}out<<"],\"editingPart\":"<<editingPart<<",\"instrumentCategories\":[-1";for(const auto& instrument:instruments)out<<','<<instrument.category;out<<"],";options("modes",performanceMode);out<<',';options("instruments",performancePartControls[0]);out<<"},\"about\":"<<quote(visionText(item(AboutText)))<<'}';return out.str();
  }
  void flushVision(unsigned request=0){if(!visionVisible()||(!visionDirty&&!request))return;vision->post(visionWide(visionState(request)));visionDirty=false;}
@@ -80,8 +80,8 @@
    else if(c.action=="escape"){cancelMidiLearn();releaseVisionNotes();if(!effects)command(HomeButton,BN_CLICKED);}
    else if(c.action=="parameter"){if(!effects||!IsWindowEnabled(sliders[c.a]))throw std::runtime_error("Controle indisponível");setPanelValue(c.a,c.b/1000.0f);}
    else if(c.action=="learnParameter")beginParameterLearn(c.a);
-   else if(c.action=="driver"||c.action=="buffer"||c.action=="midi"){
-    int id=c.action=="driver"?AudioDriver:(c.action=="buffer"?AudioBuffer:Midi);visionSelect(item(id),c.a);command(id,CBN_SELCHANGE);
+   else if(c.action=="driver"||c.action=="midi"){
+    int id=c.action=="driver"?AudioDriver:Midi;visionSelect(item(id),c.a);command(id,CBN_SELCHANGE);
    }
    else if(c.action=="performanceMode")visionSelect(performanceMode,c.a);
    else if(c.action=="performancePart"){visionSelect(performancePartControls[c.a],c.b);editingPart=c.a;refreshParameters();}

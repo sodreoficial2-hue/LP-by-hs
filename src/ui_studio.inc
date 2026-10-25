@@ -128,8 +128,8 @@
   case lp::Screen::AudioMidi:{
    panel({32,p+8,width-32,p+82});
    lpui::text(dc,engine&&engine->running()?L"Áudio conectado":L"Prepare sua conexão de palco",{56,p+20,width-56,p+68},font,lpui::gold,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
-   panel({32,p+100,width-32,p+424});int driverWidth=width-408;
-   label(L"DRIVER ASIO",{56,p+112,56+driverWidth,p+146});label(L"BUFFER",{80+driverWidth,p+112,width-56,p+146});
+   panel({32,p+100,width-32,p+424});
+   label(L"DRIVER ASIO",{56,p+112,width-56,p+146});
    label(L"CONTROLADOR MIDI",{56,p+222,width-56,p+256});
    panel({32,p+444,width-32,p+552});
    auto rate=engine&&engine->running()?std::to_wstring(static_cast<int>(engine->sampleRate()))+L" Hz  ·  Frequência do áudio":L"Frequência ajustada automaticamente pelo driver";

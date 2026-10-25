@@ -97,8 +97,7 @@
   }else if(screen==lp::Screen::Instruments){
    int left=width*2/5;place(InstrumentArt,32,p+20,left-48,pageScroll.content-42);place(categoryIndex==15?Favorites:Catalog,left+8,p+62,width-left-40,pageScroll.content-84);
   }else if(screen==lp::Screen::AudioMidi){
-   int driverWidth=width-408;
-   place(AudioDriver,56,p+152,driverWidth,300);place(AudioBuffer,80+driverWidth,p+152,272,300);place(Midi,56,p+262,width-112,300);
+   place(AudioDriver,56,p+152,width-112,300);place(Midi,56,p+262,width-112,300);
    int actionWidth=(width-144)/3;place(AudioStart,56,p+340,actionWidth,60);place(AudioStop,72+actionWidth,p+340,actionWidth,60);place(AudioPanel,88+2*actionWidth,p+340,actionWidth,60);place(Panic,width-300,p+460,244,60);
   }else if(screen==lp::Screen::Settings){
    int half=(width-84)/2;
