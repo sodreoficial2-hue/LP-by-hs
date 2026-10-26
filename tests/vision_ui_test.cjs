@@ -64,6 +64,7 @@ fs.mkdirSync(output,{recursive:true});
  await page.keyboard.press('Enter');assert.equal(await page.locator('.sound-row').count(),2);assert.equal(await page.locator('#loaded-name').textContent(),'Nenhum timbre carregado');
  await page.locator('[data-select="0"]').click();assert.equal(await page.locator('#loaded-name').textContent(),'Concert Grand');
  await page.keyboard.press('ArrowDown');assert.equal(await page.locator('#loaded-name').textContent(),'Piano "Soul" <b>Seguro</b>');assert.equal(await page.locator('.sound-select b').count(),0,'filenames must not inject HTML');
+ await page.keyboard.press('Control+d');assert.ok(await page.evaluate(()=>window.__commands.some(c=>c.action==='deleteSelected')));
  await page.keyboard.press('Space');assert.equal(await page.locator('[data-star="1"]').textContent(),'★');
  await page.screenshot({path:path.join(output,'instruments.png')});
  await page.keyboard.press('e');assert.equal(await page.locator('.parameter').count(),16);

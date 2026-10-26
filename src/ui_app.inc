@@ -144,6 +144,7 @@
  bool keyCommand(MSG& msg){
   if(msg.message!=WM_KEYDOWN||loading)return false;
   auto key=msg.wParam;wchar_t kind[32]{};GetClassNameW(GetFocus(),kind,32);bool textControl=_wcsicmp(kind,L"EDIT")==0;bool typing=textControl&&!(GetWindowLongPtrW(GetFocus(),GWL_STYLE)&ES_READONLY);
+  if(key=='D'&&!typing&&(GetKeyState(VK_CONTROL)&0x8000)&&!(GetKeyState(VK_MENU)&0x8000)&&!(GetKeyState(VK_SHIFT)&0x8000)){if(!(msg.lParam&(1L<<30)))deleteSelectedSound();return true;}
   if(key==VK_F12){command(Panic,0);return true;}
   if(key==VK_ESCAPE){if(effects){cancelMidiLearn();return true;}goHome();return true;}
   if(!typing&&!(GetKeyState(VK_CONTROL)&0x8000)&&!(GetKeyState(VK_MENU)&0x8000)){

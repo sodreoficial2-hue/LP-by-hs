@@ -208,3 +208,7 @@ add_test(NAME large_hall_reverb COMMAND lp_reverb_test)
 add_executable(lp_sf2_expansion_test tests/sf2_expansion_test.cpp)
 target_include_directories(lp_sf2_expansion_test PRIVATE src)
 add_test(NAME sf2_expansion_categories COMMAND lp_sf2_expansion_test)
+
+add_executable(lp_hidden_sounds_test tests/hidden_sounds_test.cpp)
+target_include_directories(lp_hidden_sounds_test PRIVATE src)
+add_test(NAME hidden_sounds_persistence COMMAND lp_hidden_sounds_test)

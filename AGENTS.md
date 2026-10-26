@@ -58,3 +58,9 @@ Validation: audio-host and Vision-protocol regressions passed locally with the P
 ## Additive free SF2 expansion (25 October 2026)
 
 The user explicitly requests a free, researched SF2 ZIP sent to Drive and automatic additive category discovery by placing the extracted content beside the EXE. The existing EXE does not support these folders. Include a companion Vision EXE update and matching UI assets so the requested extraction workflow is concrete; preserve the installed runtime DLLs and banks. Do not mislabel this update as a complete portable. Discover the expansion from Timbres-SF2-Selecionados, use explicit numbered category folders/GM families, and avoid loading all PCM on startup. Keep all prior fixes. No Actions or GitHub binary uploads.
+
+## Final user approval and catalog exclusion shortcut (26 October 2026)
+
+Hugo confirms all changes in the 104-SF2 expansion/update are approved and the software works as intended. Add Ctrl+D on a selected category sound with a Yes/No confirmation. Exclude only that catalog entry, persist automatically outside show profiles, keep original SF2/SFZ files and other presets, and preserve saved favorites/performances and the live audio engine. Favorites retain their existing Space removal shortcut. Source is based on 4a461a31d7f8f74c56c2ac231aefa573d2e64f34. This request asks to develop the command; no new portable/Drive release was requested.
+
+Validation: hidden-sound persistence and Vision protocol tests passed locally; JavaScript syntax checks passed. Windows Vision production target and both Windows UI harnesses compiled locally, without executing Windows confirmation dialogs or ASIO hardware. No browser fixture execution is claimed. GitHub exposes no authenticated quota/usage tool; remaining allowance is unknown. Publish one source-only commit without Actions or binaries.

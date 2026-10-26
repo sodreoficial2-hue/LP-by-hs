@@ -14,6 +14,7 @@
 #include <shlobj.h>
 #include "session.hpp"
 #include "instrument_catalog.hpp"
+#include "hidden_sounds.hpp"
 #include "midi.hpp"
 #include "audio_host.hpp"
 #include "sf2_reference.hpp"
@@ -73,6 +74,8 @@ struct App {
  bool performanceVisible=false;
  std::vector<lp::AudioDevice> audioDevices;
  std::filesystem::path settingsPath;
+ lp::HiddenSounds hiddenSounds;bool deleteDialogActive=false,hiddenCatalogReady=true;
+ std::filesystem::path hiddenSoundsPath() const {return settingsPath.parent_path()/L"hidden_sounds.catalog";}
  std::filesystem::path mySoundsPath() const {return settingsPath.parent_path()/L"my_sounds.catalog";}
  bool addMySound(lp::Instrument item){
   auto reference=lp::instrumentReference(item);
@@ -278,6 +281,7 @@ struct App {
    if(FAILED(folderResult)||!roaming){if(roaming)CoTaskMemFree(roaming);throw std::runtime_error("Pasta permanente de configurações de áudio indisponível");}
    auto folder=std::filesystem::path(roaming)/L"Live Performance by Hugo Sodre";CoTaskMemFree(roaming);
    std::filesystem::create_directories(folder);settingsPath=folder/L"audio.settings";
+   try{hiddenSounds.load(hiddenSoundsPath());}catch(const std::exception& e){hiddenCatalogReady=false;error(e);}
    try{loadMySounds();refreshCatalog();}catch(const std::exception& e){error(e);}
    if(std::filesystem::exists(settingsPath)){
     auto saved=lp::AudioSettings::load(settingsPath);int device=lp::resolveAsioDriver(audioDevices,saved.driver);
@@ -329,17 +333,42 @@ struct App {
   auto selected=SendMessageW(category,CB_GETCURSEL,0,0);
   if(selected==13){
    for(std::size_t i=0;i<show.performanceLibrary.size();++i){
+    if(hiddenSounds.contains(lp::performanceExclusionKey(show.performanceLibrary[i],base)))continue;
     visiblePerformances.push_back(i);
     auto name=std::filesystem::u8path(show.performanceLibrary[i].name).wstring();
     SendMessageW(catalog,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(name.c_str()));
    }
   }else for(std::size_t i=0;i<instruments.size();++i){
-   const auto& p=instruments[i];if(selected<0||p.category!=static_cast<unsigned>(selected))continue;
+   const auto& p=instruments[i];if(selected<0||p.category!=static_cast<unsigned>(selected)||hiddenSounds.contains(lp::soundExclusionKey(lp::instrumentReference(p),base)))continue;
    visibleInstruments.push_back(i);auto name=std::filesystem::u8path(lp::instrumentDisplayName(p)).wstring();
    SendMessageW(catalog,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(name.c_str()));
   }
   if(SendMessageW(catalog,LB_GETCOUNT,0,0)>0)SendMessageW(catalog,LB_SETCURSEL,0,0);
  }
+ void deleteSelectedSound(){try{
+  if(loading||effects||screen!=lp::Screen::Instruments||deleteDialogActive)return;
+  if(categoryIndex==15){message(L"Para excluir da categoria, selecione o timbre na categoria original. Espaço retira dos Favoritos.");return;}
+  auto selected=SendMessageW(catalog,LB_GETCURSEL,0,0);if(selected<0)return;
+  std::string key;std::wstring name;
+  if(categoryIndex==13){
+   if(static_cast<std::size_t>(selected)>=visiblePerformances.size())return;
+   const auto& p=show.performanceLibrary[visiblePerformances[selected]];key=lp::performanceExclusionKey(p,base);name=std::filesystem::u8path(p.name).wstring();
+  }else{
+   if(static_cast<std::size_t>(selected)>=visibleInstruments.size())return;
+   const auto& p=instruments[visibleInstruments[selected]];key=lp::soundExclusionKey(lp::instrumentReference(p),base);name=std::filesystem::u8path(lp::instrumentDisplayName(p)).wstring();
+  }
+  if(settingsPath.empty()||!hiddenCatalogReady)throw std::runtime_error("Lista de exclusoes indisponivel; nenhuma alteracao foi feita");
+  // Capture identity before the modal loop: incoming MIDI cannot change the target.
+  deleteDialogActive=true;auto prompt=L"Tem certeza de que deseja excluir o timbre \""+name+L"\" do Live Performance?\n\nEle será retirado da categoria. O arquivo original, os Favoritos e as performances salvas serão preservados.";
+  int answer=MessageBoxW(window,prompt.c_str(),L"Excluir timbre do Live Performance",MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2);
+  deleteDialogActive=false;if(answer!=IDYES)return;
+  hiddenSounds.exclude(key,hiddenSoundsPath());
+  // Keep the running synth intact and do not auto-load a neighboring sound.
+  refreshCatalog();auto count=SendMessageW(catalog,LB_GETCOUNT,0,0);
+  if(count>0)SendMessageW(catalog,LB_SETCURSEL,std::min<LRESULT>(selected,count-1),0);
+  message(L"Timbre retirado da categoria. Exclusão memorizada automaticamente.");layout();
+  if(!visionVisible())SetFocus(catalog);
+ }catch(const std::exception& e){deleteDialogActive=false;error(e);}}
  void openCatalogPerformance(){
   auto selected=SendMessageW(catalog,LB_GETCURSEL,0,0);
   if(selected<0||static_cast<std::size_t>(selected)>=visiblePerformances.size())return;

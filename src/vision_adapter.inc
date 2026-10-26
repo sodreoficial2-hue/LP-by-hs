@@ -76,6 +76,7 @@
    else if(c.action=="screen"){
     releaseVisionNotes();constexpr int ids[]={HomeButton,HomeButton,PerformanceButton,AudioMidiButton,SettingsButton,AboutButton,KeyboardButton};if(c.a==1){effects=false;parameterPanel.open=false;openCategory();}else command(ids[c.a],BN_CLICKED);
    }
+   else if(c.action=="deleteSelected")deleteSelectedSound();
    else if(c.action=="effects"){releaseVisionNotes();toggleParameters();}
    else if(c.action=="escape"){cancelMidiLearn();releaseVisionNotes();if(!effects)command(HomeButton,BN_CLICKED);}
    else if(c.action=="parameter"){if(!effects||!IsWindowEnabled(sliders[c.a]))throw std::runtime_error("Controle indisponível");setPanelValue(c.a,c.b/1000.0f);}

@@ -57,7 +57,7 @@ inline Command parse(std::string_view wire) {
  else if(c.action=="noteOn")limit(127,127);
  else if(c.action=="noteOff")limit(127,0);
  else if(c.action=="screen")limit(6,0);
- else if(c.action=="ready"||c.action=="effects"||c.action=="escape"||c.action=="connect"||c.action=="disconnect"||c.action=="controlPanel"||c.action=="panic"||c.action=="save"||c.action=="open"||c.action=="importSfz"||c.action=="importSf2"||c.action=="performancePlay"||c.action=="performanceSave"||c.action=="performanceName"||c.action=="releaseNotes"||c.action=="touch")limit(0,0);
+ else if(c.action=="deleteSelected"||c.action=="ready"||c.action=="effects"||c.action=="escape"||c.action=="connect"||c.action=="disconnect"||c.action=="controlPanel"||c.action=="panic"||c.action=="save"||c.action=="open"||c.action=="importSfz"||c.action=="importSf2"||c.action=="performancePlay"||c.action=="performanceSave"||c.action=="performanceName"||c.action=="releaseNotes"||c.action=="touch")limit(0,0);
  else throw std::invalid_argument("Action de interface desconhecida");
  if(c.action=="performanceName"){if(c.text.size()>1024)throw std::invalid_argument("Nome muito longo");}
  else if(!c.text.empty())throw std::invalid_argument("Texto inesperado");

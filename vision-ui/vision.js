@@ -87,7 +87,7 @@
   if(favorites){const picture=node('div',{class:'hero-art'});picture.append(crop('favorites',190,300,540,450));hero.append(picture);}
   else if(state.category===0){const picture=node('div',{class:'hero-art'});picture.append(crop('piano',125,300,680,450));hero.append(picture);}
   else hero.append(art(state.category));
-  hero.append(node('h2',{},category),node('p',{},favorites?'Clique direito: aprender Program Change.':'↑ ↓ Selecionar e carregar · Espaço Favoritar'));
+  hero.append(node('h2',{},category),node('p',{},favorites?'Clique direito: aprender Program Change.':'↑ ↓ Selecionar e carregar · Espaço Favoritar · Ctrl+D Excluir da categoria'));
   const list=node('ul',{class:'sound-list',id:'sound-list','aria-label':favorites?'Vinte posições de favoritos':'Timbres da categoria'}),rows=favorites?state.favorites:state.catalog;
   if(!rows.length)list.append(node('li',{class:'empty'},node('h2',{},'Nenhum timbre nesta categoria'),node('p',{},'Importe seus SFZ ou SF2 em Perfis. Os instrumentos serão adicionados a Meus Sons.')));
   rows.forEach(row=>{
@@ -209,6 +209,7 @@
   if(event.key==='Escape'){event.preventDefault();flushParameters();releaseNotes();send('escape');return;}
   const target=event.target,entry=target.matches('select,textarea,input:not([type=range])');
   if(state.screen==='performance'&&target.matches('select')&&event.key.toLowerCase()==='e'&&!event.ctrlKey&&!event.altKey&&!event.metaKey){event.preventDefault();flushParameters();send('effects');return;}
+  if(event.ctrlKey&&!event.altKey&&!event.metaKey&&!event.shiftKey&&event.key.toLowerCase()==='d'&&!entry&&!target.isContentEditable){event.preventDefault();if(!event.repeat&&state.screen==='instruments'&&!state.effects){flushParameters();send('deleteSelected');}return;}
   if(entry||event.ctrlKey||event.altKey||event.metaKey)return;
   // Keyboard shortcuts are additive; MIDI Program Change/Learn routing is unchanged.
   if(!event.repeat && /^[0-9]$/.test(event.key) && !event.shiftKey && !target.matches('input,select,textarea,[contenteditable="true"]')){
