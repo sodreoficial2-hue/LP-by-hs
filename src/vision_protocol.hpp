@@ -46,7 +46,7 @@ inline Command parse(std::string_view wire) {
  Command c;c.sequence=static_cast<unsigned>(integer(fields[1],1,1000000000));c.action=fields[2];c.a=integer(fields[3],0,1000000);c.b=integer(fields[4],0,1000000);c.text=decode(fields[5]);
  auto limit=[&](int a,int b){if(c.a>a||c.b>b)throw std::invalid_argument("Valor de interface fora do limite");};
  if(c.action=="category")limit(15,0);
- else if(c.action=="select"||c.action=="favorite")limit(100000,0);
+ else if(c.action=="select"||c.action=="favorite"||c.action=="restoreSound")limit(100000,0);
  else if(c.action=="activateFavorite"||c.action=="removeFavorite"||c.action=="learnFavorite")limit(19,0);
  else if(c.action=="parameter")limit(15,1000);
  else if(c.action=="learnParameter")limit(15,0);
@@ -57,9 +57,9 @@ inline Command parse(std::string_view wire) {
  else if(c.action=="noteOn")limit(127,127);
  else if(c.action=="noteOff")limit(127,0);
  else if(c.action=="screen")limit(6,0);
- else if(c.action=="deleteSelected"||c.action=="ready"||c.action=="effects"||c.action=="escape"||c.action=="connect"||c.action=="disconnect"||c.action=="controlPanel"||c.action=="panic"||c.action=="save"||c.action=="open"||c.action=="importSfz"||c.action=="importSf2"||c.action=="performancePlay"||c.action=="performanceSave"||c.action=="performanceName"||c.action=="releaseNotes"||c.action=="touch")limit(0,0);
+ else if(c.action=="search"||c.action=="restoreSounds"||c.action=="restoreAll"||c.action=="locateSounds"||c.action=="deleteSelected"||c.action=="ready"||c.action=="effects"||c.action=="escape"||c.action=="connect"||c.action=="disconnect"||c.action=="controlPanel"||c.action=="panic"||c.action=="save"||c.action=="open"||c.action=="importSfz"||c.action=="importSf2"||c.action=="performancePlay"||c.action=="performanceSave"||c.action=="performanceName"||c.action=="releaseNotes"||c.action=="touch")limit(0,0);
  else throw std::invalid_argument("Action de interface desconhecida");
- if(c.action=="performanceName"){if(c.text.size()>1024)throw std::invalid_argument("Nome muito longo");}
+ if(c.action=="performanceName"||c.action=="search"){if(c.text.size()>1024)throw std::invalid_argument("Nome muito longo");}
  else if(!c.text.empty())throw std::invalid_argument("Texto inesperado");
  return c;
 }

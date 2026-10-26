@@ -43,6 +43,14 @@ public:
   }
   if(in.bad())throw std::runtime_error("Falha ao ler timbres excluidos");keys=std::move(candidate);
  }
+ const std::set<std::string>& entries()const{return keys;}
+ void restore(const std::string& key,const std::filesystem::path& file){
+  auto candidate=keys;
+  if(key.empty())candidate.clear();else candidate.erase(key);
+  std::ostringstream out;out<<"LPHS_HIDDEN_SOUNDS 1\n";
+  for(const auto& k:candidate)out<<std::quoted(k)<<'\n';
+  atomicWrite(file,out.str());keys=std::move(candidate);
+ }
  void exclude(const std::string& key,const std::filesystem::path& file){
   if(key.empty()||key.size()>32768)throw std::invalid_argument("Timbre excluido invalido");
   if(contains(key))return;auto candidate=keys;candidate.insert(key);std::ostringstream out;out<<"LPHS_HIDDEN_SOUNDS 1\n";

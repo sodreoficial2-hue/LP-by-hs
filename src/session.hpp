@@ -57,10 +57,10 @@ struct Session {
   favorites[*current]->parameters[index]=value;
   if(index>=1&&index<=4)favorites[*current]->adsrEnabled=true;
  }
- void save(const std::filesystem::path& path) const {
+ std::string serialize() const {
   // Caller chooses path; does not auto-save shows.
   std::ostringstream f;
-  f << "LPHS_PROFILE 8\n" << std::setprecision(9);
+  f << "LPHS_PROFILE 9\n" << std::setprecision(9);
   if(!std::isfinite(master)||master<0||master>1||masterCC< -1||masterCC>119||masterCC==64)throw std::runtime_error("Invalid Master");
   f<<"MASTER "<<master<<' '<<masterCC<<'\n';
   for(std::size_t i=0;i<favorites.size();++i) if(favorites[i]) {
@@ -103,11 +103,12 @@ struct Session {
    }
    if(active==0)throw std::runtime_error("Empty Performance");
   }
-  atomicWrite(path,f.str());
+  return f.str();
  }
+ void save(const std::filesystem::path& path) const {atomicWrite(path,serialize());}
  void load(const std::filesystem::path& path) {
   std::ifstream f(path,std::ios::binary); std::string magic; int version=0;
-  if(!(f>>magic>>version) || magic!="LPHS_PROFILE" || (version<1||version>8))
+  if(!(f>>magic>>version) || magic!="LPHS_PROFILE" || (version<1||version>9))
    throw std::runtime_error("Invalid profile header");
   Session candidate; unsigned slot;
   for(;;) {

@@ -4,7 +4,7 @@
 #include <iostream>
 void fakeSampleRate(double);
 int fakePump(float*,float*,unsigned long,PaStreamCallbackFlags=0);void fakeFailOpen();int fakeStarts();int fakeDevice();
-void check(bool v){if(!v)throw std::runtime_error("Audio host regression failed");}
+#define check(v) do{if(!(v))throw std::runtime_error("Audio host regression line "+std::to_string(__LINE__));}while(false)
 int main(int argc,char** argv){
  check(argc==2);auto dir=std::filesystem::temp_directory_path()/"lp-audio-test";std::filesystem::create_directories(dir);
  {std::ofstream good(dir/"good.sfz");good<<"fixture";std::ofstream broken(dir/"broken.sfz");broken<<"fixture";}
@@ -26,7 +26,7 @@ int main(int argc,char** argv){
  for(auto path:{dir/"broken.sfz",dir/"missing.sfz"}){bool rejected=false;try{host.load(path,p);}catch(...){rejected=true;}check(rejected&&host.loaded()&&host.running()&&fakeStarts()==before);fakePump(left,right,2048);check(left[0]==.125f);}
  bool rejected=false;try{host.start(0,128);}catch(...){rejected=true;}check(rejected&&host.running());
  fakeFailOpen();rejected=false;try{host.start(1,256);}catch(...){rejected=true;}check(rejected&&host.running()&&host.bufferSize()==128);
- fakeFailOpen();rejected=false;try{host.load(dir/"good.sfz",p);}catch(...){rejected=true;}check(rejected&&host.loaded()&&host.running()&&host.bufferSize()==128);
+ before=fakeStarts();host.load(dir/"good.sfz",p);check(host.loaded()&&host.running()&&host.bufferSize()==128&&fakeStarts()==before);
  host.send({0x90,60,100});fakePump(left,right,2048);check(left[0]==.125f);
  host.send({0x90,60,100});for(int i=0;i<1200;++i)host.send({0x90,60,100});fakePump(left,right,2048);check(left[0]==0);
  host.send({0x90,60,100});fakePump(left,right,2048);host.panic();fakePump(left,right,2048);check(left[0]==0);
@@ -48,11 +48,11 @@ int main(int argc,char** argv){
  // The four-part host keeps live gains through ASIO sample-rate changes.
  host.panic();fakePump(left,right,2048);lp::Performance performance;performance.name="Layer regression";
  for(auto& part:performance.parts){part.enabled=true;part.instrument=(dir/"good.sfz").u8string();}
- host.loadPerformance(performance);host.send({0x90,60,100});fakePump(left,right,2048);check(left[0]==1.f);
+ host.loadPerformance(performance);host.send({0x90,60,100});fakePump(left,right,2048);check(left[0]==1.f);check(host.outputPeak()>=1.f&&host.takeOutputClip());
  auto layer=lp::Patch{}.parameters;layer[0]=.5f;host.setPerformancePartParameters(0,layer,false);fakePump(left,right,2048);check(left[0]==.875f);
  host.masterVolume(.4f);fakePump(left,right,2048);check(std::abs(left[0]-.35f)<1e-6f);
  fakeSampleRate(44100);host.start(1,128);check(host.performanceActive()&&host.sampleRate()==44100);host.send({0x90,60,100});fakePump(left,right,2048);check(std::abs(left[0]-.35f)<1e-6f);
- host.load(dir/"good.sfz",p);check(!host.performanceActive()&&host.running()&&host.sampleRate()==44100);host.send({0x90,60,100});fakePump(left,right,2048);check(std::abs(left[0]-.1f)<1e-6f);
+ host.load(dir/"good.sfz",p);check(!host.performanceActive()&&host.running()&&host.sampleRate()==44100);host.send({0x90,60,100});fakePump(left,right,2048);check(left[0]>.1f);for(int i=0;i<50;++i)fakePump(left,right,2048);check(std::abs(left[2047]-.1f)<1e-6f);
  host.masterVolume(1);fakeSampleRate(48000);
  host.unload();check(!host.loaded()&&host.running());fakePump(left,right,2048);check(left[0]==0);host.stop();check(!host.running());
  }

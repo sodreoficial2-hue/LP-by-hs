@@ -32,6 +32,9 @@ public:
  void parameters(const std::array<float,15>& values,bool adsrEnabled=false);
  void send(MidiMessage message) noexcept;
  void panic() noexcept;
+ void collectRetired() noexcept; // UI thread: release completed transition engines.
+ float outputPeak() noexcept {return meterPeak.exchange(0);}
+ bool takeOutputClip() noexcept {return meterClip.exchange(false);}
  bool running() const noexcept {return stream!=nullptr;}
  bool loaded() const noexcept {return !instrument.empty();}
  int selectedDevice() const noexcept {return device;}
@@ -46,32 +49,46 @@ private:
  int render(float**,unsigned long,PaStreamCallbackFlags) noexcept;
  void open(int,unsigned long);
  void clearQueue() noexcept;
- void restorePerformance();
  void resetPerformance() noexcept;
- // Latest physical controls survive instrument/ASIO changes, even when queued
- // events are discarded. -1 leaves an untouched SFZ controller default alone.
  std::atomic<int> modulation{-1},sustain{-1},bend{0};
  std::atomic<bool> bendSeen{false};
  std::filesystem::path library,instrument,fluidLibrary;
- std::unique_ptr<Sf2Engine> sf2;
  bool sf2Active=false;int sf2Bank=0,sf2Program=0;
  double rate=48000;std::atomic<float> master{1};
- std::unique_ptr<SfizzEngine> engine;
  struct PartSynth {std::unique_ptr<SfizzEngine> sfz;std::unique_ptr<Sf2Engine> sf2;};
- std::array<PartSynth,4> partSynths{};
+ struct Graph {
+  std::array<PartSynth,4> voices{};
+  Performance performance{};
+  bool layered=false;
+  std::array<unsigned,4> applied{};
+  Graph* next=nullptr;
+ };
+ // UI prepares/publishes; callback exclusively uses active/tails. Completed
+ // graphs go to an intrusive lock-free retirement list; no deletion in ASIO.
+ Graph* active=nullptr;
+ std::array<Graph*,2> tails{};
+ std::array<unsigned long,2> tailFrames{};
+ std::atomic<Graph*> pending{nullptr},retired{nullptr};
+ std::unique_ptr<Graph> prepare(double sampleRate);
+ void publish(std::unique_ptr<Graph>);
+ void retire(Graph*) noexcept;
+ void destroyGraphs() noexcept;
+ void controls(Graph&);
+ void event(Graph&,MidiMessage,bool tail=false);
+ void renderGraph(Graph&,float*,float*,int);
+ void silence(Graph&) noexcept;
  Performance performance{};
  bool activePerformance=false;
- std::array<float,256> scratchLeft{},scratchRight{};
- struct PartControl {std::array<std::atomic<float>,15> values;std::atomic<bool> adsr{false};std::atomic<unsigned> revision{0};unsigned applied=0;};
+ std::array<float,256> scratchLeft{},scratchRight{},tailLeft{},tailRight{};
+ struct PartControl {std::array<std::atomic<float>,15> values;std::atomic<bool> adsr{false};std::atomic<unsigned> revision{0};};
  std::array<PartControl,4> partControls{};
- void panicAll() noexcept;
- void restorePartControls();
+ std::atomic<float> meterPeak{0};std::atomic<bool> meterClip{false};
  PaStream* stream{};int device=-1;unsigned long buffer=0;
  MidiQueue<> midi;
  std::atomic<bool> panicRequested{false},fault{false};
  std::atomic<unsigned long> underruns{0};
  std::array<std::atomic<float>,15> values;
- std::atomic<unsigned> revision{0};unsigned applied=0;
+ std::atomic<unsigned> revision{0};
  std::atomic<bool> desiredAdsr{false};bool currentAdsr=false;
  std::array<float,15> current=Patch{}.parameters;
 };

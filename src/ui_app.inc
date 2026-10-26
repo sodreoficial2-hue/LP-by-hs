@@ -6,7 +6,7 @@
  int pageTop() const {return 156;}
  int pageMinimum() const {
   if(effects)return performanceControls()?360:864;
-  switch(screen){case lp::Screen::Home:return 316;case lp::Screen::Keyboard:return 360;case lp::Screen::Instruments:return 400;case lp::Screen::AudioMidi:return 580;case lp::Screen::Settings:return 580;case lp::Screen::PerformanceEditor:return 748;case lp::Screen::About:return 600;}
+  switch(screen){case lp::Screen::Home:return 316;case lp::Screen::Keyboard:return 360;case lp::Screen::Instruments:return 400;case lp::Screen::AudioMidi:return 580;case lp::Screen::Settings:return 760;case lp::Screen::PerformanceEditor:return 816;case lp::Screen::About:return 600;}
   return 580;
  }
  void scrollPage(int delta){if(pageScroll.move(delta))layout();}
@@ -38,8 +38,8 @@
   if(performanceActive()&&show.current&&show.favorites[*show.current]&&show.favorites[*show.current]->sfz=="performance://"+std::to_string(activePerformanceIndex))
    show.favorites[*show.current]->performanceMix=lp::performanceMix(editingPerformance);
  }
- void goHome(){pageScroll.seek(0);screen=lp::Screen::Home;performanceVisible=false;cancelMidiLearn();layout();SetFocus(item(CategoryCardBase+categoryIndex));}
- void openCategory(){pageScroll.seek(0);screen=lp::Screen::Instruments;performanceVisible=false;refreshCatalog();layout();
+ void goHome(){if(!preserveEditorDraft())return;restoringSounds=false;pageScroll.seek(0);screen=lp::Screen::Home;performanceVisible=false;cancelMidiLearn();layout();SetFocus(item(CategoryCardBase+categoryIndex));}
+ void openCategory(){if(!preserveEditorDraft())return;restoringSounds=false;catalogSearch.clear();SetWindowTextW(item(Search),L"");pageScroll.seek(0);screen=lp::Screen::Instruments;performanceVisible=false;refreshCatalog();layout();
   // Browsing categories never loads a sample or interrupts the currently playing sound.
   if(categoryIndex==15){if(SendMessageW(favorites,LB_GETCURSEL,0,0)<0)SendMessageW(favorites,LB_SETCURSEL,0,0);SetFocus(favorites);}
   else SetFocus(catalog);
@@ -52,7 +52,7 @@
   else if(screen==lp::Screen::PerformanceEditor){performanceVisible=true;pageScroll.seek(0);layout();SetFocus(performancePartControls[editingPart]);}
   else goHome();
  }
- void openScreen(lp::Screen next){if(loading)return;pageScroll.seek(0);effects=false;parameterPanel.open=false;screen=next;performanceVisible=next==lp::Screen::PerformanceEditor;cancelMidiLearn();layout();SetFocus(window);}
+ void openScreen(lp::Screen next){if(loading)return;if(next!=lp::Screen::PerformanceEditor)if(!preserveEditorDraft())return;restoringSounds=false;pageScroll.seek(0);effects=false;parameterPanel.open=false;screen=next;performanceVisible=next==lp::Screen::PerformanceEditor;cancelMidiLearn();layout();SetFocus(window);}
  void updateSplash(int done,const std::wstring& label){
   progress=std::clamp(done,0,100);SetWindowTextW(status,label.c_str());layout();UpdateWindow(window);
  }
@@ -76,13 +76,14 @@
   };
   auto place=[&](int id,int x,int y,int ww,int hh){auto h=item(id);if(GetParent(h)==page)y-=pageOrigin+pageScroll.offset;MoveWindow(h,x,y,std::max(1,ww),std::max(1,hh),TRUE);visible.push_back(h);};
   if(loading){int y=std::max(56,windowHeight/2-190);place(2,windowWidth*48/100,y+332,windowWidth*52/100-48,72);finish();return;}
-  int topOfPage=pageTop();pageScroll.resize(windowHeight-topOfPage-72,pageMinimum());
+  int topOfPage=pageTop();pageScroll.resize(windowHeight-topOfPage-116,pageMinimum());
   MoveWindow(page,0,topOfPage,windowWidth,pageScroll.viewport,TRUE);
   SCROLLINFO info{};info.cbSize=sizeof(info);info.fMask=SIF_RANGE|SIF_PAGE|SIF_POS;info.nMin=0;info.nMax=pageScroll.content-1;info.nPage=pageScroll.viewport;info.nPos=pageScroll.offset;SetScrollInfo(page,SB_VERT,&info,TRUE);
   int navX=windowWidth-660;
   place(PerformanceButton,navX,28,174,52);place(AudioMidiButton,navX+182,28,158,52);place(SettingsButton,navX+348,28,182,52);place(AboutButton,navX+538,28,106,52);
   place(!effects&&screen==lp::Screen::Home?KeyboardButton:HomeButton,windowWidth-214,108,182,40);
   place(2,54,windowHeight-60,windowWidth-86,48);
+  place(ProfileState,54,windowHeight-102,(windowWidth-110)/2,36);place(OutputMeter,windowWidth/2,windowHeight-102,windowWidth/2-36,36);
   int width=windowWidth-20,p=pageOrigin;
   if(effects){
    int count=performanceControls()?4:16,rows=performanceControls()?2:8,half=(width-84)/2;
@@ -95,14 +96,16 @@
   }else if(screen==lp::Screen::Keyboard){
    keyboardRect={56,p+130,width-56,p+std::max(300,pageScroll.viewport-54)};
   }else if(screen==lp::Screen::Instruments){
-   int left=width*2/5;place(InstrumentArt,32,p+20,left-48,pageScroll.content-42);place(categoryIndex==15?Favorites:Catalog,left+8,p+62,width-left-40,pageScroll.content-84);
+   int left=width*2/5;place(InstrumentArt,32,p+20,left-48,pageScroll.content-42);if(categoryIndex!=15||restoringSounds)place(Search,left+8,p+12,width-left-40,44);place(categoryIndex==15&&!restoringSounds?Favorites:Catalog,left+8,p+68,width-left-40,pageScroll.content-(restoringSounds?160:90));
+   if(restoringSounds){place(RestoreSelected,left+8,p+pageScroll.content-76,(width-left-56)/2,60);place(RestoreAll,left+24+(width-left-56)/2,p+pageScroll.content-76,(width-left-56)/2,60);}
   }else if(screen==lp::Screen::AudioMidi){
    place(AudioDriver,56,p+152,width-112,300);place(Midi,56,p+262,width-112,300);
    int actionWidth=(width-144)/3;place(AudioStart,56,p+340,actionWidth,60);place(AudioStop,72+actionWidth,p+340,actionWidth,60);place(AudioPanel,88+2*actionWidth,p+340,actionWidth,60);place(Panic,width-300,p+460,244,60);
   }else if(screen==lp::Screen::Settings){
    int half=(width-84)/2;
-   place(Open,32,p+28,half,160);place(Save,52+half,p+28,half,160);place(Import,32,p+208,half,160);place(ImportSf2,52+half,p+208,half,160);place(Panic,width-300,p+454,244,60);
+   place(Open,32,p+28,half,160);place(Save,52+half,p+28,half,160);place(Import,32,p+208,half,160);place(ImportSf2,52+half,p+208,half,160);place(RestoreSounds,32,p+388,width-64,68);place(LocateSounds,32,p+472,width-64,68);place(Panic,width-300,p+578,244,60);
   }else if(screen==lp::Screen::PerformanceEditor){
+   place(PartSearch,56,p+10,width-112,44);p+=64;
    place(PerformanceModeControl,56,p+68,width-112,300);
    for(int i=0;i<4;++i){int y=p+152+i*96;place(PerformancePartBase+i,116,y+22,width-308,300);place(PerformanceClearBase+i,width-172,y+18,112,56);}
    place(PerformanceName,56,p+602,width-112,50);place(PerformancePlay,56,p+678,(width-128)/2,60);place(PerformanceSave,72+(width-128)/2,p+678,(width-128)/2,60);
@@ -145,6 +148,8 @@
   if(msg.message!=WM_KEYDOWN||loading)return false;
   auto key=msg.wParam;wchar_t kind[32]{};GetClassNameW(GetFocus(),kind,32);bool textControl=_wcsicmp(kind,L"EDIT")==0;bool typing=textControl&&!(GetWindowLongPtrW(GetFocus(),GWL_STYLE)&ES_READONLY);
   if(key=='D'&&!typing&&(GetKeyState(VK_CONTROL)&0x8000)&&!(GetKeyState(VK_MENU)&0x8000)&&!(GetKeyState(VK_SHIFT)&0x8000)){if(!(msg.lParam&(1L<<30)))deleteSelectedSound();return true;}
+  if(key=='F'&&(GetKeyState(VK_CONTROL)&0x8000)&&!effects&&(screen==lp::Screen::Instruments||screen==lp::Screen::PerformanceEditor)){auto search=item(screen==lp::Screen::PerformanceEditor?PartSearch:Search);SetFocus(search);SendMessageW(search,EM_SETSEL,0,-1);return true;}
+  if(GetFocus()==item(Search)&&key==VK_RETURN){SetFocus(catalog);if(restoringSounds)restoreSelectedSound();else audition();return true;}
   if(key==VK_F12){command(Panic,0);return true;}
   if(key==VK_ESCAPE){if(effects){cancelMidiLearn();return true;}goHome();return true;}
   if(!typing&&!(GetKeyState(VK_CONTROL)&0x8000)&&!(GetKeyState(VK_MENU)&0x8000)){
@@ -172,7 +177,7 @@
   if(!effects&&screen==lp::Screen::Home){if(key==VK_RETURN){int focused=GetDlgCtrlID(GetFocus());if(focused>=CategoryCardBase&&focused<CategoryCardBase+16){categoryIndex=focused-CategoryCardBase;openCategory();return true;}if(GetFocus()==window){openCategory();return true;}}}
   if(!effects&&screen==lp::Screen::Instruments){
    if(key==VK_SPACE){favorite();return true;}
-   if(key==VK_RETURN){if(categoryIndex==15){auto slot=SendMessageW(favorites,LB_GETCURSEL,0,0);if(slot>=0)activate(static_cast<unsigned>(slot));}else audition();return true;}
+   if(key==VK_RETURN){if(restoringSounds){restoreSelectedSound();return true;}if(categoryIndex==15){auto slot=SendMessageW(favorites,LB_GETCURSEL,0,0);if(slot>=0)activate(static_cast<unsigned>(slot));}else audition();return true;}
   }
   if(key==VK_DELETE&&performanceVisible){for(int i=0;i<4;++i)if(GetFocus()==performancePartControls[i]){clearPerformancePart(i);return true;}}
   return false;
