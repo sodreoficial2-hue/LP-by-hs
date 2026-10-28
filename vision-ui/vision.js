@@ -178,7 +178,11 @@
  }
  function render(){
   if(!state)return;
-  const focus=document.activeElement?.getAttribute('data-focus'),scroll=$('content').scrollTop;
+  const active=document.activeElement,focus=active?.getAttribute('data-focus'),scroll=$('content').scrollTop;
+  // Filtering rebuilds the results and their search input. Keep both the local
+  // text and caret/selection, including edits in the middle of a search term.
+  const textEdit=active?.matches('input[type="search"],input[type="text"]')?
+   {value:active.value,start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection}:null;
   const key=JSON.stringify([state.screen,state.effects,state.category,state.loading,state.partMix,state.restoring,state.catalog.map(r=>r.name),state.category===15?state.favorites.map(r=>[r.name,r.occupied]):null,state.audio.drivers,state.audio.midiInputs,state.performance.instruments,state.performance.instrumentCategories,state.screen==='performance'?state.performance.parts:null,state.screen==='performance'&&state.effects?state.performance.editingPart:null]);
   if(key!==structure){
    structure=key;let body;
@@ -187,7 +191,13 @@
    else body=({home,instruments,performance,audio,profiles,keyboard,about:()=>{title('Música, visão e propósito','HUGO SODRÉ · ARTISTA E CRIADOR');return node('article',{class:'panel about-copy'},state.about);}}[state.screen]||home)();
    $('content').replaceChildren(body);
    const next=focus?document.querySelector(`[data-focus="${CSS.escape(focus)}"]`):null;
-   if(next){next.focus({preventScroll:true});$('content').scrollTop=scroll;}
+   if(next){
+    if(textEdit&&next.matches('input[type="search"],input[type="text"]')){
+     next.value=textEdit.value;
+     if(textEdit.start!==null)next.setSelectionRange(textEdit.start,textEdit.end,textEdit.direction||'none');
+    }
+    next.focus({preventScroll:true});$('content').scrollTop=scroll;
+   }
    else if(state.screen==='instruments'&&!state.effects){const selected=document.querySelector(`[data-select="${state.selected}"]`);selected?.focus({preventScroll:true});}
    else {$('content').scrollTop=0;if(state.screen==='home'&&!state.effects)document.querySelector(`[data-category="${state.category}"]`)?.focus({preventScroll:true});}
   }
