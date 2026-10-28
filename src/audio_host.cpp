@@ -53,6 +53,10 @@ std::unique_ptr<AudioHost::Graph> AudioHost::prepare(double sampleRate){
   auto& voice=result->voices[i];
   auto ref=activePerformance?parseSf2Reference(performance.parts[i].instrument):std::optional<Sf2Reference>{};
   auto path=activePerformance?std::filesystem::u8path(performance.parts[i].instrument):instrument;
+  const auto reference=ref?makeSf2Reference(ref->path,ref->bank,ref->program):
+   (!activePerformance&&sf2Active?makeSf2Reference(path,sf2Bank,sf2Program):path.u8string());
+  auto calibrated=levelGains.find(levelKey(reference));
+  if(calibrated!=levelGains.end())voice.levelGain=calibrated->second;
   const auto& params=activePerformance?performance.parts[i].patch.parameters:current;
   bool adsr=activePerformance?performance.parts[i].patch.adsrEnabled:currentAdsr;
   if(ref||(!activePerformance&&sf2Active)){
@@ -107,6 +111,11 @@ void AudioHost::loadSf2(const std::filesystem::path& path,int bank,int program,c
  catch(...){instrument=oldPath;current=oldParams;currentAdsr=oldAdsr;activePerformance=oldPerformance;sf2Active=oldSf2;sf2Bank=oldBank;sf2Program=oldProgram;throw;}
 }
 std::vector<Sf2Preset> AudioHost::sf2Presets(const std::filesystem::path& path)const{Sf2Engine temporary(fluidLibrary);temporary.load(path);return temporary.presets();}
+void AudioHost::setLevelCompensations(const std::map<std::string,float>& gains){
+ if(running()||loaded())throw std::logic_error("Apply level calibration before playback");
+ for(const auto& pair:gains)if(pair.first.empty()||!std::isfinite(pair.second)||pair.second<=0||pair.second>4)throw std::invalid_argument("Invalid calibrated gain");
+ levelGains=gains;
+}
 void AudioHost::unload(){instrument.clear();activePerformance=false;publish(std::make_unique<Graph>());panic();}
 void AudioHost::loadPerformance(const Performance& selected){
  if(!selected.valid())throw std::invalid_argument("Invalid Performance");
@@ -159,7 +168,7 @@ void AudioHost::renderGraph(Graph& graph,float* left,float* right,int frames){
  std::fill_n(left,frames,0);std::fill_n(right,frames,0);
  for(auto& v:graph.voices){if(!v.sf2&&!v.sfz)continue;
   if(v.sf2)v.sf2->render(scratchLeft.data(),scratchRight.data(),frames);else v.sfz->render(scratchLeft.data(),scratchRight.data(),frames);
-  for(int j=0;j<frames;++j){left[j]+=scratchLeft[j];right[j]+=scratchRight[j];}
+  for(int j=0;j<frames;++j){left[j]+=scratchLeft[j]*v.levelGain;right[j]+=scratchRight[j]*v.levelGain;}
  }
 }
 int AudioHost::callback(const void*,void* output,unsigned long frames,const PaStreamCallbackTimeInfo*,PaStreamCallbackFlags flags,void* user)noexcept{return static_cast<AudioHost*>(user)->render(static_cast<float**>(output),frames,flags);}

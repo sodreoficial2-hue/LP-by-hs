@@ -68,3 +68,24 @@ Validation: hidden-sound persistence and Vision protocol tests passed locally; J
 ## Stage readiness improvements (26 October 2026)
 
 The user authorized all six review suggestions before the next compiled update: unsaved-profile protection, restore catalog exclusions, name search, continuous sound transitions, peak indication and missing-file repair/portable profiles. Preserve the approved ASIO/MIDI, SF2 native glide, upper-range hall and manual panel closing. Changes are based on 73ae3a8. See docs/STAGE-READINESS.md for bounded tails, synchronous UI preparation, v9 portability, tests and hardware/renderer validation limits. No hosted Actions. Authenticated GitHub allowance remains unknown.
+
+## Automatic persistent preset volume balance (28 October 2026)
+
+Hugo explicitly authorizes implementation of automatic first-start calibration,
+permanently saved outside show profiles and reused after closing/rebooting. Only
+new presets require analysis; modified source SFZ/SF2 files also invalidate their
+own measurements. Preserve musical dynamics and manual/favorite/Performance
+volumes. Do not add master compression. Use private offline synthesizers, never
+send calibration notes to the output or live MIDI. Apply fixed per-preset gains
+before the layer sum, with no new audio buffers or callback file access. Keep the
+search-caret fix from 28ad0f5 and all previously approved behavior. Details and
+validation limitations are in docs/AUTOMATIC-LEVEL-BALANCE.md. Local Windows
+compilation is authorized; no new portable/Drive release or Actions requested.
+
+Validation: 18 local CTest groups passed with assertions active, including real
+FluidSynth audio, cache reuse/new additions, independent presets and compensated
+playback. Vision/classic Windows production executables and Win32 harnesses
+cross-compiled with real PortAudio/ASIO sources. Windows/ASIO hardware and actual
+user-bank loudness validation remain pending. SFZ calibration was exercised with
+a test double; no new real-sfizz offline validation is claimed. Authenticated
+GitHub allowance is unknown; publish one grouped source-only commit.

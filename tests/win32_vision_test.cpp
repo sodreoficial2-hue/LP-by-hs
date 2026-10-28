@@ -13,6 +13,8 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
  {App app;WNDCLASSW cls{};cls.lpfnWndProc=proc;cls.hInstance=instance;cls.lpszClassName=L"LPVisionAdapterTest";RegisterClassW(&cls);
   auto window=CreateWindowW(cls.lpszClassName,L"Vision adapter regression",WS_OVERLAPPEDWINDOW,0,0,1360,900,nullptr,nullptr,instance,&app);assert(window);
   MSG message{};while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE)){TranslateMessage(&message);DispatchMessageW(&message);}
+  auto deadline=GetTickCount64()+60000;
+  while(app.loading&&GetTickCount64()<deadline){while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE)){TranslateMessage(&message);DispatchMessageW(&message);}Sleep(10);}
   assert(!app.loading&&app.engine&&!app.engine->loaded());
   auto command=[&](const wchar_t* action,int a=0,int b=0,const wchar_t* text=L""){app.visionCommand(L"LP1\t1\t"+std::wstring(action)+L"\t"+std::to_wstring(a)+L"\t"+std::to_wstring(b)+L"\t"+text);assert(app.visionLastError.empty());};
   command(L"category",1);assert(app.screen==lp::Screen::Instruments&&!app.engine->loaded());

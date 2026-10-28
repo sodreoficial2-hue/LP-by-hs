@@ -4,6 +4,7 @@
 #include "midi.hpp"
 #include "performance.hpp"
 #include "sf2_reference.hpp"
+#include "level_balance.hpp"
 #include "portaudio.h"
 #include <atomic>
 #include <memory>
@@ -25,6 +26,8 @@ public:
  void load(const std::filesystem::path& sfz,const std::array<float,15>& parameters,bool adsrEnabled=false);
  void loadSf2(const std::filesystem::path& sf2,int bank,int program,const std::array<float,15>& parameters,bool adsrEnabled=false);
  std::vector<Sf2Preset> sf2Presets(const std::filesystem::path& sf2) const;
+ // Owner thread, before loading/starting playback. Graphs snapshot fixed gains.
+ void setLevelCompensations(const std::map<std::string,float>& gains);
  void unload();
  void loadPerformance(const Performance& performance);
  bool performanceActive() const noexcept {return activePerformance;}
@@ -55,7 +58,8 @@ private:
  std::filesystem::path library,instrument,fluidLibrary;
  bool sf2Active=false;int sf2Bank=0,sf2Program=0;
  double rate=48000;std::atomic<float> master{1};
- struct PartSynth {std::unique_ptr<SfizzEngine> sfz;std::unique_ptr<Sf2Engine> sf2;};
+ std::map<std::string,float> levelGains;
+ struct PartSynth {std::unique_ptr<SfizzEngine> sfz;std::unique_ptr<Sf2Engine> sf2;float levelGain=1;};
  struct Graph {
   std::array<PartSynth,4> voices{};
   Performance performance{};

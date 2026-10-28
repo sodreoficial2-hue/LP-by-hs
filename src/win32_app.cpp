@@ -18,6 +18,7 @@
 #include "profile_paths.hpp"
 #include "midi.hpp"
 #include "audio_host.hpp"
+#include "level_calibration.hpp"
 #include "sf2_reference.hpp"
 #include "sf2_expansion.hpp"
 #include "sf2_headers.hpp"
@@ -100,6 +101,9 @@ struct App {
  lp::Patch previewPatch{};
  bool previewActive=false;
  std::unique_ptr<lp::AudioHost> engine;
+ std::unique_ptr<lp::LevelCalibrationJob> levelCalibration;
+ std::filesystem::path engineLibrary;
+ std::wstring levelWarning;
  HWND audioDriver{},performanceMode{},performancePlay{},performanceName{},performanceEditPart{},performanceSave{};
  lp::Performance editingPerformance{};
  bool editingPerformanceValid=false;
@@ -155,9 +159,9 @@ struct App {
  bool pendingRestore=false;unsigned restoreAttempts=0;
  HMIDIIN midiHandle{};bool effects=false;
  std::filesystem::path base;
- ~App(){closeVision();closeMidi();engine.reset();for(auto f:{font,titleFont,signatureFont,largeFont,smallFont,statusFont})if(f)DeleteObject(f);DeleteObject(background);DeleteObject(panelBackground);}
+ ~App(){levelCalibration.reset();closeVision();closeMidi();engine.reset();for(auto f:{font,titleFont,signatureFont,largeFont,smallFont,statusFont})if(f)DeleteObject(f);DeleteObject(background);DeleteObject(panelBackground);}
  void closeMidi(){router.cancelLearn();if(engine)engine->panic();if(midiHandle){midiInStop(midiHandle);midiInReset(midiHandle);midiInClose(midiHandle);midiHandle=nullptr;}}
- void message(const std::wstring& text){SetWindowTextW(status,text.c_str());markVisionDirty();}
+ void message(const std::wstring& text){auto label=text;if(!levelWarning.empty())label+=L" · "+levelWarning;SetWindowTextW(status,label.c_str());markVisionDirty();}
  void error(const std::exception& e){recordVisionError(e);auto s=std::string(e.what());std::wstring text(s.begin(),s.end());MessageBoxW(window,text.c_str(),L"Live Performance",MB_OK|MB_ICONERROR);}
  HWND control(const wchar_t* kind,const wchar_t* text,DWORD style,int id){
   if(_wcsicmp(kind,L"BUTTON")==0)style=(style&~BS_TYPEMASK)|BS_OWNERDRAW;
@@ -263,7 +267,7 @@ struct App {
   if(!instruments.empty()){categoryIndex=static_cast<int>(instruments.front().category);SendMessageW(category,CB_SETCURSEL,categoryIndex,0);}
   updateSplash(12,L"Catálogo SFZ carregado. Inicializando o motor...");
   refreshCatalog();refreshFavorites();
-  try{auto dll=base/L"sfizz.dll";if(!std::filesystem::exists(dll))dll=base/L"recovery/extracted/live/sfizz.dll";engine=std::make_unique<lp::AudioHost>(dll);
+  try{auto dll=base/L"sfizz.dll";if(!std::filesystem::exists(dll))dll=base/L"recovery/extracted/live/sfizz.dll";engineLibrary=dll;engine=std::make_unique<lp::AudioHost>(dll);
    // Discover SF2 evaluation presets without changing the approved SFZ bank.
    // Keep SF2 entries in memory only; the original curated catalog remains intact.
    // Scan standard banks and a user-owned "Red Pianos" folder placed beside the EXE.
@@ -336,10 +340,38 @@ struct App {
     for(std::size_t i=0;i<audioDevices.size();++i)if(audioDevices[i].id==device)SendMessageW(audioDriver,CB_SETCURSEL,i+1,0);
     if(!saved.midi.empty()){for(UINT i=0;i<midiInGetNumDevs();++i){MIDIINCAPSW caps{};if(midiInGetDevCapsW(i,&caps,sizeof(caps))==MMSYSERR_NOERROR&&std::filesystem::path(caps.szPname).u8string()==saved.midi){SendMessageW(midi,CB_SETCURSEL,i+1,0);openMidiSelection();break;}}}
 
-    pendingRestore=true;SetTimer(window,2,750,nullptr);message(L"Reconectando automaticamente o último driver ASIO...");
+    pendingRestore=true; // Reconnect only after offline volume calibration is complete.
    }
   }catch(const std::exception& e){error(e);message(L"Áudio não inicializado ou configurações não restauradas. Confira o driver ASIO e tente conectar.");}
-  updateSplash(100,L"Biblioteca pronta.");loading=false;layout();SetFocus(item(CategoryCardBase+categoryIndex));SetTimer(window,1,250,nullptr);
+  if(engine&&!settingsPath.empty()){
+   try{
+    updateSplash(92,L"Verificando os volumes salvos dos timbres...");
+    levelCalibration=std::make_unique<lp::LevelCalibrationJob>(engineLibrary,settingsPath.parent_path()/L"volume_calibration.cache",instruments);
+    if(!SetTimer(window,4,100,nullptr))throw std::runtime_error("Nao foi possivel acompanhar o equilibrio de volumes");
+    return;
+   }catch(const std::exception& e){levelCalibration.reset();levelWarning=L"Equilíbrio automático indisponível.";error(e);completeLibrary(L"Equilíbrio automático indisponível. Volumes originais mantidos.");return;}
+  }
+  completeLibrary(L"Biblioteca aberta sem calibracao: motor ou pasta de configuracoes indisponivel.");
+ }
+ void pollLevelCalibration(){
+  if(!levelCalibration)return;
+  auto result=levelCalibration->snapshot();
+  auto count=std::to_wstring(result.completed)+L" de "+std::to_wstring(result.total);
+  updateSplash(92+(result.total?static_cast<int>(7*result.completed/result.total):7),L"Equilibrando volumes: "+count+L" · "+std::filesystem::u8path(result.name).wstring());
+  if(!result.done)return;
+  KillTimer(window,4);levelCalibration.reset();
+  if(engine)engine->setLevelCompensations(result.gains);
+  if(result.failed||result.silent||!result.error.empty()){
+   levelWarning=L"Equilíbrio de volumes com avisos: "+std::to_wstring(result.failed)+L" falhas, "+std::to_wstring(result.silent)+L" sem sinal de teste.";
+   auto warning=L"Equilibrio de volumes: "+std::to_wstring(result.gains.size())+L" timbres preparados; "+std::to_wstring(result.failed)+L" falhas; "+std::to_wstring(result.silent)+L" sem sinal de teste. Confira os avisos.";
+   if(!result.error.empty())warning+=L" "+std::filesystem::u8path(result.error).wstring();
+   completeLibrary(warning);
+  }else completeLibrary(L"Biblioteca pronta. Volumes equilibrados: "+std::to_wstring(result.analyzed)+L" calibrados, "+std::to_wstring(result.reused)+L" recuperados da memoria.");
+ }
+ void completeLibrary(const std::wstring& statusText){
+  updateSplash(100,statusText);loading=false;layout();SetFocus(item(CategoryCardBase+categoryIndex));SetTimer(window,1,250,nullptr);
+  if(pendingRestore)SetTimer(window,2,750,nullptr);
+  markVisionDirty();flushVision();
  }
  #include "ui_app.inc"
  void cancelAudioRestore(){pendingRestore=false;KillTimer(window,2);}
@@ -747,6 +779,7 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
  case LoadLibraryMessage:try{if(wp==1)app->loadNextBank();else app->loadLibrary();}catch(const std::exception& e){app->loading=false;app->layout();app->error(e);}return 0;
  case VisionCommandMessage:{std::unique_ptr<std::wstring> wire(reinterpret_cast<std::wstring*>(lp));if(wire)app->visionCommand(*wire);return 0;}
  case WM_TIMER:
+  if(wp==4){try{app->pollLevelCalibration();}catch(const std::exception& e){KillTimer(w,4);app->levelCalibration.reset();app->error(e);app->completeLibrary(L"Falha ao aplicar equilibrio de volumes. Confira os avisos.");}return 0;}
   if(wp==3){app->visionLoadTimeout();return 0;}
   if(wp==2){app->restoreAudio();app->flushVision();return 0;}
   if(app->engine&&app->engine->takeFault()){try{app->engine->stop();}catch(const std::exception& e){app->error(e);}app->message(L"Falha no motor/driver. Áudio interrompido; reconecte ASIO.");}app->updateIndicators();app->flushVision();return 0;
@@ -774,7 +807,7 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
  case WM_ERASEBKGND:return 1;
  case WM_GETMINMAXINFO:reinterpret_cast<MINMAXINFO*>(lp)->ptMinTrackSize={1024,600};return 0;
  case WM_CLOSE:try{if(!app->confirmProfileChange())return 0;app->releaseVirtual();if(app->engine)app->persistAudioAndMidi();}catch(const std::exception& e){app->error(e);return 0;}break;
- case WM_DESTROY:app->closeVision();app->closeMidi();PostQuitMessage(0);return 0;
+ case WM_DESTROY:app->levelCalibration.reset();app->closeVision();app->closeMidi();PostQuitMessage(0);return 0;
  }
  return DefWindowProcW(w,msg,wp,lp);
 }

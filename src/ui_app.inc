@@ -54,7 +54,7 @@
  }
  void openScreen(lp::Screen next){if(loading)return;if(next!=lp::Screen::PerformanceEditor)if(!preserveEditorDraft())return;restoringSounds=false;pageScroll.seek(0);effects=false;parameterPanel.open=false;screen=next;performanceVisible=next==lp::Screen::PerformanceEditor;cancelMidiLearn();layout();SetFocus(window);}
  void updateSplash(int done,const std::wstring& label){
-  progress=std::clamp(done,0,100);SetWindowTextW(status,label.c_str());layout();UpdateWindow(window);
+  progress=std::clamp(done,0,100);SetWindowTextW(status,label.c_str());layout();UpdateWindow(window);markVisionDirty();flushVision();
  }
  void layout(){
   if(!catalog||placing)return;
