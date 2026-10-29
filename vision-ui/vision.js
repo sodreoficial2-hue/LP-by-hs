@@ -87,7 +87,7 @@
   if(favorites){const picture=node('div',{class:'hero-art'});picture.append(crop('favorites',190,300,540,450));hero.append(picture);}
   else if(state.category===0){const picture=node('div',{class:'hero-art'});picture.append(crop('piano',125,300,680,450));hero.append(picture);}
   else hero.append(art(state.category));
-  hero.append(node('h2',{},category),node('p',{},favorites?'Clique direito: aprender Program Change.':'↑ ↓ Selecionar e carregar · Espaço Favoritar · Ctrl+D Excluir da categoria'));
+  hero.append(node('h2',{},category),node('p',{},favorites?'Clique direito: aprender Program Change.':'↑ ↓ Selecionar e carregar · Espaço Favoritar · Clique direito: opções · Ctrl+D Ocultar'));
   const list=node('ul',{class:'sound-list',id:'sound-list','aria-label':favorites?'Vinte posições de favoritos':'Timbres da categoria'}),rows=favorites?state.favorites:state.catalog;
   if(!rows.length)list.append(node('li',{class:'empty'},node('h2',{},'Nenhum timbre nesta categoria'),node('p',{},'Importe seus SFZ ou SF2 em Perfis. Os instrumentos serão adicionados a Meus Sons.')));
   rows.forEach(row=>{
@@ -98,6 +98,7 @@
    const star=button(favorites?'★':(row.favorite?'★':'☆'),()=>send(favorites?'removeFavorite':'favorite',row.id),{class:'favorite-toggle','data-star':row.id,'data-focus':`star-${row.id}`,'aria-label':favorites?`Remover favorito ${row.id+1}`:`Favoritar ${row.name}`,disabled:favorites&&!row.occupied});
    item.append(choose);if(restoring)choose.append(node('span',{class:'restore-label'},'Restaurar'));else item.append(star);
    if(favorites){const learn=()=>send('learnFavorite',row.id);item.addEventListener('contextmenu',e=>{e.preventDefault();learn();});choose.addEventListener('keydown',e=>{if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10')){e.preventDefault();learn();}});}
+   if(!favorites&&!restoring){const menu=e=>{e.preventDefault();send('soundMenu',row.id);};item.addEventListener('contextmenu',menu);choose.addEventListener('keydown',e=>{if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10')){e.stopPropagation();menu(e);}});}
    list.append(item);
   });
   const search=node('input',{id:'sound-search',type:'search',maxlength:256,value:state.search||'','data-focus':'sound-search',placeholder:'Digite parte do nome — Ctrl+F','aria-label':'Buscar timbre pelo nome'});
@@ -116,7 +117,7 @@
  function profiles(){
   title('Perfis de show e instrumentos','SEU REPERTÓRIO, PRONTO PARA VOLTAR');
   const card=(name,description,action)=>button([node('strong',{},name),node('span',{},description)],()=>send(action),{class:'panel profile-card'});
-  return node('div',{class:'form-grid'},card('Abrir perfil','Carregue os favoritos, parâmetros e mapeamentos de um show.','open'),card('Salvar perfil','Escolha o local do arquivo pelo diálogo do Windows.','save'),card('Restaurar timbres removidos','Recupere um timbre retirado com Ctrl+D.','restoreSounds'),card('Localizar timbres ausentes','Atualize os arquivos usados pelos favoritos e Performances.','locateSounds'),card('Importar SFZ','Adicione um instrumento à categoria Meus Sons.','importSfz'),card('Importar SF2','Adicione os presets de um SoundFont à sua biblioteca.','importSf2'),node('section',{class:'panel wide'},node('h2',{},'Um perfil para cada apresentação'),node('p',{class:'details'},'Use Salvar perfil para guardar favoritos, ajustes, performances e MIDI Learn. Cada arquivo .lphs pode conter o repertório de um artista ou show.')));
+  return node('div',{class:'form-grid'},card('Abrir perfil','Carregue os favoritos, parâmetros e mapeamentos de um show.','open'),card('Salvar perfil','Escolha o local do arquivo pelo diálogo do Windows.','save'),card('Restaurar timbres ocultos','Recupere um timbre ocultado pelo menu ou Ctrl+D.','restoreSounds'),card('Localizar timbres ausentes','Atualize os arquivos usados pelos favoritos e Performances.','locateSounds'),card('Importar SFZ','Adicione um instrumento à categoria Meus Sons.','importSfz'),card('Importar SF2','Adicione os presets de um SoundFont à sua biblioteca.','importSf2'),node('section',{class:'panel wide'},node('h2',{},'Um perfil para cada apresentação'),node('p',{class:'details'},'Use Salvar perfil para guardar favoritos, ajustes, performances e MIDI Learn. Cada arquivo .lphs pode conter o repertório de um artista ou show.')));
  }
  let partCategories=[],partSearch=[];
  const searchFold=value=>String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR');

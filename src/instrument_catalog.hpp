@@ -8,12 +8,13 @@ namespace lp {
 inline constexpr std::array<const char*,15> instrumentCategories{
  "Pianos acústicos","Pianos elétricos","Órgãos","Cordas","Metais","Leads","Pads","Percussão","Bateria","Acordeons","Outros","Contrabaixos","Guitarras","Performance","Meus Sons"};
 struct Instrument {
- std::string id,name,license,mode;
+ std::string id,name,license,mode,customName;
+ bool userImported=false;
  std::filesystem::path sfz;
  unsigned category=10;
  int testNote=60;
 };
-inline std::vector<Instrument> loadInstrumentBank(const std::filesystem::path& root){
+inline std::vector<Instrument> loadInstrumentBank(const std::filesystem::path& root,const std::set<std::string>& deletedIds={}){
  std::ifstream in(root/"catalog.txt",std::ios::binary);std::string line;
  if(!std::getline(in,line))throw std::runtime_error("Catálogo de timbres inválido");
  if(!line.empty()&&line.back()=='\r')line.pop_back();
@@ -27,10 +28,11 @@ inline std::vector<Instrument> loadInstrumentBank(const std::filesystem::path& r
   if(relative.empty()||relative.is_absolute()||relative.has_root_name()||relative.extension()!=".sfz")throw std::runtime_error("Caminho inválido no banco de timbres");
   for(const auto& part:relative)if(part=="..")throw std::runtime_error("Caminho fora do banco de timbres");
   p.sfz=std::filesystem::absolute(root/relative).lexically_normal();
+  if(deletedIds.count(p.id)&&!std::filesystem::exists(p.sfz))continue;
   if(!std::filesystem::is_regular_file(p.sfz)||!ids.insert(p.id).second||!paths.insert(path).second)throw std::runtime_error("Timbre ausente ou duplicado: "+p.id);
   result.push_back(std::move(p));
  }
- if(result.empty())throw std::runtime_error("Banco de timbres vazio");
+ if(result.empty()&&deletedIds.empty())throw std::runtime_error("Banco de timbres vazio");
  return result;
 }
 // Stable IDs keep new favorites usable after moving the portable application.
@@ -41,6 +43,7 @@ inline std::filesystem::path resolveInstrument(const std::string& reference,cons
 }
 inline std::string instrumentReference(const Instrument& p){return p.id.empty()?p.sfz.u8string():"bank://"+p.id;}
 inline std::string instrumentDisplayName(const Instrument& instrument){
+ if(!instrument.customName.empty())return instrument.customName;
  return soundDisplayName(instrument.name,instrument.sfz.u8string().rfind("sf2://",0)==0);
 }
 inline std::string instrumentName(const std::string& reference,const std::vector<Instrument>& bank){

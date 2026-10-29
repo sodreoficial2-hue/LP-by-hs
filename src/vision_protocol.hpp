@@ -46,7 +46,7 @@ inline Command parse(std::string_view wire) {
  Command c;c.sequence=static_cast<unsigned>(integer(fields[1],1,1000000000));c.action=fields[2];c.a=integer(fields[3],0,1000000);c.b=integer(fields[4],0,1000000);c.text=decode(fields[5]);
  auto limit=[&](int a,int b){if(c.a>a||c.b>b)throw std::invalid_argument("Valor de interface fora do limite");};
  if(c.action=="category")limit(15,0);
- else if(c.action=="select"||c.action=="favorite"||c.action=="restoreSound")limit(100000,0);
+ else if(c.action=="select"||c.action=="favorite"||c.action=="restoreSound"||c.action=="soundMenu")limit(100000,0);
  else if(c.action=="activateFavorite"||c.action=="removeFavorite"||c.action=="learnFavorite")limit(19,0);
  else if(c.action=="parameter")limit(15,1000);
  else if(c.action=="learnParameter")limit(15,0);

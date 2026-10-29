@@ -1,4 +1,5 @@
 #pragma code_page(65001)
+#include <windows.h>
 1 24 "app.manifest"
 2 RCDATA "../recovery/extracted/live/assets/hugo.jpg"
 3 ICON "../assets/live-performance.ico"
@@ -25,4 +26,15 @@ BEGIN
  BEGIN
   VALUE "Translation", 0x409, 1200
  END
+END
+
+5100 DIALOGEX 0, 0, 360, 112
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Renomear timbre"
+FONT 16, "Segoe UI"
+BEGIN
+ LTEXT "Novo nome do timbre:", -1, 12, 8, 332, 18
+ EDITTEXT 5101, 12, 30, 336, 24, ES_AUTOHSCROLL | WS_TABSTOP
+ DEFPUSHBUTTON "Salvar", IDOK, 116, 72, 108, 28
+ PUSHBUTTON "Cancelar", IDCANCEL, 236, 72, 112, 28
 END

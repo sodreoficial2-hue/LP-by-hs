@@ -234,3 +234,7 @@ if(LP_REAL_FLUIDSYNTH AND NOT WIN32)
  target_link_libraries(lp_real_level_calibration_test PRIVATE lp_engine)
  add_test(NAME real_sf2_level_calibration COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/tests/real_level_calibration_test.py" $<TARGET_FILE:lp_real_level_calibration_test> "${LP_REAL_FLUIDSYNTH}" "${CMAKE_BINARY_DIR}/level-calibration-validation" $<TARGET_FILE:lp_fake_sfizz>)
 endif()
+
+add_executable(lp_catalog_edits_test tests/catalog_edits_test.cpp)
+target_include_directories(lp_catalog_edits_test PRIVATE src)
+add_test(NAME catalog_edits_and_permanent_delete COMMAND lp_catalog_edits_test)

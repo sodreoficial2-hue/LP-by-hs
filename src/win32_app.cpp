@@ -15,6 +15,7 @@
 #include "session.hpp"
 #include "instrument_catalog.hpp"
 #include "hidden_sounds.hpp"
+#include "catalog_edits.hpp"
 #include "profile_paths.hpp"
 #include "midi.hpp"
 #include "audio_host.hpp"
@@ -114,13 +115,16 @@ struct App {
  bool performanceVisible=false;
  std::vector<lp::AudioDevice> audioDevices;
  std::filesystem::path settingsPath;
+ lp::CatalogEdits catalogEdits;
+ std::filesystem::path catalogEditsPath() const {return settingsPath.parent_path()/L"catalog_edits.settings";}
  lp::HiddenSounds hiddenSounds;bool deleteDialogActive=false,hiddenCatalogReady=true;
  std::filesystem::path hiddenSoundsPath() const {return settingsPath.parent_path()/L"hidden_sounds.catalog";}
  std::filesystem::path mySoundsPath() const {return settingsPath.parent_path()/L"my_sounds.catalog";}
  bool addMySound(lp::Instrument item){
   auto reference=lp::instrumentReference(item);
-  for(const auto& existing:instruments)if(existing.category==14&&lp::instrumentReference(existing)==reference)return false;
-  item.category=14;instruments.push_back(std::move(item));return true;
+  for(const auto& existing:instruments)if(lp::instrumentReference(existing)==reference)return false;
+  if(!std::filesystem::is_regular_file(lp::soundSource(item)))return false;
+  item.category=14;item.userImported=true;catalogEdits.apply(item,base);instruments.push_back(std::move(item));return true;
  }
  void saveMySounds(){
   if(settingsPath.empty())throw std::runtime_error("Pasta de Meus Sons indisponível");
@@ -129,7 +133,7 @@ struct App {
    std::ofstream out(temp,std::ios::binary|std::ios::trunc);
    if(!out)throw std::runtime_error("Não foi possível gravar Meus Sons");
    out<<"LPHS_MY_SOUNDS 1\n";
-   for(const auto& item:instruments)if(item.category==14)
+   for(const auto& item:instruments)if(item.userImported)
     out<<std::quoted(item.sfz.u8string())<<' '<<std::quoted(item.name)<<'\n';
    out.flush();if(!out)throw std::runtime_error("Falha ao salvar Meus Sons");
   }
@@ -258,11 +262,16 @@ struct App {
   internalEdit=false;editorDraft=false;layout();PostMessageW(window,LoadLibraryMessage,0,0);
  }
  void loadLibrary(){
+   PWSTR roaming=nullptr;auto folderResult=SHGetKnownFolderPath(FOLDERID_RoamingAppData,KF_FLAG_CREATE,nullptr,&roaming);
+   if(FAILED(folderResult)||!roaming){if(roaming)CoTaskMemFree(roaming);throw std::runtime_error("Pasta permanente de configurações de áudio indisponível");}
+   auto folder=std::filesystem::path(roaming)/L"Live Performance by Hugo Sodre";CoTaskMemFree(roaming);
+   std::filesystem::create_directories(folder);settingsPath=folder/L"audio.settings";
+  catalogEdits.load(catalogEditsPath());
   updateSplash(2,L"Localizando os timbres SFZ...");
   auto samples=base/L"samples";
   if(!std::filesystem::is_directory(samples))samples=base/L"recovery/extracted/live/samples";
   if(!std::filesystem::is_directory(samples))samples=std::filesystem::current_path()/L"recovery/extracted/live/samples";
-  if(std::filesystem::exists(base/L"soundbank/catalog.txt"))instruments=lp::loadInstrumentBank(base/L"soundbank");
+  if(std::filesystem::exists(base/L"soundbank/catalog.txt"))instruments=lp::loadInstrumentBank(base/L"soundbank",catalogEdits.deletedBankIds());
   else for(const auto& path:lp::catalog(samples)){lp::Instrument p;p.sfz=path;p.name=path.stem().u8string();p.category=1;instruments.push_back(p);}
   if(!instruments.empty()){categoryIndex=static_cast<int>(instruments.front().category);SendMessageW(category,CB_SETCURSEL,categoryIndex,0);}
   updateSplash(12,L"Catálogo SFZ carregado. Inicializando o motor...");
@@ -329,12 +338,8 @@ struct App {
    refreshCatalog();
    audioDevices=engine->devices();for(const auto& device:audioDevices){auto text=std::filesystem::u8path(device.name).wstring();SendMessageW(audioDriver,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(text.c_str()));}
    if(audioDevices.empty())message(L"Nenhum driver ASIO estéreo encontrado. Instale ou habilite seu driver ASIO. Não há fallback Windows.");
-   PWSTR roaming=nullptr;auto folderResult=SHGetKnownFolderPath(FOLDERID_RoamingAppData,KF_FLAG_CREATE,nullptr,&roaming);
-   if(FAILED(folderResult)||!roaming){if(roaming)CoTaskMemFree(roaming);throw std::runtime_error("Pasta permanente de configurações de áudio indisponível");}
-   auto folder=std::filesystem::path(roaming)/L"Live Performance by Hugo Sodre";CoTaskMemFree(roaming);
-   std::filesystem::create_directories(folder);settingsPath=folder/L"audio.settings";
    try{hiddenSounds.load(hiddenSoundsPath());}catch(const std::exception& e){hiddenCatalogReady=false;error(e);}
-   try{loadMySounds();refreshCatalog();}catch(const std::exception& e){error(e);}
+   try{loadMySounds();for(auto& p:instruments)catalogEdits.apply(p,base);refreshCatalog();}catch(const std::exception& e){error(e);}
    if(std::filesystem::exists(settingsPath)){
     auto saved=lp::AudioSettings::load(settingsPath);int device=lp::resolveAsioDriver(audioDevices,saved.driver);
     for(std::size_t i=0;i<audioDevices.size();++i)if(audioDevices[i].id==device)SendMessageW(audioDriver,CB_SETCURSEL,i+1,0);
@@ -439,6 +444,49 @@ struct App {
   }
   if(SendMessageW(catalog,LB_GETCOUNT,0,0)>0)SendMessageW(catalog,LB_SETCURSEL,0,0);
  }
+ struct RenameDialog {std::wstring name;HFONT font;};
+ static INT_PTR CALLBACK renameProc(HWND w,UINT msg,WPARAM wp,LPARAM data){
+  auto context=reinterpret_cast<RenameDialog*>(GetWindowLongPtrW(w,DWLP_USER));
+  if(msg==WM_INITDIALOG){context=reinterpret_cast<RenameDialog*>(data);SetWindowLongPtrW(w,DWLP_USER,data);SetDlgItemTextW(w,5101,context->name.c_str());SendDlgItemMessageW(w,5101,EM_SETLIMITTEXT,256,0);for(int id:{5101,IDOK,IDCANCEL})SendDlgItemMessageW(w,id,WM_SETFONT,reinterpret_cast<WPARAM>(context->font),TRUE);SendDlgItemMessageW(w,5101,EM_SETSEL,0,-1);return TRUE;}
+  if(msg==WM_COMMAND&&LOWORD(wp)==IDOK){wchar_t name[257]{};GetDlgItemTextW(w,5101,name,257);std::wstring text=name;auto first=text.find_first_not_of(L" \t");if(first==text.npos){MessageBoxW(w,L"Digite um nome para o timbre.",L"Renomear",MB_OK);return TRUE;}context->name=text.substr(first,text.find_last_not_of(L" \t")-first+1);EndDialog(w,IDOK);return TRUE;}
+  if((msg==WM_COMMAND&&LOWORD(wp)==IDCANCEL)||msg==WM_CLOSE){EndDialog(w,IDCANCEL);return TRUE;}return FALSE;
+ }
+ void soundMenu(int row,POINT point){try{
+  if(loading||effects||restoringSounds||screen!=lp::Screen::Instruments||deleteDialogActive||categoryIndex==15)return;
+  if(categoryIndex==13){message(L"Use o editor para alterar uma Performance.");return;}
+  if(row<0||static_cast<std::size_t>(row)>=visibleInstruments.size())return;
+  if(!hiddenCatalogReady||settingsPath.empty())throw std::runtime_error("Configurações do catálogo indisponíveis");
+  if(!preserveEditorDraft())return;
+  SendMessageW(catalog,LB_SETCURSEL,row,0);
+  // Snapshot the source, never a mutable selection, before entering modal UI.
+  auto index=visibleInstruments[row];auto instrument=instruments[index];auto key=lp::soundExclusionKey(lp::instrumentReference(instrument),base);
+  HMENU menu=CreatePopupMenu(),move=CreatePopupMenu();
+  AppendMenuW(menu,MF_STRING,1,L"Renomear");
+  for(unsigned c=0;c<15;++c)if(c!=13){auto name=std::filesystem::u8path(lp::instrumentCategories[c]).wstring();AppendMenuW(move,MF_STRING|(c==instrument.category?MF_CHECKED:0),100+c,name.c_str());}
+  AppendMenuW(menu,MF_POPUP,reinterpret_cast<UINT_PTR>(move),L"Mover");AppendMenuW(menu,MF_STRING,2,L"Ocultar");AppendMenuW(menu,MF_STRING,3,L"Deletar permanentemente");
+  deleteDialogActive=true;auto action=TrackPopupMenu(menu,TPM_RETURNCMD|TPM_NONOTIFY|TPM_RIGHTBUTTON,point.x,point.y,0,window,nullptr);DestroyMenu(menu);deleteDialogActive=false;
+  if(!action)return;
+  auto edit=catalogEdits.get(key);
+  if(action==1){RenameDialog context{std::filesystem::u8path(lp::instrumentDisplayName(instrument)).wstring(),font};deleteDialogActive=true;auto result=DialogBoxParamW(GetModuleHandleW(nullptr),MAKEINTRESOURCEW(5100),window,renameProc,reinterpret_cast<LPARAM>(&context));deleteDialogActive=false;if(result==-1)throw std::runtime_error("Não foi possível abrir Renomear");if(result!=IDOK)return;edit.name=std::filesystem::path(context.name).u8string();catalogEdits.set(key,edit,catalogEditsPath());catalogEdits.apply(instruments[index],base);}
+  else if(action>=100&&action<=114&&action!=113){edit.category=action-100;catalogEdits.set(key,edit,catalogEditsPath());catalogEdits.apply(instruments[index],base);}
+  else if(action==2){hiddenSounds.exclude(key,hiddenSoundsPath());}
+  else if(action==3){
+   auto source=lp::soundSource(instrument);
+   if(auto sf2=lp::parseSf2Reference(instrument.sfz.u8string())){
+    if(!engine||engine->sf2Presets(source).size()!=1)throw std::runtime_error("Este SF2 contém vários timbres. Não é possível apagar apenas um preset sem reescrever o banco. Use Ocultar; o arquivo compartilhado foi preservado.");
+   }
+   lp::ensureUnsharedDefinition(source,base,instruments);
+   auto prompt=L"Deletar permanentemente \""+std::filesystem::u8path(lp::instrumentDisplayName(instrument)).wstring()+L"\"?\n\nArquivo: "+source.wstring()+L"\n\nO arquivo de origem será apagado. Amostras SFZ compartilhadas serão preservadas. Favoritos e Performances que usam esse som ficarão sem o timbre. A reprodução atual será interrompida. Esta ação não pode ser desfeita.";
+   deleteDialogActive=true;int answer=MessageBoxW(window,prompt.c_str(),L"Deletar permanentemente",MB_YESNO|MB_ICONWARNING|MB_DEFBUTTON2);deleteDialogActive=false;if(answer!=IDYES)return;
+   auto before=edit;edit.deleted=true;catalogEdits.set(key,edit,catalogEditsPath());
+   bool reconnect=engine&&engine->running();int device=engine?engine->selectedDevice():-1;
+   try{if(engine){engine->stop();engine->unload();}lp::deleteSoundFile(source);}catch(...){catalogEdits.set(key,before,catalogEditsPath());if(reconnect)try{engine->start(device,0);}catch(...){}throw;}
+   instruments.erase(instruments.begin()+index);previewActive=false;show.current.reset();editingPerformanceValid=false;activePerformanceIndex=-1;
+   for(auto control:performancePartControls)SendMessageW(control,CB_SETCURSEL,0,0);
+   hiddenSounds.restore(key,hiddenSoundsPath());saveMySounds();if(reconnect)engine->start(device,0);
+  }
+  refreshCatalog();refreshFavorites();filterPerformanceChoices(L"");layout();message(action==3?L"Arquivo de origem deletado permanentemente.":L"Alteração memorizada automaticamente.");
+ }catch(const std::exception& e){deleteDialogActive=false;error(e);}}
  void deleteSelectedSound(){try{
   if(loading||effects||restoringSounds||screen!=lp::Screen::Instruments||deleteDialogActive)return;
   if(categoryIndex==15){message(L"Para excluir da categoria, selecione o timbre na categoria original. Espaço retira dos Favoritos.");return;}
@@ -453,8 +501,8 @@ struct App {
   }
   if(settingsPath.empty()||!hiddenCatalogReady)throw std::runtime_error("Lista de exclusoes indisponivel; nenhuma alteracao foi feita");
   // Capture identity before the modal loop: incoming MIDI cannot change the target.
-  deleteDialogActive=true;auto prompt=L"Tem certeza de que deseja excluir o timbre \""+name+L"\" do Live Performance?\n\nEle será retirado da categoria. O arquivo original, os Favoritos e as performances salvas serão preservados.";
-  int answer=MessageBoxW(window,prompt.c_str(),L"Excluir timbre do Live Performance",MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2);
+  deleteDialogActive=true;auto prompt=L"Tem certeza de que deseja ocultar o timbre \""+name+L"\" do Live Performance?\n\nEle será retirado da categoria. O arquivo original, os Favoritos e as performances salvas serão preservados.";
+  int answer=MessageBoxW(window,prompt.c_str(),L"Ocultar timbre",MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2);
   deleteDialogActive=false;if(answer!=IDYES)return;
   hiddenSounds.exclude(key,hiddenSoundsPath());
   // Keep the running synth intact and do not auto-load a neighboring sound.
@@ -798,7 +846,12 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
  case BeginParameterLearn:app->beginParameterLearn(static_cast<std::size_t>(wp));return 0;
  case WM_HSCROLL:for(int i=0;i<16;++i)if(reinterpret_cast<HWND>(lp)==app->sliders[i]){app->setPanelValue(i,static_cast<float>(SendMessageW(app->sliders[i],TBM_GETPOS,0,0))/1000);return 0;}break;
  case WM_ACTIVATE:if(LOWORD(wp)==WA_INACTIVE)app->releaseVirtual();break;
- case WM_CONTEXTMENU:if(reinterpret_cast<HWND>(wp)==app->favorites){
+ case WM_CONTEXTMENU:if(reinterpret_cast<HWND>(wp)==app->catalog){
+  auto row=SendMessageW(app->catalog,LB_GETCURSEL,0,0);POINT point{};
+  if(lp==-1){RECT rect{};SendMessageW(app->catalog,LB_GETITEMRECT,row,reinterpret_cast<LPARAM>(&rect));point={rect.left+32,rect.bottom};ClientToScreen(app->catalog,&point);}
+  else{point={static_cast<short>(LOWORD(lp)),static_cast<short>(HIWORD(lp))};auto local=point;ScreenToClient(app->catalog,&local);auto hit=SendMessageW(app->catalog,LB_ITEMFROMPOINT,0,MAKELPARAM(local.x,local.y));row=HIWORD(hit)?-1:LOWORD(hit);}
+  app->soundMenu(static_cast<int>(row),point);return 0;
+ }if(reinterpret_cast<HWND>(wp)==app->favorites){
   auto slot=SendMessageW(app->favorites,LB_GETCURSEL,0,0);
   if(lp!=-1){POINT pt{static_cast<short>(LOWORD(lp)),static_cast<short>(HIWORD(lp))};ScreenToClient(app->favorites,&pt);auto hit=SendMessageW(app->favorites,LB_ITEMFROMPOINT,0,MAKELPARAM(pt.x,pt.y));slot=HIWORD(hit)?-1:LOWORD(hit);}
   if(slot>=0){try{app->router.learnFavorite(static_cast<std::size_t>(slot));app->message(L"MIDI Learn: pressione o Program Change correspondente ao favorito (1 a 20). ESC cancela.");}catch(const std::exception& e){app->error(e);}}return 0;

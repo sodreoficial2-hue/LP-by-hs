@@ -82,6 +82,7 @@
    else if(c.action=="restoreSounds")command(RestoreSounds,BN_CLICKED);
    else if(c.action=="restoreAll")command(RestoreAll,BN_CLICKED);
    else if(c.action=="locateSounds")command(LocateSounds,BN_CLICKED);
+   else if(c.action=="soundMenu"){POINT point{};GetCursorPos(&point);soundMenu(c.a,point);}
    else if(c.action=="deleteSelected")deleteSelectedSound();
    else if(c.action=="effects"){releaseVisionNotes();toggleParameters();}
    else if(c.action=="escape"){cancelMidiLearn();releaseVisionNotes();if(!effects)command(HomeButton,BN_CLICKED);}

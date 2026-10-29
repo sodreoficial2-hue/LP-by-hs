@@ -89,3 +89,15 @@ cross-compiled with real PortAudio/ASIO sources. Windows/ASIO hardware and actua
 user-bank loudness validation remain pending. SFZ calibration was exercised with
 a test double; no new real-sfizz offline validation is claimed. Authenticated
 GitHub allowance is unknown; publish one grouped source-only commit.
+
+## Catalog context menu (29 October 2026)
+
+Hugo authorizes rename, category move, reversible hide and permanent source-file
+removal through right-click on instrument-category sounds. Preserve the latest
+startup level calibration and approved MIDI/ASIO behavior. Context operations
+capture identity before modal UI and save metadata automatically outside show
+profiles. Ctrl+D remains reversible hide. Multi-preset SF2 and shared SFZ
+definitions must not lose other instruments. SFZ sample audio is preserved.
+See docs/CATALOG-CONTEXT-MENU.md for deletion behavior and validation limits.
+No new portable/Drive release was requested in this step. Authenticated GitHub
+quota remains unknown; no hosted builds or binary uploads.
