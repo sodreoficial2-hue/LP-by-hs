@@ -117,7 +117,7 @@
  function profiles(){
   title('Perfis de show e instrumentos','SEU REPERTÓRIO, PRONTO PARA VOLTAR');
   const card=(name,description,action)=>button([node('strong',{},name),node('span',{},description)],()=>send(action),{class:'panel profile-card'});
-  return node('div',{class:'form-grid'},card('Abrir perfil','Carregue os favoritos, parâmetros e mapeamentos de um show.','open'),card('Salvar perfil','Escolha o local do arquivo pelo diálogo do Windows.','save'),card('Restaurar timbres ocultos','Recupere um timbre ocultado pelo menu ou Ctrl+D.','restoreSounds'),card('Localizar timbres ausentes','Atualize os arquivos usados pelos favoritos e Performances.','locateSounds'),card('Importar SFZ','Adicione um instrumento à categoria Meus Sons.','importSfz'),card('Importar SF2','Adicione os presets de um SoundFont à sua biblioteca.','importSf2'),node('section',{class:'panel wide'},node('h2',{},'Um perfil para cada apresentação'),node('p',{class:'details'},'Use Salvar perfil para guardar favoritos, ajustes, performances e MIDI Learn. Cada arquivo .lphs pode conter o repertório de um artista ou show.')));
+  return node('div',{class:'form-grid'},card('Abrir perfil','Carregue os favoritos, parâmetros e mapeamentos de um show.','open'),card('Salvar perfil','Escolha o local do arquivo pelo diálogo do Windows.','save'),card('Restaurar timbres ocultos','Recupere um timbre ocultado pelo menu ou Ctrl+D.','restoreSounds'),card('Localizar timbres ausentes','Atualize os arquivos usados pelos favoritos e Performances.','locateSounds'),card('Importar SFZ','Adicione um instrumento à categoria Meus Sons.','importSfz'),card('Importar SF2','Adicione os presets de um SoundFont à sua biblioteca.','importSf2'),node('section',{class:'panel wide'},node('h2',{},'Um perfil para cada apresentação'),node('p',{class:'details'},'As Performances são salvas permanentemente pelo editor. Use Salvar perfil para guardar favoritos, ajustes e MIDI Learn. Cada arquivo .lphs pode conter o repertório de um artista ou show.')));
  }
  let partCategories=[],partSearch=[];
  const searchFold=value=>String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR');
@@ -129,8 +129,11 @@
    const categoryIds=state.categories.map((_,n)=>n).filter(n=>n!==13&&n!==15);
    let category=partCategories[i]??p.instrumentCategories[selected];if(!categoryIds.includes(category))category=categoryIds[0];partCategories[i]=category;
    const categoryField=field(`Categoria da parte ${i+1}`,`part-category-${i}`,categoryIds.map(n=>state.categories[n]),categoryIds.indexOf(category),index=>{partCategories[i]=categoryIds[index];structure='';render();});
-   const soundField=field(`Timbre da parte ${i+1}`,`part-${i}`,[],selected,index=>send('performancePart',i,index));
-   const select=soundField.querySelector('select');
+   let lastAudition=selected;const audition=index=>{if(index!==lastAudition){lastAudition=index;flushParameters();send('performancePart',i,index);}};
+   const soundField=field(`Timbre da parte ${i+1}`,`part-${i}`,[],selected,audition);
+   const select=soundField.querySelector('select');select.size=6;select.setAttribute('aria-label',`Timbres da camada ${i+1}. Use as setas para ouvir.`);
+   select.addEventListener('input',()=>audition(Number(select.value)));
+   select.addEventListener('keydown',e=>{if(!['ArrowDown','ArrowUp','Home','End','PageDown','PageUp'].includes(e.key))return;e.preventDefault();const options=[...select.options];let index=select.selectedIndex;index=e.key==='Home'?0:e.key==='End'?options.length-1:Math.max(0,Math.min(options.length-1,index+(e.key==='ArrowDown'?1:e.key==='ArrowUp'?-1:e.key==='PageDown'?5:-5)));select.selectedIndex=index;options[index]?.scrollIntoView({block:'nearest'});audition(Number(select.value));});
    p.instruments.forEach((name,n)=>{if(n===0||n===selected||(p.instrumentCategories[n]===category&&searchFold(name).includes(searchFold(partSearch[i]||''))))select.append(node('option',{value:n},n===selected&&n>0&&p.instrumentCategories[n]!==category?`Atual: ${name}`:name));});select.value=String(selected);
    const search=node('input',{id:`part-search-${i}`,type:'search',value:partSearch[i]||'','data-focus':`part-search-${i}`,'aria-label':`Buscar timbre da parte ${i+1}`,placeholder:'Buscar timbre nesta categoria',maxlength:256});
    search.addEventListener('input',()=>{partSearch[i]=search.value;structure='';render();});
@@ -138,7 +141,7 @@
    row.addEventListener('focusin',()=>{if(state.performance.editingPart!==i)send('editPart',i);});parts.append(row);
   });
   const name=node('input',{id:'performance-name',type:'text',maxlength:255,value:p.name,'data-focus':'performance-name'});name.addEventListener('change',()=>send('performanceName',0,0,name.value));
-  return node('div',{class:'form-grid'},node('section',{class:'panel wide'},zones),parts,node('section',{class:'panel wide'},node('label',{class:'field',for:'performance-name'},'Nome da Performance',name),node('div',{class:'actions'},button('Ativar Performance',()=>{send('performanceName',0,0,name.value);send('performancePlay');},{class:'primary'}),button('Salvar Performance',()=>{send('performanceName',0,0,name.value);send('performanceSave');})),node('p',{class:'note'},'Ative para aplicar as partes ao áudio. Depois, salve o perfil para guardar a Performance em disco.')));
+  return node('div',{class:'form-grid'},node('section',{class:'panel wide'},zones),parts,node('section',{class:'panel wide'},node('label',{class:'field',for:'performance-name'},'Nome da Performance',name),node('div',{class:'actions'},button('Salvar Performance',()=>{send('performanceName',0,0,name.value);send('performanceSave');})),node('p',{class:'note'},'As camadas tocam automaticamente. Use as setas para experimentar os timbres. Salvar Performance grava permanentemente e limpa o editor.')));
  }
  function parameters(){
   title(state.partMix?'Mix da Performance':state.screen==='performance'?`Parâmetros da parte ${state.performance.editingPart+1}`:'Parâmetros do instrumento',state.partMix?'VOLUMES DAS QUATRO PARTES':'EXPRESSÃO · TEXTURA · AMBIENTE');
@@ -184,7 +187,7 @@
   // text and caret/selection, including edits in the middle of a search term.
   const textEdit=active?.matches('input[type="search"],input[type="text"]')?
    {value:active.value,start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection}:null;
-  const key=JSON.stringify([state.screen,state.effects,state.category,state.loading,state.partMix,state.restoring,state.catalog.map(r=>r.name),state.category===15?state.favorites.map(r=>[r.name,r.occupied]):null,state.audio.drivers,state.audio.midiInputs,state.performance.instruments,state.performance.instrumentCategories,state.screen==='performance'?state.performance.parts:null,state.screen==='performance'&&state.effects?state.performance.editingPart:null]);
+  const key=JSON.stringify([state.screen,state.effects,state.category,state.loading,state.partMix,state.restoring,state.catalog.map(r=>r.name),state.category===15?state.favorites.map(r=>[r.name,r.occupied]):null,state.audio.drivers,state.audio.midiInputs,state.performance.instruments,state.performance.instrumentCategories,state.screen==='performance'?[state.performance.parts,state.performance.name]:null,state.screen==='performance'&&state.effects?state.performance.editingPart:null]);
   if(key!==structure){
    structure=key;let body;
    if(state.loading){title('Preparando seus instrumentos');body=node('section',{class:'waiting panel'},node('h2',{},'Carregando a biblioteca'),node('progress',{id:'progress',max:100,value:state.progress}),node('p',{class:'details'},state.status));}
@@ -218,7 +221,7 @@
   document.querySelectorAll('[data-part]').forEach(row=>row.classList.toggle('editing',Number(row.dataset.part)===state.performance.editingPart));
   if($('progress'))$('progress').value=state.progress;
  }
- function receive(event){const next=event?.data??event;if(!next||next.type!=='state'||next.version!==1)return;if(state?.screen==='keyboard'&&(next.screen!=='keyboard'||next.effects))releaseNotes();if(state?.screen!=='performance'&&next.screen==='performance')partCategories=[];state=next;if(next.error)notice(next.error);render();finishOpening();}
+ function receive(event){const next=event?.data??event;if(!next||next.type!=='state'||next.version!==1)return;if(state?.screen==='keyboard'&&(next.screen!=='keyboard'||next.effects))releaseNotes();if(next.screen==='performance'&&(state?.screen!=='performance'||(state?.performance.parts.some(Boolean)&&!next.performance.parts.some(Boolean)))){partCategories=[];partSearch=[];}state=next;if(next.error)notice(next.error);render();finishOpening();}
  $('brand').addEventListener('click',()=>{flushParameters();send('screen',0);});$('back').addEventListener('click',()=>{flushParameters();send('screen',0);});
  document.querySelectorAll('[data-screen]').forEach(b=>b.addEventListener('click',()=>{flushParameters();send('screen',Number(b.dataset.screen));}));
  $('keyboard-nav').addEventListener('click',()=>send('screen',6));$('effects-nav').addEventListener('click',()=>{flushParameters();send('effects');});$('panic').addEventListener('click',()=>{releaseNotes();send('panic');});
@@ -241,7 +244,7 @@
   if(event.ctrlKey&&!event.altKey&&!event.metaKey&&!event.shiftKey&&event.key.toLowerCase()==='d'&&!entry&&!target.isContentEditable){event.preventDefault();if(!event.repeat&&state.screen==='instruments'&&!state.effects){flushParameters();send('deleteSelected');}return;}
   if(entry||event.ctrlKey||event.altKey||event.metaKey)return;
   // Keyboard shortcuts are additive; MIDI Program Change/Learn routing is unchanged.
-  if(!event.repeat && /^[0-9]$/.test(event.key) && !event.shiftKey && !target.matches('input,select,textarea,[contenteditable="true"]')){
+  if(state.screen!=='performance'&&!event.repeat && /^[0-9]$/.test(event.key) && !event.shiftKey && !target.matches('input,select,textarea,[contenteditable="true"]')){
    const slot=event.key==='0'?9:Number(event.key)-1;
    if(state.favorites?.[slot]?.occupied){event.preventDefault();flushParameters();send('activateFavorite',slot);return;}
   }

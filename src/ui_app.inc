@@ -108,7 +108,7 @@
    place(PartSearch,56,p+10,width-112,44);p+=64;
    place(PerformanceModeControl,56,p+68,width-112,300);
    for(int i=0;i<4;++i){int y=p+152+i*96;place(PerformancePartBase+i,116,y+22,width-308,300);place(PerformanceClearBase+i,width-172,y+18,112,56);}
-   place(PerformanceName,56,p+602,width-112,50);place(PerformancePlay,56,p+678,(width-128)/2,60);place(PerformanceSave,72+(width-128)/2,p+678,(width-128)/2,60);
+   place(PerformanceName,56,p+602,width-112,50);place(PerformanceSave,56,p+678,width-112,60);
   }else if(screen==lp::Screen::About){int left=width/3;place(AboutText,left+44,p+68,width-left-100,pageScroll.content-108);}
   finish();
  }

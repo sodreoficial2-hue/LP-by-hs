@@ -101,3 +101,15 @@ definitions must not lose other instruments. SFZ sample audio is preserved.
 See docs/CATALOG-CONTEXT-MENU.md for deletion behavior and validation limits.
 No new portable/Drive release was requested in this step. Authenticated GitHub
 quota remains unknown; no hosted builds or binary uploads.
+
+## Live Performance editor flow (29 October 2026)
+
+Hugo authorizes immediate audition/activation in all four layers, exclusive layer
+routing on entering the editor, removal of Activate Performance, automatic
+permanent Save Performance independent of show profiles, editor reset after a
+successful save and right-click deletion from the Performance category. Investigate
+latency during editing and after returning to single sounds. Preserve startup
+level calibration and catalog editing. See docs/PERFORMANCE-EDITOR-FLOW.md for
+implementation, migration and validation limits. Local Windows compilation is
+authorized; no new portable/Drive release requested in this turn. Publish one
+source-only stage without Actions. Authenticated GitHub allowance remains unknown.

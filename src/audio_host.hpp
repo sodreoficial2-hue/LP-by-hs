@@ -34,6 +34,7 @@ public:
  void setPerformancePartParameters(std::size_t index,const std::array<float,15>& params,bool adsrEnabled);
  void parameters(const std::array<float,15>& values,bool adsrEnabled=false);
  void send(MidiMessage message) noexcept;
+ void sendRealtime(MidiMessage message) noexcept; // One dedicated hardware MIDI producer.
  void panic() noexcept;
  void collectRetired() noexcept; // UI thread: release completed transition engines.
  float outputPeak() noexcept {return meterPeak.exchange(0);}
@@ -59,16 +60,17 @@ private:
  bool sf2Active=false;int sf2Bank=0,sf2Program=0;
  double rate=48000;std::atomic<float> master{1};
  std::map<std::string,float> levelGains;
- struct PartSynth {std::unique_ptr<SfizzEngine> sfz;std::unique_ptr<Sf2Engine> sf2;float levelGain=1;};
+ struct PartSynth {std::unique_ptr<SfizzEngine> sfz;std::unique_ptr<Sf2Engine> sf2;float levelGain=1;std::string reference;double sampleRate=0;};
  struct Graph {
-  std::array<PartSynth,4> voices{};
+  std::array<std::shared_ptr<PartSynth>,4> voices{};
   Performance performance{};
-  bool layered=false;
+  bool layered=false,hardSwitch=false;
   std::array<unsigned,4> applied{};
   Graph* next=nullptr;
  };
  // UI prepares/publishes; callback exclusively uses active/tails. Completed
  // graphs go to an intrusive lock-free retirement list; no deletion in ASIO.
+ std::array<std::shared_ptr<PartSynth>,4> preparedParts{};
  Graph* active=nullptr;
  std::array<Graph*,2> tails{};
  std::array<unsigned long,2> tailFrames{};
@@ -87,8 +89,9 @@ private:
  struct PartControl {std::array<std::atomic<float>,15> values;std::atomic<bool> adsr{false};std::atomic<unsigned> revision{0};};
  std::array<PartControl,4> partControls{};
  std::atomic<float> meterPeak{0};std::atomic<bool> meterClip{false};
+ std::atomic<bool> acceptingMidi{false};
  PaStream* stream{};int device=-1;unsigned long buffer=0;
- MidiQueue<> midi;
+ MidiQueue<> midi,hardwareMidi;
  std::atomic<bool> panicRequested{false},fault{false};
  std::atomic<unsigned long> underruns{0};
  std::array<std::atomic<float>,15> values;

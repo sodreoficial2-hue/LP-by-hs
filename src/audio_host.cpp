@@ -50,11 +50,14 @@ std::unique_ptr<AudioHost::Graph> AudioHost::prepare(double sampleRate){
  for(std::size_t i=0;i<4;++i){
   if(activePerformance&&!performance.parts[i].enabled)continue;
   if(!activePerformance&&(i||instrument.empty()))continue;
-  auto& voice=result->voices[i];
   auto ref=activePerformance?parseSf2Reference(performance.parts[i].instrument):std::optional<Sf2Reference>{};
   auto path=activePerformance?std::filesystem::u8path(performance.parts[i].instrument):instrument;
   const auto reference=ref?makeSf2Reference(ref->path,ref->bank,ref->program):
    (!activePerformance&&sf2Active?makeSf2Reference(path,sf2Bank,sf2Program):path.u8string());
+  if(activePerformance&&preparedParts[i]&&preparedParts[i]->reference==reference&&preparedParts[i]->sampleRate==sampleRate){
+   result->voices[i]=preparedParts[i];continue;
+  }
+  result->voices[i]=std::make_shared<PartSynth>();auto& voice=*result->voices[i];voice.reference=reference;voice.sampleRate=sampleRate;
   auto calibrated=levelGains.find(levelKey(reference));
   if(calibrated!=levelGains.end())voice.levelGain=calibrated->second;
   const auto& params=activePerformance?performance.parts[i].patch.parameters:current;
@@ -68,6 +71,7 @@ std::unique_ptr<AudioHost::Graph> AudioHost::prepare(double sampleRate){
  return result;
 }
 void AudioHost::publish(std::unique_ptr<Graph> graph){
+ preparedParts=graph->layered?graph->voices:decltype(preparedParts){};
  collectRetired();
  if(running())delete pending.exchange(graph.release(),std::memory_order_acq_rel);
  else{destroyGraphs();active=graph.release();if(active)controls(*active);}
@@ -83,9 +87,9 @@ void AudioHost::open(int id,unsigned long size){
  // The previous callback has been joined by stop(). Retain its graph until the
  // new stream has started, so a failed driver start can be rolled back safely.
  auto previous=active;active=graph.release();auto oldRate=rate;rate=negotiated;
- try{controls(*active);paCheck(Pa_StartStream(candidate));}
+ try{controls(*active);paCheck(Pa_StartStream(candidate));preparedParts=active->layered?active->voices:decltype(preparedParts){};}
  catch(...){Pa_CloseStream(candidate);delete active;active=previous;rate=oldRate;throw;}
- delete previous;stream=candidate;device=id;buffer=size;
+ delete previous;stream=candidate;acceptingMidi.store(true);device=id;buffer=size;
 }
 void AudioHost::start(int id,unsigned long size){
  requireAsio(id);if(size!=0&&(size<16||size>8192))throw std::invalid_argument("Invalid ASIO buffer");
@@ -93,6 +97,7 @@ void AudioHost::start(int id,unsigned long size){
  try{open(id,size);}catch(...){if(restart){try{open(oldDevice,oldBuffer);}catch(...){fault.store(true);}}throw;}
 }
 void AudioHost::stop(){
+ acceptingMidi.store(false);
  if(stream){auto old=stream;auto stopped=Pa_StopStream(old);if(stopped<0)Pa_AbortStream(old);paCheck(Pa_CloseStream(old));stream=nullptr;}
  clearQueue();if(active)silence(*active);
  for(auto& tail:tails){delete tail;tail=nullptr;}delete pending.exchange(nullptr);collectRetired();
@@ -116,7 +121,7 @@ void AudioHost::setLevelCompensations(const std::map<std::string,float>& gains){
  for(const auto& pair:gains)if(pair.first.empty()||!std::isfinite(pair.second)||pair.second<=0||pair.second>4)throw std::invalid_argument("Invalid calibrated gain");
  levelGains=gains;
 }
-void AudioHost::unload(){instrument.clear();activePerformance=false;publish(std::make_unique<Graph>());panic();}
+void AudioHost::unload(){instrument.clear();activePerformance=false;auto graph=std::make_unique<Graph>();graph->hardSwitch=true;publish(std::move(graph));}
 void AudioHost::loadPerformance(const Performance& selected){
  if(!selected.valid())throw std::invalid_argument("Invalid Performance");
  for(const auto& p:selected.parts)if(p.enabled)validParameters(p.patch.parameters);
@@ -125,7 +130,7 @@ void AudioHost::loadPerformance(const Performance& selected){
  for(const auto& p:selected.parts)if(p.enabled){instrument=std::filesystem::u8path(p.instrument);break;}
  try{
   auto graph=prepare(rate);
-  for(std::size_t i=0;i<4;++i){auto& control=partControls[i];control.revision.fetch_add(1);for(std::size_t j=0;j<15;++j)control.values[j].store(selected.parts[i].patch.parameters[j]);control.adsr.store(selected.parts[i].patch.adsrEnabled);control.revision.fetch_add(1);graph->applied[i]=control.revision.load();}
+  for(std::size_t i=0;i<4;++i){auto& control=partControls[i];control.revision.fetch_add(1);for(std::size_t j=0;j<15;++j)control.values[j].store(selected.parts[i].patch.parameters[j]);control.adsr.store(selected.parts[i].patch.adsrEnabled);control.revision.fetch_add(1);graph->applied[i]=0;}
   publish(std::move(graph));
  }catch(...){performance=previous;activePerformance=wasPerformance;instrument=previousPath;throw;}
 }
@@ -143,12 +148,12 @@ void AudioHost::controls(Graph& graph){
  if(sustain.load()>=0)event(graph,{0xb0,64,static_cast<std::uint8_t>(sustain.load())});
  if(bendSeen.load()){auto value=bend.load()+8192;event(graph,{0xe0,static_cast<std::uint8_t>(value&127),static_cast<std::uint8_t>(value>>7)});}
 }
-void AudioHost::silence(Graph& graph)noexcept{for(auto& v:graph.voices){if(v.sf2)v.sf2->panic();if(v.sfz)v.sfz->panic();}}
+void AudioHost::silence(Graph& graph)noexcept{for(auto& voice:graph.voices){if(!voice)continue;auto& v=*voice;if(v.sf2)v.sf2->panic();if(v.sfz)v.sfz->panic();}}
 void AudioHost::event(Graph& graph,MidiMessage m,bool tail){
  auto kind=m.status&0xf0;
  // Retiring voices receive releases and controllers, never new note-ons.
  if(tail&&kind==0x90&&m.data2)return;
- for(std::size_t i=0;i<4;++i){auto& v=graph.voices[i];if(!v.sf2&&!v.sfz)continue;
+ for(std::size_t i=0;i<4;++i){if(!graph.voices[i])continue;auto& v=*graph.voices[i];
   if(kind==0x90||kind==0x80){int note=graph.layered?graph.performance.noteFor(i,m.data1):m.data1;if(note<0)continue;
    if(kind==0x90&&m.data2){if(v.sf2)v.sf2->noteOn(note,m.data2);else v.sfz->noteOn(note,m.data2);}
    else{if(v.sf2)v.sf2->noteOff(note);else v.sfz->noteOff(note,m.data2);}
@@ -159,14 +164,19 @@ void AudioHost::event(Graph& graph,MidiMessage m,bool tail){
 void AudioHost::send(MidiMessage m)noexcept{
  if(!m.valid())return;auto kind=m.status&0xf0;
  if(kind==0xe0){bend.store(m.pitchBend());bendSeen.store(true);}if(kind==0xb0){if(m.data1==1)modulation.store(m.data2);if(m.data1==64)sustain.store(m.data2);if(m.data1==121)resetPerformance();}
- if(stream)midi.push(m);
+ if(acceptingMidi.load())midi.push(m);
+}
+void AudioHost::sendRealtime(MidiMessage m)noexcept{
+ if(!m.valid())return;auto kind=m.status&0xf0;
+ if(kind==0xe0){bend.store(m.pitchBend());bendSeen.store(true);}if(kind==0xb0){if(m.data1==1)modulation.store(m.data2);if(m.data1==64)sustain.store(m.data2);if(m.data1==121)resetPerformance();}
+ if(acceptingMidi.load())hardwareMidi.push(m);
 }
 void AudioHost::panic()noexcept{resetPerformance();panicRequested.store(true);}
-void AudioHost::clearQueue()noexcept{MidiMessage m;for(int i=0;i<1024&&midi.pop(m);++i){}midi.takeOverflow();panicRequested.store(false);}
+void AudioHost::clearQueue()noexcept{MidiMessage m;for(int i=0;i<1024&&midi.pop(m);++i){}midi.takeOverflow();for(int i=0;i<1024&&hardwareMidi.pop(m);++i){}hardwareMidi.takeOverflow();panicRequested.store(false);}
 double AudioHost::latency()const noexcept{auto info=stream?Pa_GetStreamInfo(stream):nullptr;return info?info->outputLatency:0;}
 void AudioHost::renderGraph(Graph& graph,float* left,float* right,int frames){
  std::fill_n(left,frames,0);std::fill_n(right,frames,0);
- for(auto& v:graph.voices){if(!v.sf2&&!v.sfz)continue;
+ for(auto& voice:graph.voices){if(!voice)continue;auto& v=*voice;
   if(v.sf2)v.sf2->render(scratchLeft.data(),scratchRight.data(),frames);else v.sfz->render(scratchLeft.data(),scratchRight.data(),frames);
   for(int j=0;j<frames;++j){left[j]+=scratchLeft[j]*v.levelGain;right[j]+=scratchRight[j]*v.levelGain;}
  }
@@ -177,16 +187,26 @@ int AudioHost::render(float** output,unsigned long frames,PaStreamCallbackFlags 
  try{
   if(auto next=pending.exchange(nullptr,std::memory_order_acq_rel)){
    // Two bounded retiring graphs cap CPU/RAM during rapid sound changes.
-   retire(tails[1]);tails[1]=tails[0];tailFrames[1]=tailFrames[0];tails[0]=active;tailFrames[0]=0;active=next;controls(*active);
+   if(active&&active->layered&&next->layered)for(std::size_t i=0;i<4;++i){
+    const auto& a=active->performance.parts[i];const auto& b=next->performance.parts[i];
+    if(next->voices[i]&&next->voices[i]==active->voices[i]&&(active->performance.mode!=next->performance.mode||a.low!=b.low||a.high!=b.high||a.transpose!=b.transpose)){
+     auto& voice=*next->voices[i];if(voice.sf2)voice.sf2->panic();else voice.sfz->panic();
+    }
+   }
+   if(next->hardSwitch||next->layered||(active&&active->layered)){
+    retire(active);for(auto& tail:tails){retire(tail);tail=nullptr;}
+   }else{retire(tails[1]);tails[1]=tails[0];tailFrames[1]=tailFrames[0];tails[0]=active;tailFrames[0]=0;}
+   active=next;controls(*active);
   }
-  if(active)for(std::size_t i=0;i<4;++i){auto& v=active->voices[i];if(!v.sf2&&!v.sfz)continue;
+  if(active)for(std::size_t i=0;i<4;++i){if(!active->voices[i])continue;auto& v=*active->voices[i];
    auto& rev=active->layered?partControls[i].revision:revision;unsigned before=rev.load();if((before&1)||before==active->applied[i])continue;
    std::array<float,15> params;for(std::size_t j=0;j<15;++j)params[j]=active->layered?partControls[i].values[j].load():values[j].load();bool adsr=active->layered?partControls[i].adsr.load():desiredAdsr.load();
    if(before==rev.load()){if(v.sf2)v.sf2->parameters(params,adsr);else v.sfz->parameters(params,adsr);active->applied[i]=before;}
   }
-  if(midi.takeOverflow()||panicRequested.exchange(false)){
-   MidiMessage ignored;for(int i=0;i<1024&&midi.pop(ignored);++i){}if(active)silence(*active);for(auto& t:tails){retire(t);t=nullptr;}resetPerformance();if(active)controls(*active);
-  }else{MidiMessage m;for(int i=0;i<1024&&midi.pop(m);++i){if(active)event(*active,m);for(auto tail:tails)if(tail)event(*tail,m,true);}}
+  const bool overflow=midi.takeOverflow()|hardwareMidi.takeOverflow();
+  if(overflow||panicRequested.exchange(false)){
+   MidiMessage ignored;for(int i=0;i<1024&&midi.pop(ignored);++i){}for(int i=0;i<1024&&hardwareMidi.pop(ignored);++i){}if(active)silence(*active);for(auto& t:tails){retire(t);t=nullptr;}resetPerformance();if(active)controls(*active);
+  }else{MidiMessage m;for(auto queue:{&hardwareMidi,&midi})for(int i=0;i<1024&&queue->pop(m);++i){if(active)event(*active,m);for(auto tail:tails)if(tail)event(*tail,m,true);}}
   float peak=0,gain=master.load();
   for(unsigned long offset=0;offset<frames;){int size=static_cast<int>(std::min<unsigned long>(256,frames-offset));
    if(active)renderGraph(*active,output[0]+offset,output[1]+offset,size);else{std::fill_n(output[0]+offset,size,0);std::fill_n(output[1]+offset,size,0);}

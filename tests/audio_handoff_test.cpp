@@ -13,6 +13,17 @@ int main(int argc,char** argv){
  host.send({0xb0,64,127});host.send({0x90,60,100});fakePump(left,right,256);host.load(file,p);host.send({0x80,60,0});fakePump(left,right,256);assert(left[0]>0);host.send({0xb0,64,0});fakePump(left,right,256);assert(left[0]==0);
  lp::Performance layer;layer.name="Split";layer.mode=lp::PerformanceMode::Split;layer.parts[0].enabled=true;layer.parts[0].instrument=file.u8string();layer.parts[0].low=0;layer.parts[0].high=63;layer.parts[0].transpose=12;
  host.loadPerformance(layer);host.send({0x90,40,100});fakePump(left,right,256);assert(left[0]>0);host.load(file,p);host.send({0x80,40,0});fakePump(left,right,256);assert(left[0]==0); // retiring split keeps original transposition
+ // Every layer change replaces the old graph instead of rendering up to 12 synths.
+ for(auto& part:layer.parts){part.enabled=true;part.instrument=file.u8string();part.low=0;part.high=127;part.transpose=0;}
+ layer.mode=lp::PerformanceMode::Layer;
+ for(int i=0;i<12;++i){host.loadPerformance(layer);host.sendRealtime({0x90,60,100});fakePump(left,right,256);assert(left[0]==1.f);}
+ // Reusing unchanged parts must not re-open their definitions.
+ auto moved=file;moved+=".moved";std::filesystem::rename(file,moved);host.loadPerformance(layer);fakePump(left,right,256);assert(left[0]==1.f);std::filesystem::rename(moved,file);
+ // Routing changes release held voices so old-zone notes cannot stick.
+ auto split=layer;split.mode=lp::PerformanceMode::Split;split.parts[0].high=47;split.parts[1].low=48;split.parts[2].enabled=false;split.parts[3].enabled=false;
+ host.loadPerformance(split);fakePump(left,right,256);assert(left[0]==0);
+ host.load(file,p);host.sendRealtime({0x90,60,100});fakePump(left,right,256);assert(left[0]==.25f);assert(fakeStarts()==starts);
+ host.unload();fakePump(left,right,256);assert(left[0]==0&&!host.performanceActive());
  std::atomic<bool> running{true};std::atomic<int> blocks{0};
  std::thread callback([&]{float l[128],r[128];while(running.load()){fakePump(l,r,128);for(float value:l)assert(std::isfinite(value));++blocks;}});
  for(int i=0;i<40;++i){p[0]=.25f+(i%4)*.1f;host.load(file,p);host.send({0x90,60,100});host.send({0x80,60,0});host.collectRetired();}

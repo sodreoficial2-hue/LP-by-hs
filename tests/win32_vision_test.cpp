@@ -16,6 +16,9 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
   auto deadline=GetTickCount64()+60000;
   while(app.loading&&GetTickCount64()<deadline){while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE)){TranslateMessage(&message);DispatchMessageW(&message);}Sleep(10);}
   assert(!app.loading&&app.engine&&!app.engine->loaded());
+  // Test writes must never replace the musician's permanent Performance library.
+  auto testSettings=app.base/L"vision-adapter-test-settings";std::filesystem::create_directories(testSettings);app.settingsPath=testSettings/L"audio.settings";
+  auto storePath=testSettings/L"performances.lphs";std::filesystem::remove(storePath);app.performanceStore.load(storePath);app.show.performanceLibrary.clear();
   auto command=[&](const wchar_t* action,int a=0,int b=0,const wchar_t* text=L""){app.visionCommand(L"LP1\t1\t"+std::wstring(action)+L"\t"+std::to_wstring(a)+L"\t"+std::to_wstring(b)+L"\t"+text);assert(app.visionLastError.empty());};
   command(L"category",1);assert(app.screen==lp::Screen::Instruments&&!app.engine->loaded());
   command(L"select",0);assert(app.previewActive&&app.engine->loaded());auto oldReference=app.previewPatch.sfz;
@@ -29,13 +32,16 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
   command(L"effects");assert(app.screen==lp::Screen::Home&&!app.effects);
   command(L"screen",2);command(L"performanceMode",1);command(L"performancePart",0,1);command(L"performancePart",1,2);command(L"performanceName",0,0,L"Apresenta%C3%A7%C3%A3o%20Soul");command(L"performancePlay");
   assert(app.editingPerformanceControls()&&app.editingPerformance.parts[0].high==47&&app.editingPerformance.parts[2].low==0);
-  command(L"performanceSave");assert(app.show.performanceLibrary.size()==1&&app.show.performanceLibrary[0].name=="Apresentação Soul");
+  assert(app.show.performanceLibrary.empty()); // Audition never saves implicitly.
   command(L"editPart",1);command(L"effects");assert(app.editingPerformanceControls()&&!app.performanceControls());
   command(L"parameter",1,430);command(L"parameter",6,620);assert(app.editingPerformance.parts[1].patch.parameters[1]==.43f&&app.editingPerformance.parts[1].patch.adsrEnabled);
   assert(app.editingPerformance.parts[0].patch.parameters[1]!=.43f);
   app.learningPerformanceParameter=3;app.midiEvent(0x7f16b0);assert(app.editingPerformance.parts[1].patch.cc[3]==22&&app.editingPerformance.parts[1].patch.parameters[3]==1.f);assert(app.editingPerformance.parts[0].patch.cc[3]==-1);
   command(L"effects");assert(app.screen==lp::Screen::PerformanceEditor&&!app.effects);
   command(L"editPart",0);command(L"effects");command(L"parameter",11,810);command(L"effects");command(L"performanceSave");
+  assert(!app.editingPerformanceValid&&!app.engine->loaded()&&!app.editorDraft);
+  for(auto control:app.performancePartControls)assert(SendMessageW(control,CB_GETCURSEL,0,0)==0);
+  lp::PerformanceStore reopened;reopened.load(app.settingsPath.parent_path()/L"performances.lphs");lp::Session persisted;reopened.mergeInto(persisted);assert(persisted.performanceLibrary.size()==1);
   assert(app.show.performanceLibrary[0].parts[0].patch.parameters[11]==.81f&&app.show.performanceLibrary[0].parts[1].patch.parameters[6]==.62f);
   command(L"category",13);command(L"select",0);command(L"effects");assert(app.performanceControls());
   command(L"parameter",0,270);command(L"effects");command(L"activateFavorite",0);command(L"category",13);command(L"select",0);

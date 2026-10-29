@@ -238,3 +238,7 @@ endif()
 add_executable(lp_catalog_edits_test tests/catalog_edits_test.cpp)
 target_include_directories(lp_catalog_edits_test PRIVATE src)
 add_test(NAME catalog_edits_and_permanent_delete COMMAND lp_catalog_edits_test)
+
+add_executable(lp_performance_store_test tests/performance_store_test.cpp)
+target_include_directories(lp_performance_store_test PRIVATE src)
+add_test(NAME independent_performance_persistence COMMAND lp_performance_store_test)

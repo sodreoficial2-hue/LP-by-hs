@@ -91,8 +91,8 @@
    else if(c.action=="driver"||c.action=="midi"){
     int id=c.action=="driver"?AudioDriver:Midi;visionSelect(item(id),c.a);command(id,CBN_SELCHANGE);
    }
-   else if(c.action=="performanceMode"){visionSelect(performanceMode,c.a);editorDraft=true;}
-   else if(c.action=="performancePart"){editorDraft=true;visionSelect(performancePartControls[c.a],c.b);editingPart=c.a;refreshParameters();}
+   else if(c.action=="performanceMode"){visionSelect(performanceMode,c.a);command(PerformanceModeControl,CBN_SELCHANGE);}
+   else if(c.action=="performancePart"){visionSelect(performancePartControls[c.a],c.b);command(PerformancePartBase+c.a,CBN_SELCHANGE);}
    else if(c.action=="editPart"){
     if(screen!=lp::Screen::PerformanceEditor)throw std::invalid_argument("Abra o Performance Editor");
     cancelMidiLearn();editingPart=c.a;SendMessageW(performanceEditPart,CB_SETCURSEL,c.a,0);refreshParameters();
