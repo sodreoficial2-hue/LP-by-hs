@@ -142,9 +142,9 @@
    label(L"Salve favoritos, ajustes e mapeamentos em um perfil.",{56,p+486,width-320,p+522});break;
   case lp::Screen::PerformanceEditor:
    panel({32,p+8,width-32,p+128});label(L"DISTRIBUIÇÃO DO TECLADO",{56,p+22,width-56,p+56});
-   for(int i=0;i<4;++i){int y=p+152+i*96;panel({32,y,width-32,y+84});
+   for(int i=0;i<4;++i){int y=p+152+i*300;panel({32,y,width-32,y+298});
     lpui::surface(dc,{48,y+20,100,y+66},RGB(49,43,33),RGB(49,43,33),RGB(112,92,61),12);lpui::text(dc,std::to_wstring(i+1),{48,y+20,100,y+66},font,lpui::gold);}
-   panel({32,p+552,width-32,p+748});label(L"NOME DA PERFORMANCE",{56,p+564,width-56,p+596});break;
+   panel({32,p+1350,width-32,p+1530});label(L"NOME DA PERFORMANCE",{56,p+1354,width-56,p+1386});break;
   case lp::Screen::About:{
    int left=width/3;panel({32,p+8,left+16,p+pageScroll.content-24});
    lpui::photo(dc,photo.get(),{48,p+24,left,p+pageScroll.content-152});

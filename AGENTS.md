@@ -113,3 +113,14 @@ level calibration and catalog editing. See docs/PERFORMANCE-EDITOR-FLOW.md for
 implementation, migration and validation limits. Local Windows compilation is
 authorized; no new portable/Drive release requested in this turn. Publish one
 source-only stage without Actions. Authenticated GitHub allowance remains unknown.
+
+## Performance editor tools (29 October 2026)
+
+Hugo authorizes all proposed editor improvements immediately: per-layer browsing
+memory, solo/mute, direct volume, copy/swap, MIDI split learning, Edit/Duplicate
+and Save Changes/Save as New, automatic recoverable draft, and latest-selection
+background loading. Preserve prior independent Performance saving, startup gain
+calibration, catalog management and ASIO/MIDI contracts. Details and validation
+limits are in docs/PERFORMANCE-EDITOR-FLOW.md. Local compilation is authorized;
+this turn does not request a portable/Drive release. Preserve one grouped source
+commit without Actions. Authenticated GitHub allowance remains unknown.

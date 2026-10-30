@@ -18,6 +18,13 @@ inline void erasePerformance(Session& s,std::size_t index){
  }
  s.performanceLibrary.erase(s.performanceLibrary.begin()+index);
 }
+inline void replacePerformanceSnapshot(Session& show,const std::string& original,int hint,const SavedPerformance& replacement){
+ int target=-1;
+ if(hint>=0&&static_cast<std::size_t>(hint)<show.performanceLibrary.size()&&performanceIdentity(show.performanceLibrary[hint])==original)target=hint;
+ else for(std::size_t i=0;i<show.performanceLibrary.size();++i)if(performanceIdentity(show.performanceLibrary[i])==original){if(target>=0)throw std::runtime_error("Há cópias idênticas da Performance original. Use Salvar como nova.");target=static_cast<int>(i);}
+ if(target<0)throw std::runtime_error("A Performance original mudou ou foi removida. Use Salvar como nova.");
+ show.performanceLibrary[target]=replacement;
+}
 // A separate atomic file contains performances only, never show/MIDI/audio state.
 class PerformanceStore {
  std::filesystem::path path;Session stored;

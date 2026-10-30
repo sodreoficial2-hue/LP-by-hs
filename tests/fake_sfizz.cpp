@@ -2,6 +2,8 @@
 #include <cstring>
 #include <array>
 #include <cstdio>
+#include <thread>
+#include <chrono>
 #include "../third_party/sfizz/sfizz_message.h"
 #ifdef _WIN32
 #define EXPORT extern "C" __declspec(dllexport)
@@ -25,6 +27,7 @@ EXPORT void sfizz_send_message(sfizz_synth_t* p,sfizz_client_t* c,int,const char
 EXPORT sfizz_synth_t* sfizz_create_synth(){return new sfizz_synth_t;}
 EXPORT void sfizz_free(sfizz_synth_t* p){delete p;}
 EXPORT bool sfizz_load_file(sfizz_synth_t* p,const char* path){
+ if(std::strstr(path,"slow.sfz"))std::this_thread::sleep_for(std::chrono::milliseconds(100));
  if(std::strstr(path,"broken"))return false;
  p->regions=std::strstr(path,"empty")?0:3;return true;
 }

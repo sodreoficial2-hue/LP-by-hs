@@ -43,6 +43,15 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
   for(auto control:app.performancePartControls)assert(SendMessageW(control,CB_GETCURSEL,0,0)==0);
   lp::PerformanceStore reopened;reopened.load(app.settingsPath.parent_path()/L"performances.lphs");lp::Session persisted;reopened.mergeInto(persisted);assert(persisted.performanceLibrary.size()==1);
   assert(app.show.performanceLibrary[0].parts[0].patch.parameters[11]==.81f&&app.show.performanceLibrary[0].parts[1].patch.parameters[6]==.62f);
+  app.editSavedPerformance(0,false);assert(!app.workspace.original.empty());
+  command(L"partVolume",0,780);command(L"partSolo",0);assert(app.workspace.solo==0);command(L"partSolo",0);command(L"partMute",1);assert(app.workspace.muted[1]);command(L"partMute",1);
+  command(L"partCategory",0,1);command(L"partSearch",0,0,L"Rhodes");app.saveEditorDraft();command(L"category",1);command(L"screen",2);assert(app.workspace.searches[0]=="Rhodes"&&app.workspace.categories[0]==1&&app.editingPerformance.parts[0].patch.parameters[0]==.78f);
+  command(L"copyPart",0,2);assert(app.editingPerformance.parts[2].instrument==app.editingPerformance.parts[0].instrument&&app.editingPerformance.parts[2].patch.parameters[0]==.78f);
+  command(L"swapParts",1,3);assert(app.editingPerformance.parts[3].enabled);
+  command(L"learnLow",3);app.midiEvent(0x7f3c90);assert(app.workspace.customZones&&app.editingPerformance.parts[3].low==60);command(L"learnHigh",3);app.midiEvent(0x7f4890);assert(app.editingPerformance.parts[3].high==72);command(L"swapParts",1,3);
+  // Return the original volume before committing the edit for existing mix checks.
+  command(L"partVolume",0,1000);command(L"performanceSave");assert(app.show.performanceLibrary.size()==1);
+  app.editSavedPerformance(0,true);assert(app.workspace.original.empty());command(L"performanceSaveNew");assert(app.show.performanceLibrary.size()==2);
   command(L"category",13);command(L"select",0);command(L"effects");assert(app.performanceControls());
   command(L"parameter",0,270);command(L"effects");command(L"activateFavorite",0);command(L"category",13);command(L"select",0);
   assert(app.editingPerformance.parts[0].patch.parameters[0]==1.f); // unfavorited live mix discarded

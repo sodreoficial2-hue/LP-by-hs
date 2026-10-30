@@ -31,3 +31,6 @@ footer{height:80px;display:flex;align-items:center;gap:14px;padding:12px 24px;bo
 main{padding-bottom:52px}.home-grid{height:calc(100% - 36px)}
 @media(max-height:720px){.session-strip{bottom:70px;font-size:14px;padding:5px 20px}.session-strip .meter-wrap{gap:8px}.meter-wrap meter{width:70px}.home-grid{min-height:279px;height:calc(100% - 36px)}}
 .catalog-results{min-height:0}.catalog-results .sound-list{min-height:0;height:auto}
+
+/* Accessible tools stay with their own layer. */
+.part-tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}.part-tools .field,.part-tools .part-zone{grid-column:1/-1}.part-tools button{height:auto;min-height:52px;padding:10px;font-size:18px}.part-zone{color:#ffe600;font-size:19px;line-height:1.5;margin:4px 0}.part-tools output{font-size:22px;color:#ffe600}.part-tools input[type=range]{min-height:48px;padding:0;accent-color:#00bfff}.part-tools button[aria-pressed=true]{border:3px solid #ffe600;background:#24415a}.part-fields select[size]{min-height:180px}.part-actions{align-self:start;padding-top:12px}@media(max-width:700px){.part-tools{grid-template-columns:1fr}.part-row{grid-template-columns:32px minmax(0,1fr)}.part-actions{grid-column:2}}

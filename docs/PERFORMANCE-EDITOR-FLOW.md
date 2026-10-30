@@ -64,3 +64,56 @@ A newly selected large sound still needs its initial disk/sample preparation.
   fixture remains available for a browser-enabled environment.
 - No hosted builds or binary uploads. Authenticated GitHub quota remains unknown:
   available connected tools do not expose an authenticated allowance query.
+
+## Editor tools and background preparation (29 October 2026)
+
+The authorized follow-up adds:
+
+- Persistent category/search/selected-instrument state for every layer. The
+  renderer preserves list scroll during rebuilding and reveals the selected
+  item on focus; the draft restores categories, searches and instrument choices.
+- Large per-layer volume sliders with percentage labels. Solo and Mute are
+  temporary audition controls, independent of patch volume and saved definition.
+  Leaving the editor restores the full arrangement. Muted voices are released;
+  unmuting requires a new key press instead of reviving old sustained notes.
+- Copy-to and swap-with destinations. Instrument parameters, ADSR, mappings and
+  transpose follow the instrument; split limits stay with the target keyboard
+  zone. Copying an empty source or using the same source/destination is rejected.
+- Per-layer MIDI Learn for the lower and upper limits. The UI shows note names,
+  octave and MIDI number. The capture key sets a bound without playing a new
+  note; invalid reversed bounds are rejected, and ESC cancels capture. Changing
+  a preset split replaces custom limits; otherwise custom bounds persist.
+- Edit and Duplicate in the Performance category context menu. Editing exposes
+  Save Changes and Save as New. A snapshot guard plus index hint distinguishes
+  identical copies; stale/ambiguous targets are rejected instead of overwriting
+  another arrangement. A duplicate starts detached from the original.
+- A separate, atomic editor draft, written after a 250 ms edit debounce and
+  synchronously when leaving/closing. It preserves parameters, zones, mappings,
+  browsing state, audition state and edit origin. Re-entering the editor restores
+  it automatically. Successful permanent saving writes an empty draft and resets
+  the editor. Normal show-profile saving does not create a Performance entry.
+
+The audio host has one preparation worker with one latest pending request. Each
+request snapshots instrument definitions, sample rate, calibrated gains and
+unchanged part engines. Preparation never touches a live synth; the UI publishes
+only a result whose generation still matches the newest request. Stale success
+and failure results cannot replace the current selection. Single-instrument
+selection, unload, driver stop/restart and editor reset cancel outstanding work.
+An in-progress library call cannot be interrupted, but obsolete pending requests
+are coalesced and cannot activate later. File loading stays out of the ASIO and
+WinMM callbacks. Parameter changes during preparation use the latest atomic
+controls when the graph becomes active. A new background failure is reported and
+the UI unloads the audio rather than presenting the previous sound as the choice.
+
+Validation: all 19 local CTest groups passed with assertions enabled. New tests
+cover workspace recovery (including an empty editor), filters/zone/CC persistence,
+copy/swap semantics, selected duplicate updates, ambiguous-edit protection, latest
+request publication, live audition masks, in-flight parameters, cancellation and
+background errors. Production JS keyboard/menu/caret fixtures and full JSDOM
+renderer tools/recovery checks passed. Windows Vision and the native dispatcher
+harness compile locally with the real PortAudio ASIO backend. The native harness
+includes MIDI split capture, edit/duplicate, draft recovery and per-layer control
+checks; it is compiled, not executed here. Visual layout in Chromium and real
+Windows/ASIO/control-surface latency remain unverified. No hosted builds or new
+portable/Drive release. Authenticated GitHub allowance is still unknown because
+available connected tools do not expose an authenticated usage/quota query.

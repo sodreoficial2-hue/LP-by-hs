@@ -12,5 +12,8 @@ int main(){
  // A failed atomic save keeps both the previous disk library and store state.
  lp::PerformanceStore failing;failing.load(root/"missing"/"library.lphs");bool failed=false;try{failing.commit(imported);}catch(...){failed=true;}assert(failed);lp::Session empty;failing.mergeInto(empty);assert(empty.performanceLibrary.empty());
  store.load(file);fresh={};store.mergeInto(fresh);assert(fresh.performanceLibrary.size()==1);
+ // An identical second entry must update the selected copy, never the first.
+ lp::Session copies;auto saved=lp::savePerformance(p);copies.performanceLibrary={saved,saved};auto changed=saved;changed.name="Edição da segunda";lp::replacePerformanceSnapshot(copies,lp::performanceIdentity(saved),1,changed);assert(copies.performanceLibrary[0].name==saved.name&&copies.performanceLibrary[1].name==changed.name);
+ copies.performanceLibrary={saved,saved};failed=false;try{lp::replacePerformanceSnapshot(copies,lp::performanceIdentity(saved),-1,changed);}catch(...){failed=true;}assert(failed&&copies.performanceLibrary[0].name==saved.name);
  std::filesystem::remove_all(root);
 }

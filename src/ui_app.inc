@@ -6,7 +6,7 @@
  int pageTop() const {return 156;}
  int pageMinimum() const {
   if(effects)return performanceControls()?360:864;
-  switch(screen){case lp::Screen::Home:return 316;case lp::Screen::Keyboard:return 360;case lp::Screen::Instruments:return 400;case lp::Screen::AudioMidi:return 580;case lp::Screen::Settings:return 760;case lp::Screen::PerformanceEditor:return 816;case lp::Screen::About:return 600;}
+  switch(screen){case lp::Screen::Home:return 316;case lp::Screen::Keyboard:return 360;case lp::Screen::Instruments:return 400;case lp::Screen::AudioMidi:return 580;case lp::Screen::Settings:return 760;case lp::Screen::PerformanceEditor:return 1600;case lp::Screen::About:return 600;}
   return 580;
  }
  void scrollPage(int delta){if(pageScroll.move(delta))layout();}
@@ -107,8 +107,12 @@
   }else if(screen==lp::Screen::PerformanceEditor){
    place(PartSearch,56,p+10,width-112,44);p+=64;
    place(PerformanceModeControl,56,p+68,width-112,300);
-   for(int i=0;i<4;++i){int y=p+152+i*96;place(PerformancePartBase+i,116,y+22,width-308,300);place(PerformanceClearBase+i,width-172,y+18,112,56);}
-   place(PerformanceName,56,p+602,width-112,50);place(PerformanceSave,56,p+678,width-112,60);
+   for(int i=0;i<4;++i){int y=p+152+i*300;place(PerformancePartBase+i,116,y+22,width-308,300);place(PerformanceClearBase+i,width-172,y+18,112,56);int half=(width-144)/2;
+    place(PartVolumeBase+i,56,y+76,width-112,36);place(PartZoneBase+i,56,y+112,width-112,28);place(PartSoloBase+i,56,y+140,half,50);place(PartMuteBase+i,80+half,y+140,half,50);
+    place(PartTargetBase+i,56,y+198,220,300);place(PartCopyBase+i,292,y+198,180,50);place(PartSwapBase+i,488,y+198,180,50);
+    place(PartLowBase+i,56,y+252,260,44);place(PartHighBase+i,332,y+252,260,44);
+   }
+   place(PerformanceName,56,p+1390,width-112,50);place(PerformanceSave,56,p+1450,(width-128)/2,60);place(PerformanceSaveNew,72+(width-128)/2,p+1450,(width-128)/2,60);
   }else if(screen==lp::Screen::About){int left=width/3;place(AboutText,left+44,p+68,width-left-100,pageScroll.content-108);}
   finish();
  }
@@ -142,7 +146,7 @@
   }
   else if(show.current){show.parameter(index,value);applyParameters();}
   else if(previewActive){previewPatch.parameters[index]=value;if(index>=1&&index<=4)previewPatch.adsrEnabled=true;applyParameters();}
-  refreshParameters();
+  if(screen==lp::Screen::PerformanceEditor)touchEditor();refreshParameters();
  }
  bool keyCommand(MSG& msg){
   if(msg.message!=WM_KEYDOWN||loading)return false;

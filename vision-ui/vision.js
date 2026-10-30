@@ -119,29 +119,44 @@
   const card=(name,description,action)=>button([node('strong',{},name),node('span',{},description)],()=>send(action),{class:'panel profile-card'});
   return node('div',{class:'form-grid'},card('Abrir perfil','Carregue os favoritos, parâmetros e mapeamentos de um show.','open'),card('Salvar perfil','Escolha o local do arquivo pelo diálogo do Windows.','save'),card('Restaurar timbres ocultos','Recupere um timbre ocultado pelo menu ou Ctrl+D.','restoreSounds'),card('Localizar timbres ausentes','Atualize os arquivos usados pelos favoritos e Performances.','locateSounds'),card('Importar SFZ','Adicione um instrumento à categoria Meus Sons.','importSfz'),card('Importar SF2','Adicione os presets de um SoundFont à sua biblioteca.','importSf2'),node('section',{class:'panel wide'},node('h2',{},'Um perfil para cada apresentação'),node('p',{class:'details'},'As Performances são salvas permanentemente pelo editor. Use Salvar perfil para guardar favoritos, ajustes e MIDI Learn. Cada arquivo .lphs pode conter o repertório de um artista ou show.')));
  }
- let partCategories=[],partSearch=[];
+ let partCategories=[],partSearch=[],partScroll=[],partTargets=[];
  const searchFold=value=>String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR');
  function performance(){
-  title('Monte sua Performance','ATÉ QUATRO PARTES · CAMADAS E DIVISÕES');const p=state.performance;
+  title('Monte sua Performance',state.performance.preparing?'PREPARANDO TIMBRE · INTERFACE DISPONÍVEL':'ATÉ QUATRO PARTES · CAMADAS E DIVISÕES');const p=state.performance;
   const zones=field('Distribuição do teclado','performance-mode',p.modes,p.mode,i=>send('performanceMode',i));
   const parts=node('section',{class:'panel wide'},node('h2',{},'Instrumentos das quatro partes'));
   p.parts.forEach((selected,i)=>{
    const categoryIds=state.categories.map((_,n)=>n).filter(n=>n!==13&&n!==15);
-   let category=partCategories[i]??p.instrumentCategories[selected];if(!categoryIds.includes(category))category=categoryIds[0];partCategories[i]=category;
-   const categoryField=field(`Categoria da parte ${i+1}`,`part-category-${i}`,categoryIds.map(n=>state.categories[n]),categoryIds.indexOf(category),index=>{partCategories[i]=categoryIds[index];structure='';render();});
+   let category=p.browseCategories?.[i]??partCategories[i]??p.instrumentCategories[selected];if(!categoryIds.includes(category))category=categoryIds[0];partCategories[i]=category;
+   const categoryField=field(`Categoria da parte ${i+1}`,`part-category-${i}`,categoryIds.map(n=>state.categories[n]),categoryIds.indexOf(category),index=>{partCategories[i]=categoryIds[index];if(p.browseCategories)p.browseCategories[i]=categoryIds[index];send('partCategory',i,categoryIds[index]);structure='';render();});
    let lastAudition=selected;const audition=index=>{if(index!==lastAudition){lastAudition=index;flushParameters();send('performancePart',i,index);}};
    const soundField=field(`Timbre da parte ${i+1}`,`part-${i}`,[],selected,audition);
    const select=soundField.querySelector('select');select.size=6;select.setAttribute('aria-label',`Timbres da camada ${i+1}. Use as setas para ouvir.`);
    select.addEventListener('input',()=>audition(Number(select.value)));
    select.addEventListener('keydown',e=>{if(!['ArrowDown','ArrowUp','Home','End','PageDown','PageUp'].includes(e.key))return;e.preventDefault();const options=[...select.options];let index=select.selectedIndex;index=e.key==='Home'?0:e.key==='End'?options.length-1:Math.max(0,Math.min(options.length-1,index+(e.key==='ArrowDown'?1:e.key==='ArrowUp'?-1:e.key==='PageDown'?5:-5)));select.selectedIndex=index;options[index]?.scrollIntoView({block:'nearest'});audition(Number(select.value));});
-   p.instruments.forEach((name,n)=>{if(n===0||n===selected||(p.instrumentCategories[n]===category&&searchFold(name).includes(searchFold(partSearch[i]||''))))select.append(node('option',{value:n},n===selected&&n>0&&p.instrumentCategories[n]!==category?`Atual: ${name}`:name));});select.value=String(selected);
+   if(p.searches)partSearch[i]=p.searches[i];
+   p.instruments.forEach((name,n)=>{if(n===0||n===selected||(p.instrumentCategories[n]===category&&searchFold(name).includes(searchFold(partSearch[i]||''))))select.append(node('option',{value:n},n===selected&&n>0&&p.instrumentCategories[n]!==category?`Atual: ${name}`:name));});select.value=String(selected);select.scrollTop=partScroll[i]||0;select.addEventListener('scroll',()=>{partScroll[i]=select.scrollTop;});select.addEventListener('focus',()=>select.selectedOptions?.[0]?.scrollIntoView({block:'nearest'}));
+   if(p.searches)partSearch[i]=p.searches[i];
    const search=node('input',{id:`part-search-${i}`,type:'search',value:partSearch[i]||'','data-focus':`part-search-${i}`,'aria-label':`Buscar timbre da parte ${i+1}`,placeholder:'Buscar timbre nesta categoria',maxlength:256});
-   search.addEventListener('input',()=>{partSearch[i]=search.value;structure='';render();});
-   const row=node('section',{class:'part-row'+(p.editingPart===i?' editing':''),'data-part':i},node('span',{class:'part-number'},String(i+1)),node('div',{class:'part-fields'},categoryField,search,soundField),node('div',{class:'part-actions'},button('Parâmetros · E',()=>{flushParameters();send('editPart',i);send('effects');},{'aria-label':`Editar parâmetros da parte ${i+1}`}),button('Limpar',()=>send('clearPart',i))));
+   search.addEventListener('input',()=>{partSearch[i]=search.value;if(p.searches)p.searches[i]=search.value;send('partSearch',i,0,search.value);structure='';render();});
+   const volume=node('input',{type:'range',id:`part-volume-${i}`,min:0,max:1000,step:1,value:p.volumes?.[i]??1000,'data-focus':`part-volume-${i}`,'aria-label':`Volume da camada ${i+1}`,disabled:!selected});
+   const output=node('output',{for:`part-volume-${i}`,id:`part-volume-value-${i}`},`${Math.round((p.volumes?.[i]??1000)/10)}%`);
+   volume.addEventListener('input',()=>{output.textContent=`${Math.round(volume.value/10)}%`;send('partVolume',i,Number(volume.value));});
+   const target=field(`Destino da camada ${i+1}`,`part-target-${i}`,['Camada 1','Camada 2','Camada 3','Camada 4'],partTargets[i]??(i+1)%4,n=>{partTargets[i]=n;});
+   const destination=()=>Number(target.querySelector('select').value);
+   const tools=node('div',{class:'part-tools'},
+    node('label',{class:'field',for:`part-volume-${i}`},'Volume',volume,output),
+    button(p.solo===i?'Ouvir todas':'Ouvir somente esta camada',()=>send('partSolo',i),{'aria-pressed':String(p.solo===i),disabled:!selected,'data-focus':`part-solo-${i}`}),
+    button(p.muted?.[i]?'Reativar camada':'Silenciar camada',()=>send('partMute',i),{'aria-pressed':String(Boolean(p.muted?.[i])),disabled:!selected,'data-focus':`part-mute-${i}`}),
+    target,button('Copiar para o destino',()=>send('copyPart',i,destination()),{disabled:!selected}),button('Trocar com o destino',()=>send('swapParts',i,destination())),
+    node('p',{class:'part-zone'},`Zona: ${p.zones?.[i]||'Todo o teclado'}`),
+    button(p.splitLearning===i*2?'Aguardando tecla de início…':'Aprender início pelo MIDI',()=>send('learnLow',i),{disabled:!selected}),
+    button(p.splitLearning===i*2+1?'Aguardando tecla de fim…':'Aprender fim pelo MIDI',()=>send('learnHigh',i),{disabled:!selected}));
+   const row=node('section',{class:'part-row'+(p.editingPart===i?' editing':''),'data-part':i},node('span',{class:'part-number'},String(i+1)),node('div',{class:'part-fields'},categoryField,search,soundField,tools),node('div',{class:'part-actions'},button('Parâmetros · E',()=>{flushParameters();send('editPart',i);send('effects');},{'aria-label':`Editar parâmetros da parte ${i+1}`}),button('Limpar',()=>send('clearPart',i))));
    row.addEventListener('focusin',()=>{if(state.performance.editingPart!==i)send('editPart',i);});parts.append(row);
   });
   const name=node('input',{id:'performance-name',type:'text',maxlength:255,value:p.name,'data-focus':'performance-name'});name.addEventListener('change',()=>send('performanceName',0,0,name.value));
-  return node('div',{class:'form-grid'},node('section',{class:'panel wide'},zones),parts,node('section',{class:'panel wide'},node('label',{class:'field',for:'performance-name'},'Nome da Performance',name),node('div',{class:'actions'},button('Salvar Performance',()=>{send('performanceName',0,0,name.value);send('performanceSave');})),node('p',{class:'note'},'As camadas tocam automaticamente. Use as setas para experimentar os timbres. Salvar Performance grava permanentemente e limpa o editor.')));
+  return node('div',{class:'form-grid'},node('section',{class:'panel wide'},zones),parts,node('section',{class:'panel wide'},node('label',{class:'field',for:'performance-name'},'Nome da Performance',name),node('div',{class:'actions'},button(p.editingSaved?'Salvar alterações':'Salvar Performance',()=>{send('performanceName',0,0,name.value);send('performanceSave');}),...(p.editingSaved?[button('Salvar como nova',()=>{send('performanceName',0,0,name.value);send('performanceSaveNew');})]:[])),node('p',{class:'note'},'As camadas tocam automaticamente. Use as setas para experimentar os timbres. Salvar Performance grava permanentemente e limpa o editor. A montagem em andamento é recuperada pelo rascunho automático.')));
  }
  function parameters(){
   title(state.partMix?'Mix da Performance':state.screen==='performance'?`Parâmetros da parte ${state.performance.editingPart+1}`:'Parâmetros do instrumento',state.partMix?'VOLUMES DAS QUATRO PARTES':'EXPRESSÃO · TEXTURA · AMBIENTE');
@@ -187,7 +202,7 @@
   // text and caret/selection, including edits in the middle of a search term.
   const textEdit=active?.matches('input[type="search"],input[type="text"]')?
    {value:active.value,start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection}:null;
-  const key=JSON.stringify([state.screen,state.effects,state.category,state.loading,state.partMix,state.restoring,state.catalog.map(r=>r.name),state.category===15?state.favorites.map(r=>[r.name,r.occupied]):null,state.audio.drivers,state.audio.midiInputs,state.performance.instruments,state.performance.instrumentCategories,state.screen==='performance'?[state.performance.parts,state.performance.name]:null,state.screen==='performance'&&state.effects?state.performance.editingPart:null]);
+  const key=JSON.stringify([state.screen,state.effects,state.category,state.loading,state.partMix,state.restoring,state.catalog.map(r=>r.name),state.category===15?state.favorites.map(r=>[r.name,r.occupied]):null,state.audio.drivers,state.audio.midiInputs,state.performance.instruments,state.performance.instrumentCategories,state.screen==='performance'?[state.performance.parts,state.performance.name,state.performance.muted,state.performance.solo,state.performance.zones,state.performance.splitLearning,state.performance.editingSaved,state.performance.browseCategories,state.performance.searches]:null,state.screen==='performance'&&state.effects?state.performance.editingPart:null]);
   if(key!==structure){
    structure=key;let body;
    if(state.loading){title('Preparando seus instrumentos');body=node('section',{class:'waiting panel'},node('h2',{},'Carregando a biblioteca'),node('progress',{id:'progress',max:100,value:state.progress}),node('p',{class:'details'},state.status));}
@@ -205,6 +220,7 @@
    else if(state.screen==='instruments'&&!state.effects){const selected=document.querySelector(`[data-select="${state.selected}"]`);selected?.focus({preventScroll:true});}
    else {$('content').scrollTop=0;if(state.screen==='home'&&!state.effects)document.querySelector(`[data-category="${state.category}"]`)?.focus({preventScroll:true});}
   }
+  if(state.screen==='performance'&&!state.effects)$('eyebrow').textContent=state.performance.preparing?'PREPARANDO TIMBRE · INTERFACE DISPONÍVEL':'ATÉ QUATRO PARTES · CAMADAS E DIVISÕES';
   $('profile-state').textContent=state.dirty?'Alterações não salvas':'Perfil sem alterações pendentes';$('profile-state').classList.toggle('dirty',Boolean(state.dirty));
   const peak=Number(state.peak)||0,db=peak>0?20*Math.log10(peak):-90;
   $('output-meter').value=Math.min(1,peak);$('peak-label').textContent=state.clipping?'Pico excessivo — reduza os volumes':`Saída: ${db<=-90?'silêncio':Math.round(db)+' dBFS'}`;$('peak-label').classList.toggle('clipping',Boolean(state.clipping));
@@ -218,10 +234,11 @@
   for(const c of state.controls){const range=$(`parameter-${c.id}`),cell=document.querySelector(`[data-parameter="${c.id}"]`);if(!range||!cell)continue;if(document.activeElement!==range){range.value=String(c.value);$(`value-${c.id}`).textContent=`${Math.round(c.value/10)}%`;cell.querySelector('.knob').style.setProperty('--angle',`${c.value*.27}deg`);}range.disabled=!c.enabled;cell.classList.toggle('disabled',!c.enabled);cell.querySelector('.learn').disabled=!c.enabled;$(`mapping-${c.id}`).textContent=c.label.includes(' · ')?c.label.split(' · ').slice(1).join(' · '):'Clique direito para mapear';}
   if($('audio-detail'))$('audio-detail').textContent=state.audio.connected?`ASIO conectado · ${state.audio.sampleRate} Hz · ${state.audio.latencyMs.toFixed(1)} ms de saída`:'ASIO desconectado';
   for(const [id,value] of [['driver',state.audio.driver],['midi',state.audio.midi],['performance-mode',state.performance.mode],['performance-name',state.performance.name],...state.performance.parts.map((p,i)=>[`part-${i}`,p])]){const target=$(id);if(target&&document.activeElement!==target)target.value=String(value);}
+  for(let i=0;i<4;i++){const input=$(`part-volume-${i}`);if(input&&document.activeElement!==input){input.value=String(state.performance.volumes?.[i]??1000);$(`part-volume-value-${i}`).textContent=`${Math.round(input.value/10)}%`;}}
   document.querySelectorAll('[data-part]').forEach(row=>row.classList.toggle('editing',Number(row.dataset.part)===state.performance.editingPart));
   if($('progress'))$('progress').value=state.progress;
  }
- function receive(event){const next=event?.data??event;if(!next||next.type!=='state'||next.version!==1)return;if(state?.screen==='keyboard'&&(next.screen!=='keyboard'||next.effects))releaseNotes();if(next.screen==='performance'&&(state?.screen!=='performance'||(state?.performance.parts.some(Boolean)&&!next.performance.parts.some(Boolean)))){partCategories=[];partSearch=[];}state=next;if(next.error)notice(next.error);render();finishOpening();}
+ function receive(event){const next=event?.data??event;if(!next||next.type!=='state'||next.version!==1)return;if(state?.screen==='keyboard'&&(next.screen!=='keyboard'||next.effects))releaseNotes();if(next.screen==='performance'&&(state?.screen!=='performance'||(state?.performance.parts.some(Boolean)&&!next.performance.parts.some(Boolean)))){partCategories=[];partSearch=[];partScroll=[];}state=next;if(next.error)notice(next.error);render();finishOpening();}
  $('brand').addEventListener('click',()=>{flushParameters();send('screen',0);});$('back').addEventListener('click',()=>{flushParameters();send('screen',0);});
  document.querySelectorAll('[data-screen]').forEach(b=>b.addEventListener('click',()=>{flushParameters();send('screen',Number(b.dataset.screen));}));
  $('keyboard-nav').addEventListener('click',()=>send('screen',6));$('effects-nav').addEventListener('click',()=>{flushParameters();send('effects');});$('panic').addEventListener('click',()=>{releaseNotes();send('panic');});

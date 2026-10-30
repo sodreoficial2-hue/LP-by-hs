@@ -9,6 +9,10 @@
 #include <atomic>
 #include <memory>
 #include <vector>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <optional>
 namespace lp {
 struct AudioDevice {int id;std::string name;};
 // All public calls on UI thread; callback exclusively owns the active synth
@@ -30,6 +34,11 @@ public:
  void setLevelCompensations(const std::map<std::string,float>& gains);
  void unload();
  void loadPerformance(const Performance& performance);
+ void requestPerformance(const Performance& performance);
+ bool pollPerformance(); // UI thread: publish newest completed result; throw newest error.
+ bool performanceLoading()const noexcept{return asyncLoading;}
+ void setPerformanceAuditionMask(unsigned mask)noexcept{auditionMask.store(mask&15);}
+
  bool performanceActive() const noexcept {return activePerformance;}
  void setPerformancePartParameters(std::size_t index,const std::array<float,15>& params,bool adsrEnabled);
  void parameters(const std::array<float,15>& values,bool adsrEnabled=false);
@@ -66,6 +75,7 @@ private:
   Performance performance{};
   bool layered=false,hardSwitch=false;
   std::array<unsigned,4> applied{};
+  unsigned audible=15;
   Graph* next=nullptr;
  };
  // UI prepares/publishes; callback exclusively uses active/tails. Completed
@@ -76,6 +86,14 @@ private:
  std::array<unsigned long,2> tailFrames{};
  std::atomic<Graph*> pending{nullptr},retired{nullptr};
  std::unique_ptr<Graph> prepare(double sampleRate);
+ struct LoadJob {unsigned long long id;Performance selected;double sampleRate;std::map<std::string,float> gains;std::array<std::shared_ptr<PartSynth>,4> cache;};
+ std::mutex loadMutex;std::condition_variable loadWake;std::thread loadThread;
+ std::optional<LoadJob> loadJob;std::unique_ptr<Graph> loadResult;std::string loadError;
+ bool loadStopping=false,asyncLoading=false;unsigned long long loadGeneration=0,resultGeneration=0;
+ std::atomic<unsigned> auditionMask{15};
+ void cancelPerformanceLoad();void loadWorker();
+ std::unique_ptr<Graph> preparePerformance(const LoadJob&);
+
  void publish(std::unique_ptr<Graph>);
  void retire(Graph*) noexcept;
  void destroyGraphs() noexcept;

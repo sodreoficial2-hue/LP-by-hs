@@ -107,7 +107,10 @@ struct Session {
  }
  void save(const std::filesystem::path& path) const {atomicWrite(path,serialize());}
  void load(const std::filesystem::path& path) {
-  std::ifstream f(path,std::ios::binary); std::string magic; int version=0;
+  std::ifstream f(path,std::ios::binary);read(f);
+ }
+ void read(std::istream& f){
+  std::string magic; int version=0;
   if(!(f>>magic>>version) || magic!="LPHS_PROFILE" || (version<1||version>9))
    throw std::runtime_error("Invalid profile header");
   Session candidate; unsigned slot;

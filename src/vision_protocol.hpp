@@ -51,6 +51,12 @@ inline Command parse(std::string_view wire) {
  else if(c.action=="parameter")limit(15,1000);
  else if(c.action=="learnParameter")limit(15,0);
  else if(c.action=="driver"||c.action=="midi")limit(4096,0);
+ else if(c.action=="partVolume")limit(3,1000);
+ else if(c.action=="copyPart"||c.action=="swapParts")limit(3,3);
+ else if(c.action=="partCategory")limit(3,14);
+ else if(c.action=="partSearch")limit(3,0);
+ else if(c.action=="partSolo"||c.action=="partMute"||c.action=="learnLow"||c.action=="learnHigh")limit(3,0);
+ else if(c.action=="performanceSaveNew")limit(0,0);
  else if(c.action=="performanceMode")limit(4,0);
  else if(c.action=="performancePart")limit(3,100000);
  else if(c.action=="clearPart"||c.action=="editPart")limit(3,0);
@@ -59,7 +65,7 @@ inline Command parse(std::string_view wire) {
  else if(c.action=="screen")limit(6,0);
  else if(c.action=="search"||c.action=="restoreSounds"||c.action=="restoreAll"||c.action=="locateSounds"||c.action=="deleteSelected"||c.action=="ready"||c.action=="effects"||c.action=="escape"||c.action=="connect"||c.action=="disconnect"||c.action=="controlPanel"||c.action=="panic"||c.action=="save"||c.action=="open"||c.action=="importSfz"||c.action=="importSf2"||c.action=="performancePlay"||c.action=="performanceSave"||c.action=="performanceName"||c.action=="releaseNotes"||c.action=="touch")limit(0,0);
  else throw std::invalid_argument("Action de interface desconhecida");
- if(c.action=="performanceName"||c.action=="search"){if(c.text.size()>1024)throw std::invalid_argument("Nome muito longo");}
+ if(c.action=="performanceName"||c.action=="search"||c.action=="partSearch"){if(c.text.size()>1024)throw std::invalid_argument("Nome muito longo");}
  else if(!c.text.empty())throw std::invalid_argument("Texto inesperado");
  return c;
 }
