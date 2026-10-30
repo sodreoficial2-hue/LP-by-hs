@@ -124,3 +124,11 @@ calibration, catalog management and ASIO/MIDI contracts. Details and validation
 limits are in docs/PERFORMANCE-EDITOR-FLOW.md. Local compilation is authorized;
 this turn does not request a portable/Drive release. Preserve one grouped source
 commit without Actions. Authenticated GitHub allowance remains unknown.
+
+## Audit stability follow-up (30 October 2026)
+
+Hugo authorizes all fourteen diagnosed fluency/stability corrections. Preserve
+ASIO driver-owned buffers, MIDI contracts, home category keyboard navigation and
+accessibility. See docs/STABILITY-AUDIT-FIXES.md for implementation and limits.
+Validate locally and publish one grouped source-only stage without Actions.
+No portable/Drive release requested. Authenticated GitHub allowance is unknown.

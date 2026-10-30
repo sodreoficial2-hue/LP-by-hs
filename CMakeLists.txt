@@ -250,3 +250,17 @@ add_executable(lp_async_performance_test tests/async_performance_test.cpp tests/
 target_include_directories(lp_async_performance_test PRIVATE src third_party/portaudio)
 target_link_libraries(lp_async_performance_test PRIVATE lp_engine Threads::Threads)
 add_test(NAME async_performance_latest_selection COMMAND lp_async_performance_test $<TARGET_FILE:lp_fake_sfizz>)
+
+add_executable(lp_stability_audio_test tests/stability_audio_test.cpp tests/fake_portaudio.cpp src/audio_host.cpp)
+target_include_directories(lp_stability_audio_test PRIVATE src third_party/portaudio)
+target_link_libraries(lp_stability_audio_test PRIVATE lp_engine Threads::Threads)
+add_test(NAME stability_audio_switch_order COMMAND lp_stability_audio_test $<TARGET_FILE:lp_fake_sfizz>)
+add_executable(lp_stability_storage_test tests/stability_storage_test.cpp)
+target_include_directories(lp_stability_storage_test PRIVATE src)
+target_link_libraries(lp_stability_storage_test PRIVATE Threads::Threads)
+add_test(NAME stability_recovery_dependencies COMMAND lp_stability_storage_test)
+
+add_executable(lp_stability_stress_test tests/stability_stress_test.cpp tests/fake_portaudio.cpp src/audio_host.cpp)
+target_include_directories(lp_stability_stress_test PRIVATE src third_party/portaudio)
+target_link_libraries(lp_stability_stress_test PRIVATE lp_engine Threads::Threads)
+add_test(NAME stability_concurrent_four_layers COMMAND lp_stability_stress_test $<TARGET_FILE:lp_fake_sfizz>)

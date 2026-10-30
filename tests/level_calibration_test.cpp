@@ -38,7 +38,7 @@ int main(int argc,char** argv){
  lp::AudioHost layered(argv[1]);layered.setLevelCompensations({{lp::levelKey(first.sfz.u8string()),.5f},{lp::levelKey(second.sfz.u8string()),.25f}});
  layered.loadPerformance(performance);layered.start(1);layered.send({0x90,60,100});fakePump(left,right,256);check(std::abs(left[0]-.1875f)<1e-6f);layered.stop();
  // Corrupt data are preserved as a backup and recalibrated, never trusted.
- std::ofstream(file)<<"invalid";result=run(argv[1],file,{first});check(result.analyzed==1&&std::filesystem::exists(file.string()+".invalid"));
+ std::ofstream(file)<<"invalid";result=run(argv[1],file,{first});bool preserved=false;for(const auto& entry:std::filesystem::directory_iterator(dir))preserved|=entry.path().filename().string().find("levels.cache.invalid.")==0;check(result.failed==0&&result.analyzed+result.reused==1&&preserved);
  // Cancellation joins before state is destroyed, with no UI/native pointers.
  {lp::LevelCalibrationJob cancelled(argv[1],dir/"cancelled.cache",{first,second});}
  std::filesystem::remove_all(dir);

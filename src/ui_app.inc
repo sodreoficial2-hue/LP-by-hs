@@ -6,7 +6,7 @@
  int pageTop() const {return 156;}
  int pageMinimum() const {
   if(effects)return performanceControls()?360:864;
-  switch(screen){case lp::Screen::Home:return 316;case lp::Screen::Keyboard:return 360;case lp::Screen::Instruments:return 400;case lp::Screen::AudioMidi:return 580;case lp::Screen::Settings:return 760;case lp::Screen::PerformanceEditor:return 1600;case lp::Screen::About:return 600;}
+  switch(screen){case lp::Screen::Home:return 316;case lp::Screen::Keyboard:return 360;case lp::Screen::Instruments:return 400;case lp::Screen::AudioMidi:return 660;case lp::Screen::Settings:return 760;case lp::Screen::PerformanceEditor:return 1600;case lp::Screen::About:return 600;}
   return 580;
  }
  void scrollPage(int delta){if(pageScroll.move(delta))layout();}
@@ -58,7 +58,7 @@
  }
  void layout(){
   if(!catalog||placing)return;
-  placing=true;
+  markVisionStructureDirty();placing=true;
   RECT r{};GetClientRect(window,&r);int windowWidth=r.right,windowHeight=r.bottom;
   std::vector<HWND> visible;
   auto finish=[&]{
@@ -100,7 +100,7 @@
    if(restoringSounds){place(RestoreSelected,left+8,p+pageScroll.content-76,(width-left-56)/2,60);place(RestoreAll,left+24+(width-left-56)/2,p+pageScroll.content-76,(width-left-56)/2,60);}
   }else if(screen==lp::Screen::AudioMidi){
    place(AudioDriver,56,p+152,width-112,300);place(Midi,56,p+262,width-112,300);
-   int actionWidth=(width-144)/3;place(AudioStart,56,p+340,actionWidth,60);place(AudioStop,72+actionWidth,p+340,actionWidth,60);place(AudioPanel,88+2*actionWidth,p+340,actionWidth,60);place(Panic,width-300,p+460,244,60);
+   int actionWidth=(width-144)/3;place(AudioStart,56,p+340,actionWidth,60);place(AudioStop,72+actionWidth,p+340,actionWidth,60);place(AudioPanel,88+2*actionWidth,p+340,actionWidth,60);place(AudioDiagnostics,56,p+440,width-112,86);place(Panic,width-300,p+540,244,60);
   }else if(screen==lp::Screen::Settings){
    int half=(width-84)/2;
    place(Open,32,p+28,half,160);place(Save,52+half,p+28,half,160);place(Import,32,p+208,half,160);place(ImportSf2,52+half,p+208,half,160);place(RestoreSounds,32,p+388,width-64,68);place(LocateSounds,32,p+472,width-64,68);place(Panic,width-300,p+578,244,60);
@@ -154,6 +154,7 @@
   if(key=='D'&&!typing&&(GetKeyState(VK_CONTROL)&0x8000)&&!(GetKeyState(VK_MENU)&0x8000)&&!(GetKeyState(VK_SHIFT)&0x8000)){if(!(msg.lParam&(1L<<30)))deleteSelectedSound();return true;}
   if(key=='F'&&(GetKeyState(VK_CONTROL)&0x8000)&&!effects&&(screen==lp::Screen::Instruments||screen==lp::Screen::PerformanceEditor)){auto search=item(screen==lp::Screen::PerformanceEditor?PartSearch:Search);SetFocus(search);SendMessageW(search,EM_SETSEL,0,-1);return true;}
   if(GetFocus()==item(Search)&&key==VK_RETURN){SetFocus(catalog);if(restoringSounds)restoreSelectedSound();else audition();return true;}
+  if(key=='S'&&(GetKeyState(VK_CONTROL)&0x8000)){command(Save,0);return true;}
   if(key==VK_F12){command(Panic,0);return true;}
   if(key==VK_ESCAPE){if(effects){cancelMidiLearn();return true;}goHome();return true;}
   if(!typing&&!(GetKeyState(VK_CONTROL)&0x8000)&&!(GetKeyState(VK_MENU)&0x8000)){
@@ -165,6 +166,7 @@
    if(key=='K'){openScreen(lp::Screen::Keyboard);return true;}
    }
   }
+  if((screen!=lp::Screen::Home||effects)&&!typing&&(key==VK_LEFT||key==VK_RIGHT)&&_wcsicmp(kind,TRACKBAR_CLASSW)!=0&&_wcsicmp(kind,L"COMBOBOX")!=0){show.master=std::clamp(show.master+(key==VK_RIGHT?.02f:-.02f),0.f,1.f);if(engine)engine->masterVolume(show.master);refreshParameters();return true;}
   if(!effects&&!typing&&screen==lp::Screen::Home&&!(GetKeyState(VK_CONTROL)&0x8000)&&!(GetKeyState(VK_MENU)&0x8000)&&
      (key==VK_LEFT||key==VK_RIGHT||key==VK_UP||key==VK_DOWN)){
    int id=GetDlgCtrlID(GetFocus()),index=id>=CategoryCardBase&&id<CategoryCardBase+16?id-CategoryCardBase:categoryIndex;

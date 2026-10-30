@@ -14,7 +14,7 @@ struct Instrument {
  unsigned category=10;
  int testNote=60;
 };
-inline std::vector<Instrument> loadInstrumentBank(const std::filesystem::path& root,const std::set<std::string>& deletedIds={}){
+inline std::vector<Instrument> loadInstrumentBank(const std::filesystem::path& root,const std::set<std::string>& deletedIds={},std::vector<std::string>* warnings=nullptr){
  std::ifstream in(root/"catalog.txt",std::ios::binary);std::string line;
  if(!std::getline(in,line))throw std::runtime_error("Catálogo de timbres inválido");
  if(!line.empty()&&line.back()=='\r')line.pop_back();
@@ -29,10 +29,10 @@ inline std::vector<Instrument> loadInstrumentBank(const std::filesystem::path& r
   for(const auto& part:relative)if(part=="..")throw std::runtime_error("Caminho fora do banco de timbres");
   p.sfz=std::filesystem::absolute(root/relative).lexically_normal();
   if(deletedIds.count(p.id)&&!std::filesystem::exists(p.sfz))continue;
-  if(!std::filesystem::is_regular_file(p.sfz)||!ids.insert(p.id).second||!paths.insert(path).second)throw std::runtime_error("Timbre ausente ou duplicado: "+p.id);
+  if(!std::filesystem::is_regular_file(p.sfz)||!ids.insert(p.id).second||!paths.insert(path).second){if(warnings){warnings->push_back("Timbre ausente ou duplicado: "+p.id);continue;}throw std::runtime_error("Timbre ausente ou duplicado: "+p.id);}
   result.push_back(std::move(p));
  }
- if(result.empty()&&deletedIds.empty())throw std::runtime_error("Banco de timbres vazio");
+ if(result.empty()&&deletedIds.empty()&&!warnings)throw std::runtime_error("Banco de timbres vazio");
  return result;
 }
 // Stable IDs keep new favorites usable after moving the portable application.

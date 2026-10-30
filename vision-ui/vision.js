@@ -111,7 +111,7 @@
  function audio(){
   title('Áudio e MIDI','SUA CONEXÃO DE PALCO');const a=state.audio;
   const io=node('section',{class:'panel wide'},node('h2',{},'Driver ASIO e controlador MIDI'),field('Driver ASIO','driver',a.drivers,a.driver,i=>send('driver',i)),field('Entrada MIDI','midi',a.midiInputs,a.midi,i=>send('midi',i)),node('div',{class:'actions'},button('Conectar ASIO',()=>send('connect'),{class:'primary'}),button('Desconectar',()=>send('disconnect')),button('ASIO Control',()=>send('controlPanel'))));
-  const info=node('section',{class:'panel wide'},node('h2',{},'Estado da conexão'),node('p',{class:'metric',id:'audio-detail'}),node('p',{class:'note'},'Ajuste o buffer no ASIO Control. As configurações de áudio são salvas automaticamente.'));
+  const info=node('section',{class:'panel wide'},node('h2',{},'Estado da conexão'),node('p',{class:'metric',id:'audio-detail'}),node('p',{class:'details',id:'audio-diagnostics','aria-live':'polite'}),node('p',{class:'note'},'Ajuste o buffer no ASIO Control. As configurações de áudio são salvas automaticamente.'));
   return node('div',{class:'form-grid'},io,info);
  }
  function profiles(){
@@ -135,7 +135,7 @@
    select.addEventListener('input',()=>audition(Number(select.value)));
    select.addEventListener('keydown',e=>{if(!['ArrowDown','ArrowUp','Home','End','PageDown','PageUp'].includes(e.key))return;e.preventDefault();const options=[...select.options];let index=select.selectedIndex;index=e.key==='Home'?0:e.key==='End'?options.length-1:Math.max(0,Math.min(options.length-1,index+(e.key==='ArrowDown'?1:e.key==='ArrowUp'?-1:e.key==='PageDown'?5:-5)));select.selectedIndex=index;options[index]?.scrollIntoView({block:'nearest'});audition(Number(select.value));});
    if(p.searches)partSearch[i]=p.searches[i];
-   p.instruments.forEach((name,n)=>{if(n===0||n===selected||(p.instrumentCategories[n]===category&&searchFold(name).includes(searchFold(partSearch[i]||''))))select.append(node('option',{value:n},n===selected&&n>0&&p.instrumentCategories[n]!==category?`Atual: ${name}`:name));});select.value=String(selected);select.scrollTop=partScroll[i]||0;select.addEventListener('scroll',()=>{partScroll[i]=select.scrollTop;});select.addEventListener('focus',()=>select.selectedOptions?.[0]?.scrollIntoView({block:'nearest'}));
+   p.instruments.forEach((name,n)=>{if(n===0||n===selected||((p.instrumentVisible?.[n]??true)&&p.instrumentCategories[n]===category&&searchFold(name).includes(searchFold(partSearch[i]||''))))select.append(node('option',{value:n},n===selected&&n>0&&p.instrumentCategories[n]!==category?`Atual: ${name}`:name));});select.value=String(selected);select.scrollTop=partScroll[i]||0;select.addEventListener('scroll',()=>{partScroll[i]=select.scrollTop;});select.addEventListener('focus',()=>select.selectedOptions?.[0]?.scrollIntoView({block:'nearest'}));
    if(p.searches)partSearch[i]=p.searches[i];
    const search=node('input',{id:`part-search-${i}`,type:'search',value:partSearch[i]||'','data-focus':`part-search-${i}`,'aria-label':`Buscar timbre da parte ${i+1}`,placeholder:'Buscar timbre nesta categoria',maxlength:256});
    search.addEventListener('input',()=>{partSearch[i]=search.value;if(p.searches)p.searches[i]=search.value;send('partSearch',i,0,search.value);structure='';render();});
@@ -155,7 +155,7 @@
    const row=node('section',{class:'part-row'+(p.editingPart===i?' editing':''),'data-part':i},node('span',{class:'part-number'},String(i+1)),node('div',{class:'part-fields'},categoryField,search,soundField,tools),node('div',{class:'part-actions'},button('Parâmetros · E',()=>{flushParameters();send('editPart',i);send('effects');},{'aria-label':`Editar parâmetros da parte ${i+1}`}),button('Limpar',()=>send('clearPart',i))));
    row.addEventListener('focusin',()=>{if(state.performance.editingPart!==i)send('editPart',i);});parts.append(row);
   });
-  const name=node('input',{id:'performance-name',type:'text',maxlength:255,value:p.name,'data-focus':'performance-name'});name.addEventListener('change',()=>send('performanceName',0,0,name.value));
+  const name=node('input',{id:'performance-name',type:'text',maxlength:128,value:p.name,'data-focus':'performance-name'});name.addEventListener('input',()=>send('performanceName',0,0,name.value));name.addEventListener('change',()=>send('performanceName',0,0,name.value));
   return node('div',{class:'form-grid'},node('section',{class:'panel wide'},zones),parts,node('section',{class:'panel wide'},node('label',{class:'field',for:'performance-name'},'Nome da Performance',name),node('div',{class:'actions'},button(p.editingSaved?'Salvar alterações':'Salvar Performance',()=>{send('performanceName',0,0,name.value);send('performanceSave');}),...(p.editingSaved?[button('Salvar como nova',()=>{send('performanceName',0,0,name.value);send('performanceSaveNew');})]:[])),node('p',{class:'note'},'As camadas tocam automaticamente. Use as setas para experimentar os timbres. Salvar Performance grava permanentemente e limpa o editor. A montagem em andamento é recuperada pelo rascunho automático.')));
  }
  function parameters(){
@@ -202,7 +202,7 @@
   // text and caret/selection, including edits in the middle of a search term.
   const textEdit=active?.matches('input[type="search"],input[type="text"]')?
    {value:active.value,start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection}:null;
-  const key=JSON.stringify([state.screen,state.effects,state.category,state.loading,state.partMix,state.restoring,state.catalog.map(r=>r.name),state.category===15?state.favorites.map(r=>[r.name,r.occupied]):null,state.audio.drivers,state.audio.midiInputs,state.performance.instruments,state.performance.instrumentCategories,state.screen==='performance'?[state.performance.parts,state.performance.name,state.performance.muted,state.performance.solo,state.performance.zones,state.performance.splitLearning,state.performance.editingSaved,state.performance.browseCategories,state.performance.searches]:null,state.screen==='performance'&&state.effects?state.performance.editingPart:null]);
+  const key=JSON.stringify([state.screen,state.effects,state.category,state.loading,state.partMix,state.restoring,state.catalog.map(r=>r.name),state.category===15?state.favorites.map(r=>[r.name,r.occupied]):null,state.audio.drivers,state.audio.midiInputs,state.performance.instruments,state.performance.instrumentCategories,state.performance.instrumentVisible,state.screen==='performance'?[state.performance.parts,state.performance.name,state.performance.muted,state.performance.solo,state.performance.zones,state.performance.splitLearning,state.performance.editingSaved,state.performance.browseCategories,state.performance.searches]:null,state.screen==='performance'&&state.effects?state.performance.editingPart:null]);
   if(key!==structure){
    structure=key;let body;
    if(state.loading){title('Preparando seus instrumentos');body=node('section',{class:'waiting panel'},node('h2',{},'Carregando a biblioteca'),node('progress',{id:'progress',max:100,value:state.progress}),node('p',{class:'details'},state.status));}
@@ -223,7 +223,7 @@
   if(state.screen==='performance'&&!state.effects)$('eyebrow').textContent=state.performance.preparing?'PREPARANDO TIMBRE · INTERFACE DISPONÍVEL':'ATÉ QUATRO PARTES · CAMADAS E DIVISÕES';
   $('profile-state').textContent=state.dirty?'Alterações não salvas':'Perfil sem alterações pendentes';$('profile-state').classList.toggle('dirty',Boolean(state.dirty));
   const peak=Number(state.peak)||0,db=peak>0?20*Math.log10(peak):-90;
-  $('output-meter').value=Math.min(1,peak);$('peak-label').textContent=state.clipping?'Pico excessivo — reduza os volumes':`Saída: ${db<=-90?'silêncio':Math.round(db)+' dBFS'}`;$('peak-label').classList.toggle('clipping',Boolean(state.clipping));
+  $('output-meter').value=Math.min(1,peak);$('peak-label').textContent=state.clipping?'Pico excessivo — reduza os volumes':`Saída: ${db<=-90?'silêncio':Math.round(db)+' dBFS'}`;$('peak-label').classList.toggle('clipping',Boolean(state.clipping));if(!state.clipping&&peak>=.89)$('peak-label').textContent='Pouca folga na saída — reduza o volume das camadas';
   if($('sound-search')&&document.activeElement!==$('sound-search'))$('sound-search').value=state.search||'';
   $('loaded-name').textContent=state.loadedName||'Nenhum timbre carregado';$('status').textContent=state.status;$('audio-dot').classList.toggle('connected',state.audio.connected);
   $('back').hidden=state.screen==='home'&&!state.effects;$('keyboard-nav').hidden=state.screen==='keyboard'||state.effects;
@@ -232,13 +232,14 @@
   const rows=state.category===15&&!state.restoring?state.favorites:state.catalog;
   for(const row of document.querySelectorAll('.sound-row')){const r=rows[Number(row.dataset.row)];if(!r)continue;row.classList.toggle('selected',Number(row.dataset.row)===state.selected);row.classList.toggle('loaded',Boolean(r.loaded));row.querySelector('.sound-select')?.setAttribute('aria-pressed',String(Boolean(r.loaded)));const star=row.querySelector('.favorite-toggle');if(star&&state.category!==15){star.textContent=r.favorite?'★':'☆';star.setAttribute('aria-pressed',String(r.favorite));star.setAttribute('aria-label',`${r.favorite?'Remover dos favoritos:':'Favoritar'} ${r.name}`);}}
   for(const c of state.controls){const range=$(`parameter-${c.id}`),cell=document.querySelector(`[data-parameter="${c.id}"]`);if(!range||!cell)continue;if(document.activeElement!==range){range.value=String(c.value);$(`value-${c.id}`).textContent=`${Math.round(c.value/10)}%`;cell.querySelector('.knob').style.setProperty('--angle',`${c.value*.27}deg`);}range.disabled=!c.enabled;cell.classList.toggle('disabled',!c.enabled);cell.querySelector('.learn').disabled=!c.enabled;$(`mapping-${c.id}`).textContent=c.label.includes(' · ')?c.label.split(' · ').slice(1).join(' · '):'Clique direito para mapear';}
+  if($('audio-diagnostics')&&state.diagnostics){const d=state.diagnostics;$('audio-diagnostics').textContent=`Processamento de áudio: ${d.cpu.toFixed(1)}% do tempo disponível · Interrupções: ${d.xruns} · Bloco: ${d.frames} amostras · Motores ativos: ${d.synths} · Memória: ${d.memoryMB.toFixed(0)} MB`;}
   if($('audio-detail'))$('audio-detail').textContent=state.audio.connected?`ASIO conectado · ${state.audio.sampleRate} Hz · ${state.audio.latencyMs.toFixed(1)} ms de saída`:'ASIO desconectado';
   for(const [id,value] of [['driver',state.audio.driver],['midi',state.audio.midi],['performance-mode',state.performance.mode],['performance-name',state.performance.name],...state.performance.parts.map((p,i)=>[`part-${i}`,p])]){const target=$(id);if(target&&document.activeElement!==target)target.value=String(value);}
   for(let i=0;i<4;i++){const input=$(`part-volume-${i}`);if(input&&document.activeElement!==input){input.value=String(state.performance.volumes?.[i]??1000);$(`part-volume-value-${i}`).textContent=`${Math.round(input.value/10)}%`;}}
   document.querySelectorAll('[data-part]').forEach(row=>row.classList.toggle('editing',Number(row.dataset.part)===state.performance.editingPart));
   if($('progress'))$('progress').value=state.progress;
  }
- function receive(event){const next=event?.data??event;if(!next||next.type!=='state'||next.version!==1)return;if(state?.screen==='keyboard'&&(next.screen!=='keyboard'||next.effects))releaseNotes();if(next.screen==='performance'&&(state?.screen!=='performance'||(state?.performance.parts.some(Boolean)&&!next.performance.parts.some(Boolean)))){partCategories=[];partSearch=[];partScroll=[];}state=next;if(next.error)notice(next.error);render();finishOpening();}
+ function receive(event){let next=event?.data??event;if(!next||next.version!==1)return;if(next.type==='telemetry'){if(!state)return;const patch=next;next={...state,...patch,type:'state',performance:{...state.performance,preparing:patch.preparing,volumes:patch.volumes,name:patch.performanceName??state.performance.name}};next.favorites=state.favorites.map(row=>({...row,loaded:!patch.preparing&&row.id===patch.currentFavorite}));next.catalog=state.catalog.map(row=>({...row,loaded:!patch.preparing&&row.id===patch.loadedCatalogIndex}));}if(next.type!=='state')return;if(state?.screen==='keyboard'&&(next.screen!=='keyboard'||next.effects))releaseNotes();if(next.screen==='performance'&&(state?.screen!=='performance'||(state?.performance.parts.some(Boolean)&&!next.performance.parts.some(Boolean)))){partCategories=[];partSearch=[];partScroll=[];}state=next;if(next.error)notice(next.error);render();finishOpening();}
  $('brand').addEventListener('click',()=>{flushParameters();send('screen',0);});$('back').addEventListener('click',()=>{flushParameters();send('screen',0);});
  document.querySelectorAll('[data-screen]').forEach(b=>b.addEventListener('click',()=>{flushParameters();send('screen',Number(b.dataset.screen));}));
  $('keyboard-nav').addEventListener('click',()=>send('screen',6));$('effects-nav').addEventListener('click',()=>{flushParameters();send('effects');});$('panic').addEventListener('click',()=>{releaseNotes();send('panic');});
@@ -252,6 +253,10 @@
   if(event.key==='F12'){event.preventDefault();releaseNotes();send('panic');return;}
   if(event.key==='Escape'){event.preventDefault();flushParameters();releaseNotes();send('escape');return;}
   const target=event.target;
+  if(event.ctrlKey&&!event.altKey&&!event.metaKey&&event.key.toLowerCase()==='s'){event.preventDefault();if(!event.repeat){flushParameters();send('save');}return;}
+  if(event.key==='Delete'&&state.screen==='performance'&&!state.effects&&!target.matches('input[type=text],input[type=search],textarea')){event.preventDefault();if(!event.repeat)send('clearPart',Number(target.closest('[data-part]')?.dataset.part??state.performance.editingPart));return;}
+  if((state.screen!=='home'||state.effects)&&['ArrowLeft','ArrowRight'].includes(event.key)&&!event.ctrlKey&&!event.altKey&&!event.metaKey&&!target.matches('input,select,textarea')){event.preventDefault();send('masterStep',event.key==='ArrowRight'?1:0);return;}
+
   if(event.ctrlKey&&!event.altKey&&!event.metaKey&&event.key.toLowerCase()==='f'){
    const search=state.screen==='performance'?document.querySelector(`#part-search-${state.performance.editingPart}`):$('sound-search');
    if(search){event.preventDefault();search.focus();search.select();}return;

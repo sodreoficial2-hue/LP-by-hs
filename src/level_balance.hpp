@@ -1,6 +1,7 @@
 #pragma once
 #include "atomic_file.hpp"
 #include "sf2_reference.hpp"
+#include "sfz_dependencies.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -21,6 +22,7 @@ inline std::string levelKey(const std::string& reference){
 inline std::string levelStamp(const std::string& reference){
  auto sf2=parseSf2Reference(reference);auto path=sf2?sf2->path:std::filesystem::u8path(reference);
  if(!std::filesystem::is_regular_file(path))throw std::runtime_error("Timbre ausente durante o equilibrio de volumes");
+ if(!sf2)return sfzDependencyStamp(path);
  return std::to_string(std::filesystem::file_size(path))+":"+std::to_string(std::filesystem::last_write_time(path).time_since_epoch().count());
 }
 struct LevelResult {
@@ -90,7 +92,7 @@ public:
   auto candidate=entries;candidate[key]={stamp,result};
   std::ostringstream out;out.imbue(std::locale::classic());out<<"LPHS_LEVEL_BALANCE 1\n"<<std::setprecision(9);
   for(const auto& pair:candidate)out<<std::quoted(pair.first)<<' '<<std::quoted(pair.second.stamp)<<' '<<pair.second.result.gain<<' '<<pair.second.result.rms<<' '<<pair.second.result.peak<<' '<<pair.second.result.audible<<'\n';
-  atomicWrite(file,out.str());entries=std::move(candidate);
+  backedUpWrite(file,out.str());entries=std::move(candidate);
  }
 };
 }

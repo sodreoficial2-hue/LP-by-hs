@@ -16,7 +16,7 @@ void Dsp::Biquad::peak(float rate,float frequency,float db) {
  a1=b1;a2=(1-alpha/a)/den;
 }
 float Dsp::Comb::tick(float x) noexcept {
- float y=samples[cursor];samples[cursor]=x+y*.72f;
+ float y=samples[cursor];samples[cursor]=x+y*.72f;if(std::abs(samples[cursor])<1e-20f)samples[cursor]=0;
  if(++cursor==samples.size())cursor=0;
  return y;
 }
@@ -69,18 +69,21 @@ Dsp::Dsp(float sampleRate):rate(sampleRate) {
  const float maxHz=std::min(16000.f,rate*.45f),k=1/1.2f;
  for(std::size_t i=0;i<cutoffTable.size();++i){float hz=80*std::pow(maxHz/80,i/511.f);float g=std::tan(pi*hz/rate);float a1=1/(1+g*(g+k));cutoffTable[i]={a1,g*a1,g*g*a1};}
  followerAttack=std::exp(-1/(rate*.002f));followerRelease=std::exp(-1/(rate*.08f));
+ attackCoeff=std::exp(-1.f/(rate*.005f));releaseCoeff=std::exp(-1.f/(rate*.10f));volumeCoeff=1-std::exp(-1.f/(rate*.003f));hallCoeff=1-std::exp(-1/(rate*.03f));
  parameters(p);
 }
 void Dsp::parameters(const std::array<float,15>& values) {
  for(float v:values)if(!std::isfinite(v)||v<0||v>1)throw std::invalid_argument("Invalid DSP parameter");
- p=values;
+ if(p[7]>0&&values[7]==0)delayTail=static_cast<int>(rate*4);if(p[8]>0&&values[8]==0)chorusTail=static_cast<int>(rate*.06f);if(p[6]>0&&values[6]==0)reverbTail=static_cast<int>(rate*10);
+ auto previous=p;p=values;if(previous[10]!=p[10]){thresholdValue=std::pow(10.f,(-6-24*p[10])/20);ratioValue=1+7*p[10];}
  float upper=std::clamp((p[6]-.7f)/.3f,0.f,1.f);
  hallTarget=upper*upper*(3-2*upper);
- for(auto& room:hall)room.decay(rate,2.5f+6.5f*hallTarget);
+ if(previous[6]!=p[6])for(auto& room:hall)room.decay(rate,2.5f+6.5f*hallTarget);
  constexpr float frequencies[]{120,1000,6000};
- for(auto& channel:eq)for(int k=0;k<3;++k)channel[k].peak(rate,frequencies[k],24*(p[11+k]-.5f));
+ for(auto& channel:eq)for(int k=0;k<3;++k)if(previous[11+k]!=p[11+k])channel[k].peak(rate,frequencies[k],24*(p[11+k]-.5f));
 }
 void Dsp::reset() noexcept {
+ delayTail=chorusTail=reverbTail=0;volumeSmoothed=p[0];
  for(auto& room:hall)room.reset();hallMix=hallTarget;
  filter.fill({});follower=0;envelope=phase=chorusPhase=0;delayAt=chorusAt=0;
  for(auto& channel:eq)for(auto& band:channel)band.z1=band.z2=0;
@@ -89,13 +92,15 @@ void Dsp::reset() noexcept {
 }
 void Dsp::process(float* left,float* right,int frames) noexcept {
  if(!left||!right||left==right||frames<=0)return;
- const float attack=std::exp(-1.f/(rate*.005f)),release=std::exp(-1.f/(rate*.10f));
- const float threshold=std::pow(10.f,(-6-24*p[10])/20),ratio=1+7*p[10];
- const float hallSmoothing=1-std::exp(-1/(rate*.03f));
+ const float attack=attackCoeff,release=releaseCoeff;
+ const float threshold=thresholdValue,ratio=ratioValue;
+ const float volumeSmoothing=volumeCoeff;
+ const bool timeEffects=p[6]>0||p[7]>0||p[8]>0||delayTail||chorusTail||reverbTail;if(timeEffects)effectFrames+=frames;
+ const float hallSmoothing=hallCoeff;
  for(int i=0;i<frames;++i){
   hallMix+=hallSmoothing*(hallTarget-hallMix);
   float x[]{clean(left[i]),clean(right[i])};
-  float detector=std::max(std::abs(x[0]),std::abs(x[1]));
+  if(p[5]<1){float detector=std::max(std::abs(x[0]),std::abs(x[1]));
   float followerCoefficient=detector>follower?followerAttack:followerRelease;
   follower=followerCoefficient*follower+(1-followerCoefficient)*detector;
   float opening=p[5]+(1-p[5])*std::clamp(follower*4,0.f,1.f);
@@ -109,27 +114,28 @@ void Dsp::process(float* left,float* right,int frames) noexcept {
    float v2=state.integrator2+coeff.a2*state.integrator1+coeff.a3*v3;
    state.integrator1=2*v1-state.integrator1;state.integrator2=2*v2-state.integrator2;
    if(p[5]<1)x[c]=v2;
-   for(int k=0;k<3;++k)if(p[11+k]!=.5f)x[c]=eq[c][k].tick(x[c]);
-  }
+  }}
+  for(int c=0;c<2;++c)for(int k=0;k<3;++k)if(p[11+k]!=.5f)x[c]=eq[c][k].tick(x[c]);
   float peak=std::max(std::abs(x[0]),std::abs(x[1]));
   float coefficient=peak>envelope?attack:release;envelope=coefficient*envelope+(1-coefficient)*peak;
   float gain=p[10]>0&&envelope>threshold?std::pow(threshold/envelope,1-1/ratio):1;
-  float trem=1-p[9]*(.5f+.5f*std::sin(phase));
+  float trem=p[9]>0?1-p[9]*(.5f+.5f*std::sin(phase)):1;
+  if(smoothVolume)volumeSmoothed+=volumeSmoothing*(p[0]-volumeSmoothed);else volumeSmoothed=p[0];
   for(int c=0;c<2;++c){
    float dry=x[c]*gain*trem;
    // Delay feedback remains below unity; wet controls never alter dry gain.
-   float echo=delay[c][delayAt];delay[c][delayAt]=dry+echo*.35f;
-   float offset=rate*(.018f+.004f*std::sin(chorusPhase+c*pi/2));
+   float echo=0;if(p[7]>0||delayTail){echo=delay[c][delayAt];delay[c][delayAt]=(p[7]>0?dry:0)+echo*.35f;}
+   float mod=0;if(p[8]>0||chorusTail){float offset=rate*(.018f+.004f*std::sin(chorusPhase+c*pi/2));
    float read=static_cast<float>(chorusAt)-offset;
    if(read<0)read+=chorus[c].size();
    auto a=static_cast<std::size_t>(read),b=(a+1)%chorus[c].size();float frac=read-a;
-   float mod=chorus[c][a]*(1-frac)+chorus[c][b]*frac;chorus[c][chorusAt]=dry;
-   float room=0;for(auto& comb:reverb[c])room+=comb.tick(dry*.25f);
-   float largeRoom=hall[c].tick(dry*hallMix);
+   mod=chorus[c][a]*(1-frac)+chorus[c][b]*frac;chorus[c][chorusAt]=p[8]>0?dry:0;}
+   float room=0,largeRoom=0;if(p[6]>0||reverbTail){for(auto& comb:reverb[c])room+=comb.tick(p[6]>0?dry*.25f:0);if(hallMix>1e-6f||reverbTail)largeRoom=hall[c].tick(p[6]>0?dry*hallMix:0);}
    float reverberation=p[6]*room*.35f*(1-.5f*hallMix)+largeRoom*.65f*hallMix;
-   float out=(dry+p[7]*echo*.5f+p[8]*mod*.4f+reverberation)*p[0];
+   float out=(dry+p[7]*echo*.5f+p[8]*mod*.4f+reverberation)*volumeSmoothed;
    (c?right:left)[i]=clean(out);
   }
+  if(delayTail)--delayTail;if(chorusTail)--chorusTail;if(reverbTail)--reverbTail;
   if(++delayAt==delay[0].size())delayAt=0;
   if(++chorusAt==chorus[0].size())chorusAt=0;
   phase+=2*pi*5/rate;chorusPhase+=2*pi*.8f/rate;

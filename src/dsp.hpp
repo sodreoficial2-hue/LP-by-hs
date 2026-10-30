@@ -11,6 +11,8 @@ public:
  explicit Dsp(float sampleRate=48000);
  void parameters(const std::array<float,15>& values);
  void reset() noexcept;
+ void smoothing(bool enabled)noexcept{smoothVolume=enabled;volumeSmoothed=p[0];}
+ unsigned long long timeEffectFrames()const noexcept{return effectFrames;}
  void process(float* left,float* right,int frames) noexcept;
 private:
  struct Biquad {
@@ -36,6 +38,7 @@ private:
  struct FilterCoefficients {float a1=0,a2=0,a3=0;};
  std::array<FilterCoefficients,512> cutoffTable{};
  std::array<FilterState,2> filter{};
+ float attackCoeff=0,releaseCoeff=0,volumeCoeff=0,hallCoeff=0,thresholdValue=.501187234f,ratioValue=1;
  float rate,envelope=0,phase=0,chorusPhase=0;
  float follower=0,followerAttack=0,followerRelease=0;
  std::array<float,15> p=Patch{}.parameters;
@@ -43,6 +46,8 @@ private:
  std::array<std::vector<float>,2> delay,chorus;
  std::array<std::array<Comb,4>,2> reverb;
  std::array<Hall,2> hall;
+ bool smoothVolume=false;float volumeSmoothed=1;
+ unsigned long long effectFrames=0;int delayTail=0,chorusTail=0,reverbTail=0;
  float hallMix=0,hallTarget=0;
  std::size_t delayAt=0,chorusAt=0;
 };

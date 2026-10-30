@@ -61,13 +61,7 @@ LevelProgress LevelCalibrationJob::snapshot()const{std::lock_guard<std::mutex> l
 void LevelCalibrationJob::run(std::filesystem::path library,std::filesystem::path file,std::vector<Instrument> instruments){
  try{
   LevelCache cache;
-  try{cache.load(file);}catch(const std::exception& e){
-   // Preserve a corrupt cache for recovery, then rebuild instead of trusting it.
-   auto backup=file;backup+=".invalid";
-   if(std::filesystem::exists(backup))throw;
-   std::filesystem::rename(file,backup);
-   std::lock_guard<std::mutex> lock(mutex);progress.error=e.what();
-  }
+  try{recoverFile(file,[&](const std::filesystem::path& source){cache.load(source);});}catch(const std::exception& e){std::lock_guard<std::mutex> lock(mutex);progress.error=e.what();cache=LevelCache{};}
   LevelCalibrator calibrator(library);
   for(const auto& instrument:instruments){
    if(cancel.load())break;

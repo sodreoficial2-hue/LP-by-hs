@@ -19,7 +19,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
   // Test writes must never replace the musician's permanent Performance library.
   auto testSettings=app.base/L"vision-adapter-test-settings";std::filesystem::create_directories(testSettings);app.settingsPath=testSettings/L"audio.settings";
   auto storePath=testSettings/L"performances.lphs";std::filesystem::remove(storePath);app.performanceStore.load(storePath);app.show.performanceLibrary.clear();
-  auto command=[&](const wchar_t* action,int a=0,int b=0,const wchar_t* text=L""){app.visionCommand(L"LP1\t1\t"+std::wstring(action)+L"\t"+std::to_wstring(a)+L"\t"+std::to_wstring(b)+L"\t"+text);assert(app.visionLastError.empty());};
+  auto command=[&](const wchar_t* action,int a=0,int b=0,const wchar_t* text=L""){app.visionCommand(L"LP1\t1\t"+std::wstring(action)+L"\t"+std::to_wstring(a)+L"\t"+std::to_wstring(b)+L"\t"+text);assert(app.visionLastError.empty());auto limit=GetTickCount64()+10000;while(app.engine->performanceLoading()&&GetTickCount64()<limit){while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE)){TranslateMessage(&message);DispatchMessageW(&message);}Sleep(1);}assert(!app.engine->performanceLoading());};
   command(L"category",1);assert(app.screen==lp::Screen::Instruments&&!app.engine->loaded());
   command(L"select",0);assert(app.previewActive&&app.engine->loaded());auto oldReference=app.previewPatch.sfz;
   command(L"category",2);assert(app.previewPatch.sfz==oldReference&&app.engine->loaded());

@@ -32,7 +32,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
  app.command(CategoryCardBase+15,BN_SETFOCUS);assert(app.screen==lp::Screen::Home);
  app.command(CategoryCardBase+15,BN_CLICKED);assert(app.screen==lp::Screen::Instruments&&GetFocus()==app.favorites);
  assert(app.engine->loaded()==wasLoaded&&app.previewPatch.sfz==previousPatch);
- key.wParam=VK_RIGHT;assert(!app.keyCommand(key)&&app.categoryIndex==15);
+ key.wParam=VK_RIGHT;auto previousMaster=app.show.master;assert(app.keyCommand(key)&&app.categoryIndex==15&&app.show.master==std::min(1.f,previousMaster+.02f));
  app.command(HomeButton,0);checkGrid();app.command(KeyboardButton,BN_CLICKED);assert(app.screen==lp::Screen::Keyboard);capture(w,app.base/L"layout-keyboard.bmp");app.command(HomeButton,0);
  // Choose a category containing at least two sounds, independently of the fixture ordering.
  int testCategory=-1;for(int c=0;c<15;++c){int n=0;for(const auto& instrument:app.instruments)if(instrument.category==static_cast<unsigned>(c))++n;if(n>=2){testCategory=c;break;}}

@@ -157,6 +157,7 @@ void Sf2Engine::parameters(const std::array<float,15>& values,bool enabled){
  impl->setGen(impl->synth,0,38,timecents(env[3])); // release
  impl->envelope=env;impl->adsrEnabled=true;
 }
+void Sf2Engine::smoothing(bool enabled){impl->dsp.smoothing(enabled);}
 void Sf2Engine::render(float* l,float* r,int frames){
  if(!loaded()){std::fill_n(l,frames,0);std::fill_n(r,frames,0);return;}
  // Native FluidSynth voice DSP performs the pitch sweep internally; no shared bend ramp.

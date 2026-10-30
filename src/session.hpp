@@ -88,7 +88,7 @@ struct Session {
   if(performanceLibrary.size()>256)throw std::runtime_error("Too many Performances");
   for(std::size_t slot=0;slot<performanceLibrary.size();++slot){
    const auto& performance=performanceLibrary[slot];
-   if(performance.name.empty()||performance.name.size()>128)throw std::runtime_error("Invalid saved Performance");
+   if(performance.name.empty()||performance.name.size()>512)throw std::runtime_error("Invalid saved Performance");
    f<<"PERFORMANCE "<<slot<<' '<<std::quoted(performance.name)<<' '<<(performance.split?1:0)<<'\n';
    int active=0;
    for(std::size_t part=0;part<4;++part){
@@ -134,7 +134,7 @@ struct Session {
     }
     if(tag=="PERFORMANCE"){
      int split=-1;if(!(record>>slot)||slot>255||(version==5&&slot>=20)||(version==5&&candidate.performances[slot])||(version>=6&&slot!=candidate.performanceLibrary.size()))throw std::runtime_error("Invalid Performance slot");
-     SavedPerformance p;if(!(record>>std::quoted(p.name)>>split)||p.name.empty()||p.name.size()>128||(split!=0&&split!=1))throw std::runtime_error("Invalid Performance header");
+     SavedPerformance p;if(!(record>>std::quoted(p.name)>>split)||p.name.empty()||p.name.size()>512||(split!=0&&split!=1))throw std::runtime_error("Invalid Performance header");
      p.split=split!=0;if(version==5)candidate.performances[slot]=std::move(p);else candidate.performanceLibrary.push_back(std::move(p));continue;
     }
     if(tag=="PART"){

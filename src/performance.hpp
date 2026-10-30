@@ -21,7 +21,7 @@ struct Performance {
  // Layer mode: all enabled parts span the keyboard. Split mode: each part
  // may share its zone with other parts, allowing 2+2, 3+1 or 2+1+1.
  bool valid() const {
-  if(name.empty()||name.size()>128)return false;
+  if(name.empty()||name.size()>512)return false;
   unsigned count=0;
   for(const auto& p:parts)if(p.enabled){
    ++count;if(p.instrument.empty()||p.low<0||p.high>127||p.low>p.high||p.transpose< -48||p.transpose>48)return false;

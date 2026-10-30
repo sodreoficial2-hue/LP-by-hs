@@ -175,6 +175,7 @@ void SfizzEngine::noteOff(int note,int velocity){midiValue(note);midiValue(veloc
 void SfizzEngine::cc(int number,int value){midiValue(number);midiValue(value);if(loaded()){if(number>=120)impl->glide.reset();impl->control(impl->synth,0,number,number==64?(value>=64?127:0):value);}}
 void SfizzEngine::pitchBend(int value){if(value< -8192||value>8191)throw std::invalid_argument("Invalid signed MIDI pitch bend");auto& a=*impl;a.glide.wheel=value;if(loaded())a.bend(a.synth,0,a.glide.amount>0?a.glide.bend():value);}
 void SfizzEngine::panic(){impl->glide.reset();if(loaded())impl->silence(impl->synth);impl->dsp.reset();}
+void SfizzEngine::smoothing(bool enabled){impl->dsp.smoothing(enabled);}
 void SfizzEngine::render(float* left,float* right,int frames) {
  if(!left || !right || left==right || frames<1 || frames>impl->block) throw std::invalid_argument("Invalid stereo render block");
  if(!loaded()) {std::fill_n(left,frames,0);std::fill_n(right,frames,0);return;}
