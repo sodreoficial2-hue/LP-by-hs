@@ -21,7 +21,7 @@ public:
  void pitchBend(int unsigned14Bit);
  void panic();
  void smoothing(bool enabled);
- void parameters(const std::array<float,15>& values,bool adsrEnabled=false);
+ void parameters(const std::array<float,16>& values,bool adsrEnabled=false);
  void render(float* left,float* right,int frames);
  bool loaded() const noexcept;
 private:

@@ -82,7 +82,8 @@
   int navX=windowWidth-660;
   place(PerformanceButton,navX,28,174,52);place(AudioMidiButton,navX+182,28,158,52);place(SettingsButton,navX+348,28,182,52);place(AboutButton,navX+538,28,106,52);
   place(!effects&&screen==lp::Screen::Home?KeyboardButton:HomeButton,windowWidth-214,108,182,40);
-  place(2,54,windowHeight-60,windowWidth-86,48);
+  place(2,54,windowHeight-60,windowWidth-410,48);
+  place(MasterLabel,windowWidth-340,windowHeight-64,126,28);place(MasterVolume,windowWidth-210,windowHeight-62,180,34);
   place(ProfileState,54,windowHeight-102,(windowWidth-110)/2,36);place(OutputMeter,windowWidth/2,windowHeight-102,windowWidth/2-36,36);
   int width=windowWidth-20,p=pageOrigin;
   if(effects){
@@ -134,13 +135,13 @@
  int keyAt(POINT point){for(int pass=0;pass<2;++pass)for(int note=36;note<=96;++note){int pc=note%12;bool black=pc==1||pc==3||pc==6||pc==8||pc==10;if(black!=(pass==0))continue;if(PtInRect(&virtualKeys[note],point))return note;}return -1;}
  void releaseVirtual(){if(virtualNote>=0&&engine)engine->send({0x80,static_cast<std::uint8_t>(virtualNote),0});if(virtualNote>=0)keyDown[virtualNote]=false;virtualNote=-1;InvalidateRect(page,nullptr,FALSE);}
  void virtualKey(POINT point){int note=keyAt(point);if(note==virtualNote)return;releaseVirtual();if(note>=0&&engine&&engine->loaded()){virtualNote=note;keyDown[note]=true;engine->send({0x90,static_cast<std::uint8_t>(note),100});InvalidateRect(page,nullptr,FALSE);}}
+ void setMasterValue(float value){show.master=std::clamp(value,0.f,1.f);if(engine)engine->masterVolume(show.master);refreshParameters();}
  void setPanelValue(int index,float value){
 
   if(performanceControls()){
    if(index>=4||!editingPerformance.parts[index].enabled)return;
    auto& part=editingPerformance.parts[index];part.patch.parameters[0]=value;engine->setPerformancePartParameters(index,part.patch.parameters,part.patch.adsrEnabled);syncPerformance();
-  }else if(index==15){show.master=value;if(engine)engine->masterVolume(value);}
-  else if(editingPerformanceControls()){
+  }else if(editingPerformanceControls()){
    auto& part=editingPerformance.parts[editingPart];if(!part.enabled)return;
    part.patch.parameters[index]=value;if(index>=1&&index<=4)part.patch.adsrEnabled=true;applyParameters();
   }
@@ -166,11 +167,11 @@
    if(key=='K'){openScreen(lp::Screen::Keyboard);return true;}
    }
   }
-  if((screen!=lp::Screen::Home||effects)&&!typing&&(key==VK_LEFT||key==VK_RIGHT)&&_wcsicmp(kind,TRACKBAR_CLASSW)!=0&&_wcsicmp(kind,L"COMBOBOX")!=0){show.master=std::clamp(show.master+(key==VK_RIGHT?.02f:-.02f),0.f,1.f);if(engine)engine->masterVolume(show.master);refreshParameters();return true;}
+  if(!typing&&!(GetKeyState(VK_CONTROL)&0x8000)&&!(GetKeyState(VK_MENU)&0x8000)&&(key==VK_LEFT||key==VK_RIGHT)&&_wcsicmp(kind,TRACKBAR_CLASSW)!=0&&_wcsicmp(kind,L"COMBOBOX")!=0){show.master=std::clamp(show.master+(key==VK_RIGHT?.02f:-.02f),0.f,1.f);if(engine)engine->masterVolume(show.master);refreshParameters();return true;}
   if(!effects&&!typing&&screen==lp::Screen::Home&&!(GetKeyState(VK_CONTROL)&0x8000)&&!(GetKeyState(VK_MENU)&0x8000)&&
      (key==VK_LEFT||key==VK_RIGHT||key==VK_UP||key==VK_DOWN)){
    int id=GetDlgCtrlID(GetFocus()),index=id>=CategoryCardBase&&id<CategoryCardBase+16?id-CategoryCardBase:categoryIndex;
-   index=lp::CategoryGrid::neighbor(index,key==VK_LEFT?-1:(key==VK_RIGHT?1:0),key==VK_UP?-1:(key==VK_DOWN?1:0));
+   index=std::clamp(index+(key==VK_UP?-1:1),0,15);
    SetFocus(item(CategoryCardBase+index));return true;
   }
   if(key==VK_UP||key==VK_DOWN||key==VK_PRIOR||key==VK_NEXT){

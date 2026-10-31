@@ -142,7 +142,7 @@ void Sf2Engine::panic(){
   x.cc(x.synth,0,65,0);if(x.glideAmount>0)x.cc(x.synth,0,65,127);x.bend(x.synth,0,8192);
  }x.dsp.reset();
 }
-void Sf2Engine::parameters(const std::array<float,15>& values,bool enabled){
+void Sf2Engine::parameters(const std::array<float,16>& values,bool enabled){
  impl->dsp.parameters(values);
  impl->configureGlide(values[14]);
  if(!loaded())return;

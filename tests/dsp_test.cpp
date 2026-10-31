@@ -37,6 +37,13 @@ int main(){
  std::vector<float> a(20000),b(20000),c,d;for(int i=0;i<20000;++i)a[i]=b[i]=.3f*std::sin(i*.3f);c=a;d=b;
  whole.process(a.data(),b.data(),20000);for(int i=0;i<20000;i+=37)split.process(c.data()+i,d.data()+i,std::min(37,20000-i));
  for(int i=0;i<20000;++i)check(a[i]==c[i]&&b[i]==d[i]&&std::isfinite(a[i]),"Block continuity and finite full-effects output");
+ // Phaser produces frequency-dependent cancellation, with stereo modulation.
+ lp::Dsp phaser;p=lp::Patch{}.parameters;p[15]=1;phaser.parameters(p);
+ a.resize(48000);b.resize(48000);for(int i=0;i<48000;++i)a[i]=b[i]=.3f*std::sin(i*.13f);c=a;
+ phaser.process(a.data(),b.data(),48000);double difference=0,stereo=0;for(int i=24000;i<48000;++i){difference+=std::abs(a[i]-c[i]);stereo+=std::abs(a[i]-b[i]);check(std::isfinite(a[i])&&std::abs(a[i])<1,"Phaser stays bounded");}
+ check(difference>10&&stereo>1,"Phaser must change the signal and sweep in stereo");
+ phaser.reset();a.assign(48000,0);b=a;phaser.process(a.data(),b.data(),48000);for(float x:a)check(x==0,"Phaser reset clears history");
+ p.fill(1);
  for(float rate:{8000.f,44100.f,96000.f,384000.f}){lp::Dsp alternate(rate);alternate.parameters(p);alternate.process(a.data(),b.data(),20000);for(float x:a)check(std::isfinite(x),"Supported sample rates");}
  p[7]=std::numeric_limits<float>::quiet_NaN();bool rejected=false;try{dsp.parameters(p);}catch(const std::invalid_argument&){rejected=true;}check(rejected,"Reject non-finite parameters");
  std::cout<<"PASS: neutral stereo, volume, filter, 3-band EQ, compressor, tremolo, reverb/delay/chorus tails, reset, block continuity, sample rates\n";

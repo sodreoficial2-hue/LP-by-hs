@@ -9,7 +9,7 @@ namespace lp {
 class Dsp {
 public:
  explicit Dsp(float sampleRate=48000);
- void parameters(const std::array<float,15>& values);
+ void parameters(const std::array<float,16>& values);
  void reset() noexcept;
  void smoothing(bool enabled)noexcept{smoothVolume=enabled;volumeSmoothed=p[0];}
  unsigned long long timeEffectFrames()const noexcept{return effectFrames;}
@@ -40,8 +40,10 @@ private:
  std::array<FilterState,2> filter{};
  float attackCoeff=0,releaseCoeff=0,volumeCoeff=0,hallCoeff=0,thresholdValue=.501187234f,ratioValue=1;
  float rate,envelope=0,phase=0,chorusPhase=0;
+ std::array<std::array<float,6>,2> phaserState{};
+ float phaserPhase=0,phaserMix=0;std::array<float,2> phaserCoefficient{};unsigned phaserTick=0;
  float follower=0,followerAttack=0,followerRelease=0;
- std::array<float,15> p=Patch{}.parameters;
+ std::array<float,16> p=Patch{}.parameters;
  std::array<std::array<Biquad,3>,2> eq;
  std::array<std::vector<float>,2> delay,chorus;
  std::array<std::array<Comb,4>,2> reverb;

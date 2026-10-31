@@ -21,7 +21,7 @@ int main(int argc,char** argv){
  auto moved=file;moved+=".moved";std::filesystem::rename(file,moved);host.loadPerformance(layer);fakePump(left,right,256);assert(left[0]==1.f);std::filesystem::rename(moved,file);
  // Routing changes release held voices so old-zone notes cannot stick.
  auto split=layer;split.mode=lp::PerformanceMode::Split;split.parts[0].high=47;split.parts[1].low=48;split.parts[2].enabled=false;split.parts[3].enabled=false;
- host.loadPerformance(split);fakePump(left,right,256);assert(left[0]==0);
+ host.loadPerformance(split);fakePump(left,right,256);assert(left[0]>0);host.sendRealtime({0x80,60,0});fakePump(left,right,256);assert(left[0]==0); // Removed layers finish as tails; releases still reach them.
  host.load(file,p);host.sendRealtime({0x90,60,100});fakePump(left,right,256);assert(left[0]==.25f);assert(fakeStarts()==starts);
  host.unload();fakePump(left,right,256);assert(left[0]==0&&!host.performanceActive());
  std::atomic<bool> running{true};std::atomic<int> blocks{0};

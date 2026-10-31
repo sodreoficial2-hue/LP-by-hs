@@ -48,11 +48,22 @@ int main(int argc,char** argv) {
  }
  // Previous v7 profiles continue to open without a mix override.
  mixShow.favorites[3]->performanceMix.reset();mixShow.save(path);
- {std::ifstream f(path);std::string text((std::istreambuf_iterator<char>(f)),{});text.replace(0,14,"LPHS_PROFILE 7");std::ofstream(path)<<text;}
+ {std::ifstream f(path);std::ostringstream legacy;legacy<<"LPHS_PROFILE 7\n";std::string line;std::getline(f,line);
+  while(std::getline(f,line)){std::istringstream record(line);std::string tag;record>>tag;
+   if(tag=="PART"||(!tag.empty()&&std::isdigit(tag[0]))){
+    std::vector<std::string> fields;std::string token;while(record>>std::quoted(token))fields.push_back(token);
+    const int prefix=tag=="PART"?7:1;fields.erase(fields.begin()+prefix+16+15);fields.erase(fields.begin()+prefix+15);
+    legacy<<tag;for(std::size_t j=0;j<fields.size();++j){legacy<<' ';if(j==static_cast<std::size_t>(tag=="PART"?2:0))legacy<<std::quoted(fields[j]);else legacy<<fields[j];}legacy<<'\n';
+   }else legacy<<line<<'\n';
+  }std::ofstream(path)<<legacy.str();}
  lp::Session v7;v7.load(path);check(!v7.favorites[3]->performanceMix&&v7.performanceLibrary[0].parts[0].patch.parameters[1]==.31f);
  for(const auto& record:{"MIX 3 2 1 1 1 -1 -1 -1 -1", "MIX 3 .5 .5 .5 .5 64 -1 -1 -1", "MIX 19 .5 .5 .5 .5 -1 -1 -1 -1"}){
   mixShow.save(path);std::ofstream(path,std::ios::app)<<record<<'\n';bool rejectedMix=false;try{v7.load(path);}catch(...){rejectedMix=true;}check(rejectedMix&&v7.performanceLibrary.size()==1);
  }
+ lp::Session phaser;phaser.master=.62f;phaser.masterCC=11;phaser.favorites[0]=lp::Patch{};phaser.favorites[0]->sfz="piano.sfz";phaser.favorites[0]->parameters[15]=.73f;phaser.favorites[0]->cc[15]=27;
+ performance.parts[0].patch.parameters[15]=.41f;phaser.performanceLibrary.push_back(lp::savePerformance(performance));phaser.save(path);lp::Session reopened;reopened.load(path);
+ check(reopened.favorites[0]->parameters[15]==.73f&&reopened.favorites[0]->cc[15]==27&&reopened.performanceLibrary[0].parts[0].patch.parameters[15]==.41f&&reopened.master==.62f&&reopened.masterCC==11);
+ check(v7.favorites[3]->parameters[15]==0&&v7.favorites[3]->cc[15]==-1);
  std::filesystem::remove(path);
  if(argc>1) check(lp::catalog(argv[1]).size()==3);
  std::cout << "PASS: favorite recall, PC 1-20, profile roundtrip, corrupt profile preservation, SFZ catalog\n";

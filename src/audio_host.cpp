@@ -10,12 +10,12 @@ void requireAsio(int device){
  auto info=Pa_GetDeviceInfo(device);auto api=info?Pa_GetHostApiInfo(info->hostApi):nullptr;
  if(!info||!api||api->type!=paASIO||info->maxOutputChannels<2)throw std::runtime_error("Selecione um driver ASIO com saída estéreo");
 }
-void validParameters(const std::array<float,15>& p){for(float v:p)if(!std::isfinite(v)||v<0||v>1)throw std::invalid_argument("Invalid audio parameter");}
+void validParameters(const std::array<float,16>& p){for(float v:p)if(!std::isfinite(v)||v<0||v>1)throw std::invalid_argument("Invalid audio parameter");}
 }
 AudioHost::AudioHost(const std::filesystem::path& sfizz):library(sfizz){
  static_assert(std::atomic<float>::is_always_lock_free&&std::atomic<Graph*>::is_always_lock_free,"Audio handoff must be lock free");
  for(std::size_t i=0;i<values.size();++i)values[i].store(current[i]);
- for(auto& p:partControls)for(std::size_t i=0;i<15;++i)p.values[i].store(current[i]);
+ for(auto& p:partControls)for(std::size_t i=0;i<16;++i)p.values[i].store(current[i]);
  fluidLibrary=library.parent_path()/"libfluidsynth-3.dll";
  // Fail early for an unavailable engine, before initializing PortAudio.
  auto probe=std::make_unique<SfizzEngine>(library);
@@ -112,14 +112,14 @@ void AudioHost::stop(){
  for(auto& tail:tails){delete tail;tail=nullptr;}delete pending.exchange(nullptr);collectRetired();
 }
 void AudioHost::controlPanel(int id,void* window){requireAsio(id);bool restart=running();auto oldDevice=device;auto oldBuffer=buffer;stop();auto result=PaAsio_ShowControlPanel(id,window);if(restart)open(oldDevice,oldBuffer);paCheck(result);}
-void AudioHost::load(const std::filesystem::path& path,const std::array<float,15>& params,bool adsr){
+void AudioHost::load(const std::filesystem::path& path,const std::array<float,16>& params,bool adsr){
  cancelPerformanceLoad();
  validParameters(params);auto oldPath=instrument;auto oldParams=current;bool oldAdsr=currentAdsr,oldPerformance=activePerformance,oldSf2=sf2Active;
  instrument=path;current=params;currentAdsr=adsr;activePerformance=false;sf2Active=false;
  try{auto graph=prepare(rate);parameters(params,adsr);publish(std::move(graph));}
  catch(...){instrument=oldPath;current=oldParams;currentAdsr=oldAdsr;activePerformance=oldPerformance;sf2Active=oldSf2;throw;}
 }
-void AudioHost::loadSf2(const std::filesystem::path& path,int bank,int program,const std::array<float,15>& params,bool adsr){
+void AudioHost::loadSf2(const std::filesystem::path& path,int bank,int program,const std::array<float,16>& params,bool adsr){
  cancelPerformanceLoad();
  validParameters(params);auto oldPath=instrument;auto oldParams=current;auto oldBank=sf2Bank,oldProgram=sf2Program;bool oldAdsr=currentAdsr,oldPerformance=activePerformance,oldSf2=sf2Active;
  instrument=path;current=params;currentAdsr=adsr;activePerformance=false;sf2Active=true;sf2Bank=bank;sf2Program=program;
@@ -147,7 +147,7 @@ void AudioHost::loadPerformance(const Performance& selected){
  for(const auto& p:selected.parts)if(p.enabled){instrument=std::filesystem::u8path(p.instrument);break;}
  try{
   auto graph=prepare(rate);
-  for(std::size_t i=0;i<4;++i){auto& control=partControls[i];control.revision.fetch_add(1);for(std::size_t j=0;j<15;++j)control.values[j].store(selected.parts[i].patch.parameters[j]);control.adsr.store(selected.parts[i].patch.adsrEnabled);control.revision.fetch_add(1);graph->applied[i]=0;}
+  for(std::size_t i=0;i<4;++i){auto& control=partControls[i];control.revision.fetch_add(1);for(std::size_t j=0;j<16;++j)control.values[j].store(selected.parts[i].patch.parameters[j]);control.adsr.store(selected.parts[i].patch.adsrEnabled);control.revision.fetch_add(1);graph->applied[i]=0;}
   publish(std::move(graph));
  }catch(...){performance=previous;activePerformance=wasPerformance;instrument=previousPath;throw;}
 }
@@ -191,14 +191,14 @@ void AudioHost::requestGraph(const Performance& selected,bool layered){
  if(!asyncLoading)rollback=Model{instrument,performance,current,currentAdsr,activePerformance,sf2Active,sf2Bank,sf2Program,requestedControls,publishedGeneration};
  if(!loadThread.joinable())loadThread=std::thread([this]{loadWorker();});
  std::array<std::shared_ptr<PartControl>,4> controls;
- for(std::size_t i=0;i<4;++i){controls[i]=std::make_shared<PartControl>();for(std::size_t j=0;j<15;++j)controls[i]->values[j].store(selected.parts[i].patch.parameters[j]);controls[i]->adsr.store(selected.parts[i].patch.adsrEnabled);}
+ for(std::size_t i=0;i<4;++i){controls[i]=std::make_shared<PartControl>();for(std::size_t j=0;j<16;++j)controls[i]->values[j].store(selected.parts[i].patch.parameters[j]);controls[i]->adsr.store(selected.parts[i].patch.adsrEnabled);}
  auto id=++loadGeneration;requestedGeneration.store(id);LoadJob job{id,selected,layered,controls,rate,levelGains,preparedParts,warmParts};
  performance=selected;activePerformance=layered;requestedControls=controls;for(const auto& part:selected.parts)if(part.enabled){instrument=std::filesystem::u8path(part.instrument);break;}
  if(!layered){auto ref=parseSf2Reference(selected.parts[0].instrument);sf2Active=ref.has_value();if(ref){sf2Bank=ref->bank;sf2Program=ref->program;instrument=ref->path;}current=selected.parts[0].patch.parameters;currentAdsr=selected.parts[0].patch.adsrEnabled;}
  {std::lock_guard<std::mutex> lock(loadMutex);loadJob=std::move(job);if(loadResult)garbage.push_back(std::move(loadResult));loadError.clear();asyncLoading=true;}loadWake.notify_one();
 }
 void AudioHost::requestPerformance(const Performance& selected){requestGraph(selected,true);}
-void AudioHost::requestSound(const std::string& reference,const std::array<float,15>& params,bool adsr){
+void AudioHost::requestSound(const std::string& reference,const std::array<float,16>& params,bool adsr){
  Performance sound;sound.name="Timbre";sound.parts[0].enabled=true;sound.parts[0].instrument=reference;sound.parts[0].patch.parameters=params;sound.parts[0].patch.adsrEnabled=adsr;requestGraph(sound,false);
 }
 bool AudioHost::pollPerformance(){
@@ -206,13 +206,13 @@ bool AudioHost::pollPerformance(){
  {std::lock_guard<std::mutex> lock(loadMutex);if(resultGeneration!=loadGeneration||(!loadResult&&loadError.empty()))return false;graph=std::move(loadResult);error=std::move(loadError);loadError.clear();}
  asyncLoading=false;if(!error.empty()){restoreModel();if(midiBarrier.load())panic();throw std::runtime_error(error);}publish(std::move(graph));rollback.reset();return true;
 }
-void AudioHost::setPerformancePartParameters(std::size_t i,const std::array<float,15>& params,bool adsr){
+void AudioHost::setPerformancePartParameters(std::size_t i,const std::array<float,16>& params,bool adsr){
  if(!activePerformance||i>=4||!performance.parts[i].enabled)throw std::invalid_argument("Inactive Performance part");validParameters(params);
  performance.parts[i].patch.parameters=params;performance.parts[i].patch.adsrEnabled=adsr;
- auto& control=requestedControls[i]?*requestedControls[i]:partControls[i];control.revision.fetch_add(1);for(std::size_t j=0;j<15;++j)control.values[j].store(params[j]);control.adsr.store(adsr);control.revision.fetch_add(1);
+ auto& control=requestedControls[i]?*requestedControls[i]:partControls[i];control.revision.fetch_add(1);for(std::size_t j=0;j<16;++j)control.values[j].store(params[j]);control.adsr.store(adsr);control.revision.fetch_add(1);
 }
-void AudioHost::parameters(const std::array<float,15>& params,bool adsr){
- validParameters(params);current=params;currentAdsr=adsr;if(requestedControls[0]&&!activePerformance){auto& c=*requestedControls[0];c.revision.fetch_add(1);for(std::size_t j=0;j<15;++j)c.values[j].store(params[j]);c.adsr.store(adsr);c.revision.fetch_add(1);return;}revision.fetch_add(1);desiredAdsr.store(adsr);for(std::size_t i=0;i<15;++i)values[i].store(params[i]);revision.fetch_add(1);
+void AudioHost::parameters(const std::array<float,16>& params,bool adsr){
+ validParameters(params);current=params;currentAdsr=adsr;if(requestedControls[0]&&!activePerformance){auto& c=*requestedControls[0];c.revision.fetch_add(1);for(std::size_t j=0;j<16;++j)c.values[j].store(params[j]);c.adsr.store(adsr);c.revision.fetch_add(1);return;}revision.fetch_add(1);desiredAdsr.store(adsr);for(std::size_t i=0;i<16;++i)values[i].store(params[i]);revision.fetch_add(1);
 }
 void AudioHost::resetPerformance()noexcept{modulation.store(0);sustain.store(0);bend.store(0);bendSeen.store(true);}
 void AudioHost::controls(Graph& graph){
@@ -226,6 +226,7 @@ void AudioHost::event(Graph& graph,MidiMessage m,bool tail){
  // Retiring voices receive releases and controllers, never new note-ons.
  if(tail&&kind==0x90&&m.data2)return;
  for(std::size_t i=0;i<4;++i){if(!graph.voices[i])continue;auto& v=*graph.voices[i];
+  if(!(graph.renderMask&(1u<<i)))continue;
   if(kind==0x90||kind==0x80){int note=graph.layered?graph.performance.noteFor(i,m.data1):m.data1;if(note<0)continue;
    if(kind==0x90&&m.data2){if(graph.layered&&!(graph.audible&(1u<<i)))continue;if(v.sf2)v.sf2->noteOn(note,m.data2);else v.sfz->noteOn(note,m.data2);}
    else{if(v.sf2)v.sf2->noteOff(note);else v.sfz->noteOff(note,m.data2);}
@@ -248,7 +249,7 @@ void AudioHost::clearQueue()noexcept{MidiMessage m;for(int i=0;i<1024&&midi.pop(
 double AudioHost::latency()const noexcept{auto info=stream?Pa_GetStreamInfo(stream):nullptr;return info?info->outputLatency:0;}
 void AudioHost::renderGraph(Graph& graph,float* left,float* right,int frames){
  std::fill_n(left,frames,0);std::fill_n(right,frames,0);
- for(std::size_t i=0;i<4;++i){auto& voice=graph.voices[i];if(!voice||(graph.layered&&!(graph.audible&(1u<<i))))continue;auto& v=*voice;
+ for(std::size_t i=0;i<4;++i){auto& voice=graph.voices[i];if(!voice||!(graph.renderMask&(1u<<i))||(graph.layered&&!(graph.audible&(1u<<i))))continue;auto& v=*voice;
   if(v.sf2)v.sf2->render(scratchLeft.data(),scratchRight.data(),frames);else v.sfz->render(scratchLeft.data(),scratchRight.data(),frames);
   for(int j=0;j<frames;++j){left[j]+=scratchLeft[j]*v.levelGain;right[j]+=scratchRight[j]*v.levelGain;}
  }
@@ -259,23 +260,37 @@ int AudioHost::render(float** output,unsigned long frames,PaStreamCallbackFlags 
  if(!output||!output[0]||!output[1]){fault.store(true);return paAbort;}if(flags&paOutputUnderflow){underruns.fetch_add(1);for(auto& tail:tails){retire(tail);tail=nullptr;}}
  try{
   if(auto next=pending.exchange(nullptr,std::memory_order_acq_rel)){
-   // Two bounded retiring graphs cap CPU/RAM during rapid sound changes.
-   if(active&&active->layered&&next->layered)for(std::size_t i=0;i<4;++i){
-    const auto& a=active->performance.parts[i];const auto& b=next->performance.parts[i];
-    if(next->voices[i]&&next->voices[i]==active->voices[i]&&(active->performance.mode!=next->performance.mode||a.low!=b.low||a.high!=b.high||a.transpose!=b.transpose)){
-     auto& voice=*next->voices[i];if(voice.sf2)voice.sf2->panic();else voice.sfz->panic();
-    }
+   // A cached synth may still hold notes/DSP from an earlier graph. Only
+   // unchanged, continuously active parts retain their live state. All other
+   // recalls start clean, on this callback thread (never on the loader).
+   for(std::size_t i=0;i<4;++i){auto voice=next->voices[i];if(!voice)continue;
+    bool continuous=active&&active->voices[i]==voice&&(active->renderMask&(1u<<i));
+    if(continuous){const auto& a=active->performance.parts[i];const auto& b=next->performance.parts[i];
+     continuous=active->layered==next->layered&&(!next->layered||(active->performance.mode==next->performance.mode&&a.low==b.low&&a.high==b.high&&a.transpose==b.transpose));}
+    // Render shared engines exactly once; never render the same synth as a tail.
+    for(auto graph:{active,tails[0],tails[1]})if(graph)for(std::size_t j=0;j<4;++j)if(graph->voices[j]==voice)graph->renderMask&=~(1u<<j);
+    if(!continuous){if(voice->sf2)voice->sf2->panic();else voice->sfz->panic();}
+    next->applied[i]=0; // Recalled parameters must also replace the cached values.
    }
-   if(next->hardSwitch||next->layered||(active&&active->layered)){
+   if(next->hardSwitch){
     retire(active);for(auto& tail:tails){retire(tail);tail=nullptr;}
-   }else{retire(tails[1]);tails[1]=tails[0];tailFrames[1]=tailFrames[0];tails[0]=active;tailFrames[0]=0;}
+   }else{
+    retire(tails[1]);tails[1]=tails[0];tailFrames[1]=tailFrames[0];
+    tails[0]=active;tailFrames[0]=0;
+    if(tails[0]&&!tails[0]->renderMask){retire(tails[0]);tails[0]=nullptr;}
+   }
+   // At most eight rendered engines (four active plus a four-layer tail).
+   // Rapid switches discard the oldest tail first instead of raising ASIO load.
+   unsigned count=0;auto countVoices=[](const Graph* graph){unsigned n=0;if(graph)for(std::size_t i=0;i<4;++i)if(graph->voices[i]&&(graph->renderMask&(1u<<i)))++n;return n;};
+   count=countVoices(next)+countVoices(tails[0])+countVoices(tails[1]);
+   for(int t=1;t>=0&&count>8;--t)if(tails[t]){count-=countVoices(tails[t]);retire(tails[t]);tails[t]=nullptr;}
    if(smoothTransitions){transitionFrom=lastOutput;transitionTotal=transitionFrames=std::max(1,static_cast<int>(rate*.003));}
    active=next;controls(*active);
   }
   if(active&&active->layered){auto mask=auditionMask.load();for(std::size_t i=0;i<4;++i)if((active->audible&~mask)&(1u<<i)){auto& v=active->voices[i];if(v){if(v->sf2)v->sf2->panic();else v->sfz->panic();}}active->audible=mask;}
   if(active)for(std::size_t i=0;i<4;++i){if(!active->voices[i])continue;auto& v=*active->voices[i];
    auto state=active->controls[i].get();auto& rev=state?state->revision:(active->layered?partControls[i].revision:revision);unsigned before=rev.load();if((before&1)||before==active->applied[i])continue;
-   std::array<float,15> params;for(std::size_t j=0;j<15;++j)params[j]=state?state->values[j].load():(active->layered?partControls[i].values[j].load():values[j].load());bool adsr=state?state->adsr.load():(active->layered?partControls[i].adsr.load():desiredAdsr.load());
+   std::array<float,16> params;for(std::size_t j=0;j<16;++j)params[j]=state?state->values[j].load():(active->layered?partControls[i].values[j].load():values[j].load());bool adsr=state?state->adsr.load():(active->layered?partControls[i].adsr.load():desiredAdsr.load());
    if(before==rev.load()){if(v.sf2)v.sf2->parameters(params,adsr);else v.sfz->parameters(params,adsr);active->applied[i]=before;}
   }
   const bool overflow=midi.takeOverflow()|hardwareMidi.takeOverflow();

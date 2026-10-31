@@ -132,3 +132,15 @@ ASIO driver-owned buffers, MIDI contracts, home category keyboard navigation and
 accessibility. See docs/STABILITY-AUDIT-FIXES.md for implementation and limits.
 Validate locally and publish one grouped source-only stage without Actions.
 No portable/Drive release requested. Authenticated GitHub allowance is unknown.
+
+## Performance recall, main Master and Phaser (30 October 2026)
+
+Hugo reports residual notes when recalling a Performance and asks for more
+natural switching, restored left/right Master shortcuts, a Master control
+integrated into the main screen and a Phaser replacing Master in parameters.
+Implement on f274a942, preserve ASIO/MIDI and prior functions. See
+`docs/PERFORMANCE-RECALL-MASTER-PHASER.md` for cache cleanup, bounded shared
+engine tails, Home sequential up/down navigation and profile v10 migration.
+Publish one grouped source stage without hosted compute or binary uploads.
+Authenticated GitHub allowance remains unknown. No new portable/Drive release
+was requested in this turn; Windows/ASIO and pixel-layout checks remain pending.

@@ -195,6 +195,9 @@
   for(let n=48;n<=84;n++)if(black.has(n%12)){const b=key(n,true),left=whites.filter(w=>w<n).length;b.style.left=`${left/whites.length*100}%`;keys.append(b);}
   return node('section',{class:'keyboard-panel'},node('p',{class:'details'},state.loadedName||'Escolha um timbre na biblioteca antes de tocar.'),keys,node('p',{class:'note'},'Clique nas teclas ou use Tab e mantenha Espaço ou Enter pressionado. F12 interrompe todas as notas.'));
  }
+ $('master-volume').addEventListener('input',e=>{if(!state||state.loading)return;const value=Number(e.target.value);$('master-value').textContent=`${Math.round(value/10)}%`;send('master',value);});
+ $('master-learn').addEventListener('click',()=>send('learnMaster'));
+ $('master-volume').addEventListener('contextmenu',e=>{e.preventDefault();send('learnMaster');});
  function render(){
   if(!state)return;
   const active=document.activeElement,focus=active?.getAttribute('data-focus'),scroll=$('content').scrollTop;
@@ -222,6 +225,10 @@
   }
   if(state.screen==='performance'&&!state.effects)$('eyebrow').textContent=state.performance.preparing?'PREPARANDO TIMBRE · INTERFACE DISPONÍVEL':'ATÉ QUATRO PARTES · CAMADAS E DIVISÕES';
   $('profile-state').textContent=state.dirty?'Alterações não salvas':'Perfil sem alterações pendentes';$('profile-state').classList.toggle('dirty',Boolean(state.dirty));
+  const master=Math.round((Number.isFinite(state.master)?state.master:1)*1000);
+  if(document.activeElement!==$('master-volume'))$('master-volume').value=String(master);
+  $('master-value').textContent=`${Math.round(master/10)}%`;$('master-volume').setAttribute('aria-valuetext',`${Math.round(master/10)} por cento`);
+  $('master-learn').title=state.masterCC>=0?`MIDI CC ${state.masterCC}`:'Aprender controle MIDI';
   const peak=Number(state.peak)||0,db=peak>0?20*Math.log10(peak):-90;
   $('output-meter').value=Math.min(1,peak);$('peak-label').textContent=state.clipping?'Pico excessivo — reduza os volumes':`Saída: ${db<=-90?'silêncio':Math.round(db)+' dBFS'}`;$('peak-label').classList.toggle('clipping',Boolean(state.clipping));if(!state.clipping&&peak>=.89)$('peak-label').textContent='Pouca folga na saída — reduza o volume das camadas';
   if($('sound-search')&&document.activeElement!==$('sound-search'))$('sound-search').value=state.search||'';
@@ -255,7 +262,7 @@
   const target=event.target;
   if(event.ctrlKey&&!event.altKey&&!event.metaKey&&event.key.toLowerCase()==='s'){event.preventDefault();if(!event.repeat){flushParameters();send('save');}return;}
   if(event.key==='Delete'&&state.screen==='performance'&&!state.effects&&!target.matches('input[type=text],input[type=search],textarea')){event.preventDefault();if(!event.repeat)send('clearPart',Number(target.closest('[data-part]')?.dataset.part??state.performance.editingPart));return;}
-  if((state.screen!=='home'||state.effects)&&['ArrowLeft','ArrowRight'].includes(event.key)&&!event.ctrlKey&&!event.altKey&&!event.metaKey&&!target.matches('input,select,textarea')){event.preventDefault();send('masterStep',event.key==='ArrowRight'?1:0);return;}
+  if(['ArrowLeft','ArrowRight'].includes(event.key)&&!event.ctrlKey&&!event.altKey&&!event.metaKey&&!target.matches('input,select,textarea')){event.preventDefault();send('masterStep',event.key==='ArrowRight'?1:0);return;}
 
   if(event.ctrlKey&&!event.altKey&&!event.metaKey&&event.key.toLowerCase()==='f'){
    const search=state.screen==='performance'?document.querySelector(`#part-search-${state.performance.editingPart}`):$('sound-search');
@@ -275,7 +282,7 @@
   if(!state.effects&&['p','a','c','k'].includes(key)){event.preventDefault();send('screen',({p:2,a:3,c:4,k:6})[key]);return;}
   if(!state.effects&&state.screen==='home'&&event.key.startsWith('Arrow')){
    const cards=[...document.querySelectorAll('[data-category]')],index=Math.max(0,cards.indexOf(target.closest('[data-category]'))),x=index%4,y=Math.floor(index/4);let nx=x,ny=y;
-   if(event.key==='ArrowLeft')nx=Math.max(0,x-1);if(event.key==='ArrowRight')nx=Math.min(3,x+1);if(event.key==='ArrowUp')ny=Math.max(0,y-1);if(event.key==='ArrowDown')ny=Math.min(3,y+1);event.preventDefault();cards[ny*4+nx]?.focus();return;
+   if(event.key==='ArrowLeft')nx=Math.max(0,x-1);if(event.key==='ArrowRight')nx=Math.min(3,x+1);if(event.key==='ArrowUp')ny=Math.max(0,y-1);if(event.key==='ArrowDown')ny=Math.min(3,y+1);event.preventDefault();cards[Math.min(15,Math.max(0,index+(event.key==='ArrowUp'?-1:1)))]?.focus();return;
   }
   if(!state.effects&&state.screen==='instruments'&&['ArrowDown','ArrowUp','PageDown','PageUp',' '].includes(event.key)){
    event.preventDefault();const rows=state.category===15&&!state.restoring?state.favorites:state.catalog;if(!rows.length)return;

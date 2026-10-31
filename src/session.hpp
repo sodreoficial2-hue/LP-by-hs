@@ -15,9 +15,9 @@
 
 namespace lp {
 // Reimplementation based on recovered behavior; not original source.
-inline constexpr std::array<const char*,15> parameterNames = {
+inline constexpr std::array<const char*,16> parameterNames = {
  "Volume", "Attack", "Decay", "Sustain", "Release", "Envelope Filter", "Reverb",
- "Delay", "Chorus", "Tremolo", "Compressor", "Bass", "Mid", "Treble", "Portamento"};
+ "Delay", "Chorus", "Tremolo", "Compressor", "Bass", "Mid", "Treble", "Portamento", "Phaser"};
 struct ButtonBinding {
  int kind=0; // 0 unassigned, 0xc0 Program Change only
  int channel=0,number=0;
@@ -33,8 +33,8 @@ struct Patch {
  bool adsrEnabled=false;
  ButtonBinding button;
  std::string sfz;
- std::array<float,15> parameters{1,0,0,1,0,1,0,0,0,0,0,0.5f,0.5f,0.5f,0};
- std::array<int,15> cc{};
+ std::array<float,16> parameters{1,0,0,1,0,1,0,0,0,0,0,0.5f,0.5f,0.5f,0,0};
+ std::array<int,16> cc{};
  Patch() { cc.fill(-1); }
 };
 struct SavedPerformancePart {bool enabled=false;std::string instrument;int low=0,high=127,transpose=0;Patch patch{};};
@@ -60,7 +60,7 @@ struct Session {
  std::string serialize() const {
   // Caller chooses path; does not auto-save shows.
   std::ostringstream f;
-  f << "LPHS_PROFILE 9\n" << std::setprecision(9);
+  f << "LPHS_PROFILE 10\n" << std::setprecision(9);
   if(!std::isfinite(master)||master<0||master>1||masterCC< -1||masterCC>119||masterCC==64)throw std::runtime_error("Invalid Master");
   f<<"MASTER "<<master<<' '<<masterCC<<'\n';
   for(std::size_t i=0;i<favorites.size();++i) if(favorites[i]) {
@@ -111,7 +111,7 @@ struct Session {
  }
  void read(std::istream& f){
   std::string magic; int version=0;
-  if(!(f>>magic>>version) || magic!="LPHS_PROFILE" || (version<1||version>9))
+  if(!(f>>magic>>version) || magic!="LPHS_PROFILE" || (version<1||version>10))
    throw std::runtime_error("Invalid profile header");
   Session candidate; unsigned slot;
   for(;;) {
@@ -142,8 +142,8 @@ struct Session {
      auto& p=(version==5?candidate.performances[slot]->parts[part]:candidate.performanceLibrary[slot].parts[part]);
      if(p.enabled||!(record>>std::quoted(p.instrument)>>p.low>>p.high>>p.transpose>>adsr)||p.instrument.empty()||p.low<0||p.high>127||p.low>p.high||p.transpose< -48||p.transpose>48||(adsr!=0&&adsr!=1))throw std::runtime_error("Invalid Performance part");
      p.enabled=true;p.patch.adsrEnabled=adsr!=0;
-     for(std::size_t j=0;j<(version>=7?15u:14u);++j)if(!(record>>p.patch.parameters[j])||!std::isfinite(p.patch.parameters[j])||p.patch.parameters[j]<0||p.patch.parameters[j]>1)throw std::runtime_error("Invalid Performance parameter");
-     for(std::size_t j=0;j<(version>=7?15u:14u);++j)if(!(record>>p.patch.cc[j])||p.patch.cc[j]< -1||p.patch.cc[j]>127)throw std::runtime_error("Invalid Performance CC");
+     for(std::size_t j=0;j<(version>=10?16u:(version>=7?15u:14u));++j)if(!(record>>p.patch.parameters[j])||!std::isfinite(p.patch.parameters[j])||p.patch.parameters[j]<0||p.patch.parameters[j]>1)throw std::runtime_error("Invalid Performance parameter");
+     for(std::size_t j=0;j<(version>=10?16u:(version>=7?15u:14u));++j)if(!(record>>p.patch.cc[j])||p.patch.cc[j]< -1||p.patch.cc[j]>127)throw std::runtime_error("Invalid Performance CC");
      std::string extra;if(record>>extra)throw std::runtime_error("Trailing Performance data");
      continue;
     }
@@ -151,8 +151,8 @@ struct Session {
     std::string rest;std::getline(record,rest);
     std::istringstream favorite(rest);
     Patch p;if(!(favorite>>std::quoted(p.sfz))||p.sfz.empty()||p.sfz.size()>32768)throw std::runtime_error("Invalid favorite reference");
-    for(std::size_t j=0;j<(version>=7?15u:14u);++j)if(!(favorite>>p.parameters[j])||!std::isfinite(p.parameters[j])||p.parameters[j]<0||p.parameters[j]>1)throw std::runtime_error("Invalid parameter value");
-    for(std::size_t j=0;j<(version>=7?15u:14u);++j)if(!(favorite>>p.cc[j])||p.cc[j]< -1||p.cc[j]>127)throw std::runtime_error("Invalid MIDI CC");
+    for(std::size_t j=0;j<(version>=10?16u:(version>=7?15u:14u));++j)if(!(favorite>>p.parameters[j])||!std::isfinite(p.parameters[j])||p.parameters[j]<0||p.parameters[j]>1)throw std::runtime_error("Invalid parameter value");
+    for(std::size_t j=0;j<(version>=10?16u:(version>=7?15u:14u));++j)if(!(favorite>>p.cc[j])||p.cc[j]< -1||p.cc[j]>127)throw std::runtime_error("Invalid MIDI CC");
     int adsr=-1;if(!(favorite>>p.button.kind>>p.button.channel>>p.button.number>>adsr)||!p.button.valid()||(p.button.kind&&p.button.number!=static_cast<int>(slot))||(adsr!=0&&adsr!=1))throw std::runtime_error("Invalid favorite button");
     p.adsrEnabled=adsr!=0;
     candidate.favorites[slot]=std::move(p);continue;

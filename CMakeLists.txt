@@ -264,3 +264,8 @@ add_executable(lp_stability_stress_test tests/stability_stress_test.cpp tests/fa
 target_include_directories(lp_stability_stress_test PRIVATE src third_party/portaudio)
 target_link_libraries(lp_stability_stress_test PRIVATE lp_engine Threads::Threads)
 add_test(NAME stability_concurrent_four_layers COMMAND lp_stability_stress_test $<TARGET_FILE:lp_fake_sfizz>)
+
+add_executable(lp_cached_recall_test tests/cached_recall_test.cpp tests/fake_portaudio.cpp src/audio_host.cpp)
+target_include_directories(lp_cached_recall_test PRIVATE src third_party/portaudio)
+target_link_libraries(lp_cached_recall_test PRIVATE lp_engine Threads::Threads)
+add_test(NAME cached_performance_recall_no_ghost COMMAND lp_cached_recall_test $<TARGET_FILE:lp_fake_sfizz>)

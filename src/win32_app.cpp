@@ -41,7 +41,7 @@
 #endif
 
 namespace {
-constexpr int Search=160,RestoreSounds=161,RestoreSelected=162,RestoreAll=163,LocateSounds=164,ProfileState=165,OutputMeter=166,PartSearch=167,PartVolumeBase=500,PartSoloBase=504,PartMuteBase=508,PartTargetBase=512,PartCopyBase=516,PartSwapBase=520,PartLowBase=524,PartHighBase=528,PerformanceSaveNew=532,PartZoneBase=536,AudioDiagnostics=170;
+constexpr int Search=160,RestoreSounds=161,RestoreSelected=162,RestoreAll=163,LocateSounds=164,ProfileState=165,OutputMeter=166,PartSearch=167,PartVolumeBase=500,PartSoloBase=504,PartMuteBase=508,PartTargetBase=512,PartCopyBase=516,PartSwapBase=520,PartLowBase=524,PartHighBase=528,PerformanceSaveNew=532,PartZoneBase=536,AudioDiagnostics=170,MasterVolume=171,MasterLabel=172;
 constexpr int Catalog=100,Favorites=101,Save=102,Open=103,Midi=104,Effects=105,Import=106,ImportSf2=114,AudioDriver=107,AudioStart=109,AudioStop=110,AudioPanel=111,Panic=112,Category=113,Knob=200,MidiLearnKnob=115,PerformanceButton=116,PerformanceModeControl=117,PerformancePartBase=118,PerformancePlay=122,PerformanceSave=123,PerformanceName=124,PerformanceEditPart=125,PerformanceClearBase=126,AudioMidiButton=140,SettingsButton=141,AboutButton=142,CategoryTile=143,PreviousCategory=144,NextCategory=145,InstrumentArt=146,AboutText=147,HomeButton=148,KeyboardButton=149,CategoryCardBase=400;
 constexpr UINT BeginParameterLearn=WM_APP+40,LoadLibraryMessage=WM_APP+41,ToggleFavoriteMessage=WM_APP+42,SelectSoundMessage=WM_APP+43,RevealFocusMessage=WM_APP+44,VisionCommandMessage=WM_APP+45,DirectMidiMessage=WM_APP+46,SoundReadyMessage=WM_APP+47;
 LRESULT CALLBACK pageProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
@@ -235,7 +235,7 @@ struct App {
  HWND control(const wchar_t* kind,const wchar_t* text,DWORD style,int id){
   if(_wcsicmp(kind,L"BUTTON")==0)style=(style&~BS_TYPEMASK)|BS_OWNERDRAW;
   bool combo=_wcsicmp(kind,L"COMBOBOX")==0;if(combo)style|=CBS_OWNERDRAWFIXED|CBS_HASSTRINGS;
-  bool header=id==ProfileState||id==OutputMeter||id==2||id==PerformanceButton||id==AudioMidiButton||id==SettingsButton||id==AboutButton||id==HomeButton||id==KeyboardButton;
+  bool header=id==MasterVolume||id==MasterLabel||id==ProfileState||id==OutputMeter||id==2||id==PerformanceButton||id==AudioMidiButton||id==SettingsButton||id==AboutButton||id==HomeButton||id==KeyboardButton;
   auto parent=header?window:page;
   auto h=CreateWindowExW(0,kind,text,WS_CHILD|style,0,0,0,0,parent,reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)),GetModuleHandleW(nullptr),nullptr);
   SendMessageW(h,WM_SETFONT,reinterpret_cast<WPARAM>(font),TRUE);
@@ -327,6 +327,9 @@ struct App {
   control(L"BUTTON",L"Pânico (F12)",BS_PUSHBUTTON|WS_TABSTOP,Panic);
   SendMessageW(audioDriver,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Selecione driver ASIO"));
   SendMessageW(audioDriver,CB_SETCURSEL,0,0);
+  control(L"STATIC",L"Master",SS_LEFT,MasterLabel);
+  auto masterControl=control(TRACKBAR_CLASSW,L"Volume Master",TBS_HORZ|WS_TABSTOP,MasterVolume);
+  SendMessageW(masterControl,TBM_SETRANGE,TRUE,MAKELPARAM(0,1000));SetWindowSubclass(masterControl,parameterProc,16,0);
   for(int i=0;i<16;++i){labels[i]=control(L"STATIC",L"",SS_LEFT|SS_NOTIFY,Knob+100+i);sliders[i]=control(TRACKBAR_CLASSW,L"",TBS_HORZ|WS_TABSTOP,Knob+i);SendMessageW(sliders[i],TBM_SETRANGE,TRUE,MAKELPARAM(0,1000));
    if(!SetWindowSubclass(sliders[i],parameterProc,i,0)||!SetWindowSubclass(labels[i],parameterProc,i,0))throw std::runtime_error("Não foi possível habilitar o clique direito dos parâmetros");}
   for(int i=0;i<4;++i){SendMessageW(performancePartControls[i],CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Desativado"));SendMessageW(performancePartControls[i],CB_SETCURSEL,0,0);}
@@ -474,11 +477,11 @@ struct App {
  }catch(const std::exception& e){error(e);}}
  std::wstring parameterName(int index){return std::wstring(lp::parameterNames[index],lp::parameterNames[index]+std::char_traits<char>::length(lp::parameterNames[index]));}
  void beginParameterLearn(std::size_t index){
+  if(index==16){if(!midiHandle){message(L"Selecione a entrada MIDI primeiro.");return;}cancelMidiLearn();learningMaster=true;message(L"Master: mova o controle MIDI.");return;}
   if(!effects||index>=sliders.size())return;
   if(!midiHandle){message(L"Selecione a entrada MIDI em Áudio / MIDI antes de mapear.");return;}
   cancelMidiLearn();
   if(performanceControls()){if(index>=4||!editingPerformance.parts[index].enabled)return;learningVolume=static_cast<int>(index);}
-  else if(index==15)learningMaster=true;
   else if(editingPerformanceControls())learningPerformanceParameter=static_cast<int>(index);
   else if(show.current)router.learn(index);
   else if(previewActive)learningPerformanceParameter=static_cast<int>(index);
@@ -617,14 +620,15 @@ struct App {
  std::wstring favoriteName(const lp::Patch& patch){if(patch.sfz.rfind("performance://",0)==0){auto index=static_cast<std::size_t>(std::stoul(patch.sfz.substr(14)));return index<show.performanceLibrary.size()?std::filesystem::u8path(show.performanceLibrary[index].name).wstring():L"Performance ausente";}return std::filesystem::u8path(lp::instrumentName(patch.sfz,instruments)).wstring();}
  void refreshFavorites(){markVisionStructureDirty();SendMessageW(favorites,LB_RESETCONTENT,0,0);for(int i=0;i<20;++i){std::wstring name=std::to_wstring(i+1)+L". ";name+=show.performances[i]?std::filesystem::u8path(show.performances[i]->name).wstring():(show.favorites[i]?favoriteName(*show.favorites[i]):L"Vazio");SendMessageW(favorites,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(name.c_str()));}refreshParameters();}
  void refreshParameters(){markVisionDirty();
+  SendMessageW(item(MasterVolume),TBM_SETPOS,TRUE,static_cast<int>(show.master*1000));
+  SetWindowTextW(item(MasterLabel),(L"Master: "+std::to_wstring(static_cast<int>(show.master*100))+L"%").c_str());
   bool perf=performanceControls();
   for(int i=0;i<16;++i){float value=0;int cc=-1;bool enabled=false;std::wstring name;
    if(perf){if(i<4){const auto& part=editingPerformance.parts[i];name=L"Camada "+std::to_wstring(i+1)+L" · Volume";value=part.patch.parameters[0];cc=part.patch.cc[0];enabled=part.enabled;}}
-   else if(i==15){name=L"Master";value=show.master;cc=show.masterCC;enabled=true;}
    else {name=parameterName(i);const lp::Patch* patch=editingPerformanceControls()?(editingPerformance.parts[editingPart].enabled?&editingPerformance.parts[editingPart].patch:nullptr):(show.current&&show.favorites[*show.current]?&*show.favorites[*show.current]:(previewActive?&previewPatch:nullptr));if(patch){value=patch->parameters[i];cc=patch->cc[i];enabled=true;}}
    auto label=name+L": "+std::to_wstring(static_cast<int>(value*100))+L"%";
    if(cc>=0)label+=L" · CC "+std::to_wstring(cc);
-   if((perf&&learningVolume==i)||(!perf&&((i==15&&learningMaster)||learningPerformanceParameter==i||router.pendingParameter()==static_cast<std::size_t>(i))))label+=L" · Mova o controle";
+   if((perf&&learningVolume==i)||(!perf&&(learningPerformanceParameter==i||router.pendingParameter()==static_cast<std::size_t>(i))))label+=L" · Mova o controle";
    SetWindowTextW(labels[i],label.c_str());SetWindowTextW(sliders[i],name.c_str());SendMessageW(sliders[i],TBM_SETPOS,TRUE,static_cast<int>(value*1000));EnableWindow(sliders[i],enabled);
   }
  }
@@ -774,7 +778,7 @@ struct App {
    editingPart=static_cast<int>(SendMessageW(performanceEditPart,CB_GETCURSEL,0,0));
    if(editingPart>=0&&editingPart<4){
     const auto& patch=editingPerformance.parts[editingPart].patch;
-    for(int i=0;i<15;++i)SendMessageW(sliders[i],TBM_SETPOS,TRUE,static_cast<int>(patch.parameters[i]*1000));
+    for(int i=0;i<16;++i)SendMessageW(sliders[i],TBM_SETPOS,TRUE,static_cast<int>(patch.parameters[i]*1000));
     refreshParameters();
    }
   }
@@ -828,7 +832,7 @@ struct App {
     auto& p=editingPerformance.parts[editingPart];
     if(p.enabled){
      if(learningPerformanceParameter>=0){for(auto& cc:p.patch.cc)if(cc==binding)cc=-1;p.patch.cc[learningPerformanceParameter]=binding;learningPerformanceParameter=-1;}
-     for(int i=0;i<15;++i)if(p.patch.cc[i]==binding){p.patch.parameters[i]=lp::knobValue(m);if(i>=1&&i<=4)p.patch.adsrEnabled=true;applyParameters();consumed=true;}
+     for(int i=0;i<16;++i)if(p.patch.cc[i]==binding){p.patch.parameters[i]=lp::knobValue(m);if(i>=1&&i<=4)p.patch.adsrEnabled=true;applyParameters();consumed=true;}
     }
    }else if(performanceControls()){
     if(learningVolume>=0){for(auto& part:editingPerformance.parts)if(part.patch.cc[0]==binding)part.patch.cc[0]=-1;editingPerformance.parts[learningVolume].patch.cc[0]=binding;learningVolume=-1;}
@@ -836,7 +840,7 @@ struct App {
     if(consumed)syncPerformance();
    }else if(previewActive&&!show.current){
     if(learningPerformanceParameter>=0){for(auto& cc:previewPatch.cc)if(cc==binding)cc=-1;previewPatch.cc[learningPerformanceParameter]=binding;learningPerformanceParameter=-1;}
-    for(int i=0;i<15;++i)if(previewPatch.cc[i]==binding){previewPatch.parameters[i]=lp::knobValue(m);if(i>=1&&i<=4)previewPatch.adsrEnabled=true;applyParameters();consumed=true;}
+    for(int i=0;i<16;++i)if(previewPatch.cc[i]==binding){previewPatch.parameters[i]=lp::knobValue(m);if(i>=1&&i<=4)previewPatch.adsrEnabled=true;applyParameters();consumed=true;}
    }
   }
   if(consumed){refreshParameters();if(engine&&m.data1==1&&!(forwarded&&directMidi(m)))engine->send(m);return;}
@@ -939,7 +943,7 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
  case SelectSoundMessage:if(reinterpret_cast<HWND>(wp)==app->catalog)app->audition();else {auto slot=SendMessageW(app->favorites,LB_GETCURSEL,0,0);if(slot>=0)app->activate(static_cast<unsigned>(slot));}return 0;
  case RevealFocusMessage:app->revealFocus(reinterpret_cast<HWND>(lp));return 0;
  case BeginParameterLearn:app->beginParameterLearn(static_cast<std::size_t>(wp));return 0;
- case WM_HSCROLL:for(int i=0;i<4;++i)if(reinterpret_cast<HWND>(lp)==app->item(PartVolumeBase+i)){app->partOperation("partVolume",i,static_cast<int>(SendMessageW(app->item(PartVolumeBase+i),TBM_GETPOS,0,0)));return 0;}for(int i=0;i<16;++i)if(reinterpret_cast<HWND>(lp)==app->sliders[i]){app->setPanelValue(i,static_cast<float>(SendMessageW(app->sliders[i],TBM_GETPOS,0,0))/1000);return 0;}break;
+ case WM_HSCROLL:if(reinterpret_cast<HWND>(lp)==app->item(MasterVolume)){app->setMasterValue(static_cast<float>(SendMessageW(app->item(MasterVolume),TBM_GETPOS,0,0))/1000);return 0;}for(int i=0;i<4;++i)if(reinterpret_cast<HWND>(lp)==app->item(PartVolumeBase+i)){app->partOperation("partVolume",i,static_cast<int>(SendMessageW(app->item(PartVolumeBase+i),TBM_GETPOS,0,0)));return 0;}for(int i=0;i<16;++i)if(reinterpret_cast<HWND>(lp)==app->sliders[i]){app->setPanelValue(i,static_cast<float>(SendMessageW(app->sliders[i],TBM_GETPOS,0,0))/1000);return 0;}break;
  case WM_ACTIVATE:if(LOWORD(wp)==WA_INACTIVE)app->releaseVirtual();break;
  case WM_CONTEXTMENU:if(reinterpret_cast<HWND>(wp)==app->catalog){
   auto row=SendMessageW(app->catalog,LB_GETCURSEL,0,0);POINT point{};

@@ -15,7 +15,7 @@ fs.mkdirSync(output,{recursive:true});
  await page.route('**/*',r=>{const u=r.request().url();if(!u.startsWith('http://127.0.0.1:8766')&&!u.startsWith('data:')){external.push(u);return r.abort();}return r.continue();});
  await page.addInitScript(()=>{
   const categories=['Pianos acústicos','Pianos elétricos','Órgãos','Cordas','Metais','Leads','Pads','Percussão','Bateria','Acordeons','Outros','Contrabaixos','Guitarras','Performance','Meus Sons','Favoritos'];
-  const parameters=['Volume','Attack','Decay','Sustain','Release','Filtro','Reverb','Delay','Chorus','Tremolo','Compressor','Grave','Médio','Agudo','Glide','Master'];
+  const parameters=['Volume','Attack','Decay','Sustain','Release','Filtro','Reverb','Delay','Chorus','Tremolo','Compressor','Grave','Médio','Agudo','Glide','Phaser'];
   let receiver=null;window.__commands=[];
   const state={type:'state',version:1,request:0,error:'',screen:'home',effects:false,loading:true,progress:35,status:'ASIO desconectado. Escolha um driver.',loadedName:'',category:0,selected:0,categories,
    catalog:[{id:0,name:'Concert Grand',favorite:false,loaded:false},{id:1,name:'Piano "Soul" <b>Seguro</b>',favorite:false,loaded:false}],

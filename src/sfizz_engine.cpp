@@ -143,7 +143,7 @@ void SfizzEngine::load(const std::filesystem::path& path) {
  auto previous=a.synth; a.synth=candidate.release(); a.dsp.reset();
  if(previous) a.freeSynth(previous);
 }
-void SfizzEngine::parameters(const std::array<float,15>& values,bool enabled) {
+void SfizzEngine::parameters(const std::array<float,16>& values,bool enabled) {
  auto& a=*impl;a.dsp.parameters(values);auto mapped=envelopeValues(values);
  if(loaded()&&((values[14]>0)!=(a.glide.amount>0))){
   a.silence(a.synth);a.glide.reset();

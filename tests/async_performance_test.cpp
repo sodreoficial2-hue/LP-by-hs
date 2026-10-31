@@ -15,9 +15,9 @@ int main(int argc,char** argv){
  auto slow=p;slow.parts[0].instrument=(root/"slow.sfz").u8string();host.requestPerformance(slow);
  for(int n=0;n<8;++n){auto latest=p;latest.parts[0].patch.parameters[0]=.2f;host.requestPerformance(latest);}assert(wait(host));host.sendRealtime({0x90,60,100});fakePump(left,right,256);assert(std::abs(left[0]-.8f)<1e-6);
  // Parameters changed during preparation must win over the job snapshot.
- host.requestPerformance(slow);auto params=lp::Patch{}.parameters;params[0]=.7f;host.setPerformancePartParameters(0,params,false);assert(wait(host));host.sendRealtime({0x90,60,100});fakePump(left,right,256);assert(std::abs(left[0]-.925f)<1e-6);
+ host.requestPerformance(slow);auto params=lp::Patch{}.parameters;params[0]=.7f;host.setPerformancePartParameters(0,params,false);assert(wait(host));host.sendRealtime({0x80,60,0});host.sendRealtime({0x90,60,100});fakePump(left,right,256);assert(std::abs(left[0]-.925f)<1e-6);
  // A later single-sound selection cancels outstanding layer jobs.
- host.requestPerformance(slow);host.load(root/"fast.sfz",lp::Patch{}.parameters);std::this_thread::sleep_for(std::chrono::milliseconds(220));assert(!host.pollPerformance()&&!host.performanceActive());host.sendRealtime({0x90,60,100});fakePump(left,right,256);assert(left[0]==.25f);
+ host.requestPerformance(slow);host.load(root/"fast.sfz",lp::Patch{}.parameters);std::this_thread::sleep_for(std::chrono::milliseconds(220));assert(!host.pollPerformance()&&!host.performanceActive());host.sendRealtime({0x80,60,0});host.sendRealtime({0x90,60,100});fakePump(left,right,256);assert(left[0]==.25f);
  auto bad=p;bad.parts[0].instrument=(root/"broken.sfz").u8string();host.requestPerformance(bad);bool failed=false;try{wait(host);}catch(...){failed=true;}assert(failed&&!host.performanceLoading());host.unload();fakePump(left,right,256);assert(left[0]==0&&fakeStarts()==starts&&!host.takeFault());
  std::filesystem::remove_all(root);
 }

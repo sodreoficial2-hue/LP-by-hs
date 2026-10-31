@@ -38,6 +38,7 @@ struct PerformanceWorkspace {
   for(int i=0;i<4;++i)if(!(in>>candidate.categories[i]>>candidate.muted[i]>>std::quoted(candidate.searches[i]))||candidate.categories[i]<0||candidate.categories[i]>14||candidate.categories[i]==13||candidate.searches[i].size()>1024)throw std::runtime_error("Busca de camada inválida");
   if(!(in>>std::quoted(bytes)))throw std::runtime_error("Rascunho incompleto");std::string extra;if(in>>extra)throw std::runtime_error("Dados inesperados no rascunho");
   Session session;std::istringstream payload(bytes);session.read(payload);if(session.performanceLibrary.size()>1)throw std::runtime_error("Rascunho inválido");
+  if(candidate.original.rfind("LPHS_PROFILE ",0)==0){Session original;std::istringstream previous(candidate.original);original.read(previous);candidate.original=original.serialize();}
   Performance next;if(!session.performanceLibrary.empty())next=restorePerformance(session.performanceLibrary[0]);next.name=name;
   *this=std::move(candidate);performance=std::move(next);return true;
  }
