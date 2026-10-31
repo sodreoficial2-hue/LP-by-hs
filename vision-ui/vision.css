@@ -46,3 +46,5 @@ footer{position:fixed;bottom:0;left:0;right:0;height:var(--footer-height)}
 .session-strip{bottom:var(--footer-height);height:var(--status-height);min-height:0;gap:16px}
 @media(max-height:720px){:root{--footer-height:70px;--header-height:158px}}
 @media(max-width:900px){:root{--status-height:114px}.session-strip{gap:4px}.master-control{padding:2px 10px}.master-control input{height:28px}}
+
+.master-control.learning{border-color:var(--bright);box-shadow:0 0 0 2px var(--gold)}

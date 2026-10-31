@@ -15,7 +15,8 @@ int main(int argc,char** argv){
  host.panic();fakePump(l,r,256);
  auto ticket=host.beginMidiSwitch();host.requestSound((root/"slow.sfz").u8string(),lp::Patch{}.parameters);host.sendRealtime({0x90,64,100});host.acknowledgeMidiSwitch(ticket);fakePump(l,r,256);assert(l[0]==0);ready(host);fakePump(l,r,256);assert(l[0]==.25f); // First post-PC note waits for the actual new graph.
  host.panic();fakePump(l,r,256);auto first=host.beginMidiSwitch();host.requestSound((root/"fast.sfz").u8string(),lp::Patch{}.parameters);auto last=host.beginMidiSwitch();host.acknowledgeMidiSwitch(first);host.sendRealtime({0x90,67,100});ready(host);fakePump(l,r,256);assert(l[0]==0);host.acknowledgeMidiSwitch(last);fakePump(l,r,256);assert(l[0]==.25f);
- assert(host.callbackFrames()==256&&host.callbackLoad()>=0&&host.synthCount()==1&&fakeStarts()==starts);
+ // The previous one-voice tail is still rendered and must be counted.
+ assert(host.callbackFrames()==256&&host.callbackLoad()>=0&&host.synthCount()==2&&fakeStarts()==starts);
  auto limit=std::chrono::steady_clock::now()+std::chrono::seconds(2);while(notifications<3&&std::chrono::steady_clock::now()<limit)std::this_thread::yield();assert(notifications>=3);
  // A failed replacement keeps the last working model/controls; queued PC notes are cancelled safely.
  auto failureTicket=host.beginMidiSwitch();host.requestSound((root/"broken.sfz").u8string(),lp::Patch{}.parameters);host.sendRealtime({0x90,72,100});host.acknowledgeMidiSwitch(failureTicket);bool failed=false;try{ready(host);}catch(...){failed=true;}assert(failed&&host.loaded());fakePump(l,r,256);assert(l[0]==0);host.sendRealtime({0x90,60,100});fakePump(l,r,256);assert(l[0]==.25f);

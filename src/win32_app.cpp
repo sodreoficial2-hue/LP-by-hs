@@ -28,6 +28,7 @@
 #include "sf2_expansion.hpp"
 #include "sf2_headers.hpp"
 #include "audio_preferences.hpp"
+#include "master_midi.hpp"
 #include <memory>
 #include <string>
 #include <fstream>
@@ -327,7 +328,7 @@ struct App {
   control(L"BUTTON",L"Pânico (F12)",BS_PUSHBUTTON|WS_TABSTOP,Panic);
   SendMessageW(audioDriver,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Selecione driver ASIO"));
   SendMessageW(audioDriver,CB_SETCURSEL,0,0);
-  control(L"STATIC",L"Master",SS_LEFT,MasterLabel);
+  auto masterLabel=control(L"STATIC",L"Master",SS_LEFT|SS_NOTIFY,MasterLabel);SetWindowSubclass(masterLabel,parameterProc,16,0);
   auto masterControl=control(TRACKBAR_CLASSW,L"Volume Master",TBS_HORZ|WS_TABSTOP,MasterVolume);
   SendMessageW(masterControl,TBM_SETRANGE,TRUE,MAKELPARAM(0,1000));SetWindowSubclass(masterControl,parameterProc,16,0);
   for(int i=0;i<16;++i){labels[i]=control(L"STATIC",L"",SS_LEFT|SS_NOTIFY,Knob+100+i);sliders[i]=control(TRACKBAR_CLASSW,L"",TBS_HORZ|WS_TABSTOP,Knob+i);SendMessageW(sliders[i],TBM_SETRANGE,TRUE,MAKELPARAM(0,1000));
@@ -477,7 +478,7 @@ struct App {
  }catch(const std::exception& e){error(e);}}
  std::wstring parameterName(int index){return std::wstring(lp::parameterNames[index],lp::parameterNames[index]+std::char_traits<char>::length(lp::parameterNames[index]));}
  void beginParameterLearn(std::size_t index){
-  if(index==16){if(!midiHandle){message(L"Selecione a entrada MIDI primeiro.");return;}cancelMidiLearn();learningMaster=true;message(L"Master: mova o controle MIDI.");return;}
+  if(index==16){if(!midiHandle){message(L"Selecione a entrada MIDI primeiro.");return;}cancelMidiLearn();learningMaster=true;message(L"Master: mova um knob ou fader MIDI. Ctrl+S salva o mapeamento; ESC cancela.");markVisionDirty();return;}
   if(!effects||index>=sliders.size())return;
   if(!midiHandle){message(L"Selecione a entrada MIDI em Áudio / MIDI antes de mapear.");return;}
   cancelMidiLearn();
@@ -821,24 +822,20 @@ struct App {
   auto binding=lp::knobBinding(m);bool consumed=false;
   if(binding>=0){
    if(learningMaster){
-    for(auto& patch:show.favorites)if(patch){for(auto& cc:patch->cc)if(cc==binding)cc=-1;if(patch->performanceMix)for(auto& cc:patch->performanceMix->cc)if(cc==binding)cc=-1;}
-    for(auto& cc:previewPatch.cc)if(cc==binding)cc=-1;
-    for(auto& performance:show.performanceLibrary)for(auto& part:performance.parts)for(auto& cc:part.patch.cc)if(cc==binding)cc=-1;
-    for(auto& part:editingPerformance.parts)for(auto& cc:part.patch.cc)if(cc==binding)cc=-1;
-    show.masterCC=binding;learningMaster=false;consumed=true;
+    if(lp::learnMasterControl(show,previewPatch,editingPerformance,m)){learningMaster=false;consumed=true;}
    }else if((learningVolume>=0||learningPerformanceParameter>=0||router.pendingParameter())&&show.masterCC==binding)show.masterCC=-1;
-   if(show.masterCC==binding){show.master=lp::knobValue(m);if(engine)engine->masterVolume(show.master);consumed=true;}
-   if(editingPerformanceControls()){
+   if(lp::applyMasterControl(show,m)){if(engine)engine->masterVolume(show.master);consumed=true;}
+   if(!consumed&&editingPerformanceControls()){
     auto& p=editingPerformance.parts[editingPart];
     if(p.enabled){
      if(learningPerformanceParameter>=0){for(auto& cc:p.patch.cc)if(cc==binding)cc=-1;p.patch.cc[learningPerformanceParameter]=binding;learningPerformanceParameter=-1;}
      for(int i=0;i<16;++i)if(p.patch.cc[i]==binding){p.patch.parameters[i]=lp::knobValue(m);if(i>=1&&i<=4)p.patch.adsrEnabled=true;applyParameters();consumed=true;}
     }
-   }else if(performanceControls()){
+   }else if(!consumed&&performanceControls()){
     if(learningVolume>=0){for(auto& part:editingPerformance.parts)if(part.patch.cc[0]==binding)part.patch.cc[0]=-1;editingPerformance.parts[learningVolume].patch.cc[0]=binding;learningVolume=-1;}
     for(int part=0;part<4;++part){auto& p=editingPerformance.parts[part];if(p.enabled&&p.patch.cc[0]==binding){p.patch.parameters[0]=lp::knobValue(m);engine->setPerformancePartParameters(part,p.patch.parameters,p.patch.adsrEnabled);consumed=true;}}
     if(consumed)syncPerformance();
-   }else if(previewActive&&!show.current){
+   }else if(!consumed&&previewActive&&!show.current){
     if(learningPerformanceParameter>=0){for(auto& cc:previewPatch.cc)if(cc==binding)cc=-1;previewPatch.cc[learningPerformanceParameter]=binding;learningPerformanceParameter=-1;}
     for(int i=0;i<16;++i)if(previewPatch.cc[i]==binding){previewPatch.parameters[i]=lp::knobValue(m);if(i>=1&&i<=4)previewPatch.adsrEnabled=true;applyParameters();consumed=true;}
    }

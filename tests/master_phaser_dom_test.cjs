@@ -9,6 +9,12 @@ setTimeout(()=>{try{
  const cards=[...doc.querySelectorAll('[data-category]')];cards[0].focus();key(cards[0],'ArrowRight');assert.equal(w.__commands.at(-1).action,'masterStep');assert.equal(w.__commands.at(-1).a,1);
  key(cards[0],'ArrowDown');assert.equal(doc.activeElement,cards[1]);
  const range=doc.getElementById('master-volume');range.value='610';range.dispatchEvent(new w.Event('input',{bubbles:true}));assert.equal(w.__commands.at(-1).action,'master');assert.equal(w.__commands.at(-1).a,610);
+ range.focus();state=JSON.parse(JSON.stringify(w.LPVision.state));state.master=.25;state.masterLearning=true;w.LPVision.receive(state);
+ assert.equal(range.value,'250');assert.equal(doc.getElementById('master-value').textContent,'25%');assert.equal(doc.getElementById('master-learn').textContent,'Mova o knob');
+ for(const target of [range,doc.querySelector('.master-control label'),doc.querySelector('.master-control')]){let count=w.__commands.length;target.dispatchEvent(new w.MouseEvent('contextmenu',{bubbles:true,cancelable:true}));assert.equal(w.__commands.length,count+1);assert.equal(w.__commands.at(-1).action,'learnMaster');}
+ range.dispatchEvent(new w.MouseEvent('pointerdown',{button:0,bubbles:true}));range.value='700';state.master=.4;w.LPVision.receive(state);assert.equal(range.value,'700','Actual mouse drag must not be overwritten by an older echo');
+ doc.dispatchEvent(new w.MouseEvent('pointerup',{bubbles:true}));w.LPVision.receive(state);assert.equal(range.value,'400','MIDI updates resume after drag ends');
+ key(range,'F10',{shiftKey:true});assert.equal(w.__commands.at(-1).action,'learnMaster');
  doc.getElementById('master-learn').click();assert.equal(w.__commands.at(-1).action,'learnMaster');
  w.LPVision.send('category',0);w.LPVision.send('select',0);w.LPVision.send('effects');assert.equal(doc.querySelector('[data-parameter="15"] h2').textContent,'Phaser');assert.equal(doc.querySelectorAll('.parameter').length,16);assert(doc.getElementById('master-volume'));
  w.LPVision.send('screen',2);const select=doc.getElementById('part-0');let count=w.__commands.length;key(select,'ArrowRight');assert.equal(w.__commands.length,count,'MIDI/sound dropdown navigation must remain local');

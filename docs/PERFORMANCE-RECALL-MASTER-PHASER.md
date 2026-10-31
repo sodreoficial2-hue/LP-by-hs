@@ -7,8 +7,11 @@ identified in the user's latest tested update.
 
 Performance transitions now use the same bounded outgoing tails as single
 sounds: up to two seconds, maximum two retiring graphs, maximum eight rendered
-engines across active and outgoing graphs. Oldest tails are retired first on
-rapid changes. No ASIO stream restart is introduced.
+engines across active and outgoing graphs. When capacity or tail slots are
+full, the oldest necessary tail receives a 20 ms release before the queued
+replacement activates. A newer queued selection supersedes the previous one.
+No ASIO stream restart is introduced. This can defer a rapid selection by the
+short release plus a callback block; it does not enlarge the ASIO buffer.
 
 A warm cached synth which was no longer continuously active is silenced and
 its DSP history reset on the audio owner thread before reuse. The latest patch
@@ -16,13 +19,25 @@ is reapplied. Shared continuous layers retain their notes but are masked out
 of the outgoing graph, avoiding double rendering and duplicate MIDI events.
 Routing/transpose changes still clear the affected engine. Note releases reach
 outgoing graphs using their original routing. Recalling a cached engine that
-is still a tail ends that particular old tail before the clean activation;
-this bounded-memory approach does not promise unlimited sustained generations.
+is still a tail now waits for that tail's short fade before cleaning it.
+This bounded-memory approach does not promise unlimited sustained generations.
+The production overlap mixer applies normalized graph weights with a 20 ms
+ramp when the new graph becomes audible. It prevents overlap alone from
+exceeding the louder individual graph; it is not a Master compressor or a
+limiter for a preset which already exceeds full scale. Silent outgoing blocks
+add no normalization weight. Diagnostics count all rendered active/tail voices.
 
 Master is now a separate persistent global control in the Vision status bar
 and classic main window, outside the parameter panel. It supports mouse and
-MIDI Learn, retains the existing stored Master/CC fields, and synchronizes via
-full state and telemetry. Left/right adjust Master by 2% including Home;
+MIDI Learn over its entire visible area, retains the existing stored
+Master/CC fields, and synchronizes via full state and telemetry. Focus alone
+no longer blocks incoming MIDI updates; only an actual mouse drag defers the
+range position update. The screen displays the learning state. Absolute CC
+knobs/faders on all sixteen channels can bind, excluding sustain CC64 and
+channel-mode CC120–127. Notes, pitch wheel and Program Change cannot bind.
+The first CC movement also adjusts Master, and Ctrl+S preserves the mapping.
+Master consumption is exclusive even when a recalled layer has a conflicting
+legacy CC mapping; native CC1 forwarding remains unchanged. Left/right adjust Master by 2% including Home;
 text fields, range controls and dropdowns keep their own arrow behavior.
 Home up/down now visit categories sequentially so every category remains
 reachable without using the Master arrows. Tab also remains available.
@@ -40,7 +55,7 @@ reverting to an earlier release.
 
 ## Local validation
 
-- Debug C++ build with assertions active and 23 CTest groups, including a new
+- Debug C++ build with assertions active and 25 CTest groups, including a new
   cache lifecycle regression for immediate and expired-tail A → B → A recall,
   outgoing four-layer audio, release routing and unchanged driver start count.
 - Existing asynchronous selection, concurrency, MIDI, DSP, storage, calibration,
@@ -48,6 +63,11 @@ reverting to an earlier release.
 - Phaser signal modification, stereo sweep, finite bounded samples, reset,
   block-size independence and sample-rate tests.
 - Profile migration, Master/Phaser persistence and per-layer effect values.
+- Exhaustive Master Learn checks for all CC numbers on all sixteen channels,
+  reserved-message rejection, duplicate mapping cleanup and serialized recall.
+- Production transition tests: rapid A → B → C, bounded engine count, overlap
+  peaks, deferred Program Change notes, latest queued choice, immediate cached
+  A → B → A recall with continuous short fades and no resurrected notes.
 - JSDOM tests: new Master/Phaser contract, existing stability controls and
   Performance editor tools. JavaScript syntax and whitespace checks.
 
@@ -61,5 +81,6 @@ remain required before an installable release.
 
 No new portable/ZIP, Drive upload, hosted workflow or binary upload is requested
 or produced in this stage. Authenticated GitHub allowance remains unknown;
-the available connector exposes no balance tool and repository calls failed.
-Source is preserved as one grouped Git commit via Git.
+the available connector exposes no balance tool. The correct connected account
+is sodreoficial2-hue; repository API access has been verified. Source stages
+are published as grouped inline-tree commits without hosted builds.

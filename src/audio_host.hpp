@@ -97,9 +97,10 @@ private:
  // graphs go to an intrusive lock-free retirement list; no deletion in ASIO.
  std::array<std::shared_ptr<PartSynth>,4> preparedParts{};
  std::vector<std::pair<int,std::shared_ptr<PartSynth>>> warmParts;
- Graph* active=nullptr;
+ Graph* active=nullptr;Graph* waiting=nullptr;
  std::array<Graph*,2> tails{};
- std::array<unsigned long,2> tailFrames{};
+ std::array<float,2> tailGain{},tailStep{};
+ float activeMix=1;
  std::atomic<Graph*> pending{nullptr},retired{nullptr};
  std::unique_ptr<Graph> prepare(double sampleRate);
  struct LoadJob {unsigned long long id;Performance selected;bool layered;std::array<std::shared_ptr<PartControl>,4> controls;double sampleRate;std::map<std::string,float> gains;std::array<std::shared_ptr<PartSynth>,4> cache;std::vector<std::pair<int,std::shared_ptr<PartSynth>>> warm;};
@@ -120,6 +121,8 @@ private:
  bool smoothTransitions=false;float masterSmoothed=1;std::array<float,2> lastOutput{},transitionFrom{};int transitionFrames=0,transitionTotal=1;
  std::unique_ptr<Graph> preparePerformance(const LoadJob&);
 
+ bool handoffReady(const Graph&)noexcept;
+ unsigned graphVoices(const Graph*)const noexcept;
  void publish(std::unique_ptr<Graph>);
  void retire(Graph*) noexcept;
  void destroyGraphs() noexcept;
@@ -129,7 +132,7 @@ private:
  void silence(Graph&) noexcept;
  Performance performance{};
  bool activePerformance=false;
- std::array<float,256> scratchLeft{},scratchRight{},tailLeft{},tailRight{};
+ std::array<float,256> scratchLeft{},scratchRight{},tailLeft{},tailRight{},mixLeft{},mixRight{},mixWeights{};
 
  std::array<PartControl,4> partControls{};
  std::atomic<float> meterPeak{0};std::atomic<bool> meterClip{false};

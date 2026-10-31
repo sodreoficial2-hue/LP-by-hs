@@ -9,7 +9,7 @@
  let openingVisible=true,openingClosing=false,openingSkip=false,openingTimer=null;
  const openingStarted=window.performance.now();
  const held = new Set(), pendingParameters = new Map();
- let parameterTimer = null;
+ let parameterTimer = null, masterDragging=false;
  const svgNS = 'http://www.w3.org/2000/svg';
  function mountOpening(){
   const splash=window.LPVisionSplash,host=$('opening-art');
@@ -195,9 +195,13 @@
   for(let n=48;n<=84;n++)if(black.has(n%12)){const b=key(n,true),left=whites.filter(w=>w<n).length;b.style.left=`${left/whites.length*100}%`;keys.append(b);}
   return node('section',{class:'keyboard-panel'},node('p',{class:'details'},state.loadedName||'Escolha um timbre na biblioteca antes de tocar.'),keys,node('p',{class:'note'},'Clique nas teclas ou use Tab e mantenha Espaço ou Enter pressionado. F12 interrompe todas as notas.'));
  }
- $('master-volume').addEventListener('input',e=>{if(!state||state.loading)return;const value=Number(e.target.value);$('master-value').textContent=`${Math.round(value/10)}%`;send('master',value);});
+ $('master-volume').addEventListener('pointerdown',e=>{if(e.button===0)masterDragging=true;});
+ const finishMasterDrag=()=>{masterDragging=false;};
+ document.addEventListener('pointerup',finishMasterDrag);document.addEventListener('pointercancel',finishMasterDrag);window.addEventListener('blur',finishMasterDrag);
+ $('master-volume').addEventListener('input',e=>{if(!state||state.loading)return;const value=Number(e.target.value);state.master=value/1000;$('master-value').textContent=`${Math.round(value/10)}%`;send('master',value);});
  $('master-learn').addEventListener('click',()=>send('learnMaster'));
- $('master-volume').addEventListener('contextmenu',e=>{e.preventDefault();send('learnMaster');});
+ document.querySelector('.master-control').addEventListener('contextmenu',e=>{e.preventDefault();send('learnMaster');});
+ $('master-volume').addEventListener('keydown',e=>{if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10')){e.preventDefault();send('learnMaster');}});
  function render(){
   if(!state)return;
   const active=document.activeElement,focus=active?.getAttribute('data-focus'),scroll=$('content').scrollTop;
@@ -226,8 +230,11 @@
   if(state.screen==='performance'&&!state.effects)$('eyebrow').textContent=state.performance.preparing?'PREPARANDO TIMBRE · INTERFACE DISPONÍVEL':'ATÉ QUATRO PARTES · CAMADAS E DIVISÕES';
   $('profile-state').textContent=state.dirty?'Alterações não salvas':'Perfil sem alterações pendentes';$('profile-state').classList.toggle('dirty',Boolean(state.dirty));
   const master=Math.round((Number.isFinite(state.master)?state.master:1)*1000);
-  if(document.activeElement!==$('master-volume'))$('master-volume').value=String(master);
-  $('master-value').textContent=`${Math.round(master/10)}%`;$('master-volume').setAttribute('aria-valuetext',`${Math.round(master/10)} por cento`);
+  if(!masterDragging)$('master-volume').value=String(master);
+  const shownMaster=Number($('master-volume').value);
+  $('master-value').textContent=`${Math.round(shownMaster/10)}%`;$('master-volume').setAttribute('aria-valuetext',`${Math.round(shownMaster/10)} por cento`);
+  document.querySelector('.master-control').classList.toggle('learning',Boolean(state.masterLearning));
+  $('master-learn').textContent=state.masterLearning?'Mova o knob':'MIDI';
   $('master-learn').title=state.masterCC>=0?`MIDI CC ${state.masterCC}`:'Aprender controle MIDI';
   const peak=Number(state.peak)||0,db=peak>0?20*Math.log10(peak):-90;
   $('output-meter').value=Math.min(1,peak);$('peak-label').textContent=state.clipping?'Pico excessivo — reduza os volumes':`Saída: ${db<=-90?'silêncio':Math.round(db)+' dBFS'}`;$('peak-label').classList.toggle('clipping',Boolean(state.clipping));if(!state.clipping&&peak>=.89)$('peak-label').textContent='Pouca folga na saída — reduza o volume das camadas';

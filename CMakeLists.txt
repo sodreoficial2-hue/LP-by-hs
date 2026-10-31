@@ -269,3 +269,12 @@ add_executable(lp_cached_recall_test tests/cached_recall_test.cpp tests/fake_por
 target_include_directories(lp_cached_recall_test PRIVATE src third_party/portaudio)
 target_link_libraries(lp_cached_recall_test PRIVATE lp_engine Threads::Threads)
 add_test(NAME cached_performance_recall_no_ghost COMMAND lp_cached_recall_test $<TARGET_FILE:lp_fake_sfizz>)
+
+add_executable(lp_master_midi_test tests/master_midi_test.cpp)
+target_include_directories(lp_master_midi_test PRIVATE src)
+add_test(NAME master_midi_learn_all_cc_channels COMMAND lp_master_midi_test)
+
+add_executable(lp_transition_budget_test tests/transition_budget_test.cpp tests/fake_portaudio.cpp src/audio_host.cpp)
+target_include_directories(lp_transition_budget_test PRIVATE src third_party/portaudio)
+target_link_libraries(lp_transition_budget_test PRIVATE lp_engine Threads::Threads)
+add_test(NAME smooth_transition_budget_and_peaks COMMAND lp_transition_budget_test $<TARGET_FILE:lp_fake_sfizz>)

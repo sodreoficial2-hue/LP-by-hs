@@ -144,3 +144,20 @@ engine tails, Home sequential up/down navigation and profile v10 migration.
 Publish one grouped source stage without hosted compute or binary uploads.
 Authenticated GitHub allowance remains unknown. No new portable/Drive release
 was requested in this turn; Windows/ASIO and pixel-layout checks remain pending.
+
+
+## Pre-release transition corrections and Master MIDI Learn (30 October 2026)
+
+Hugo explicitly authorizes the four audit corrections and right-click Master
+Learn for controller knobs. Preserve the existing stage's account and source
+branch. Production tail eviction now uses a 20 ms release and queued latest
+selection with eight rendered engines maximum; normalized overlap mixing avoids
+extra summation peaks, and diagnostics include active tails. Master focus must
+not freeze MIDI feedback; only actual pointer dragging may defer its display.
+All Master hit areas support Learn with visible feedback. Accept absolute CC
+on all channels except reserved sustain/channel-mode commands. Preserve manual
+Ctrl+S profile saving and native CC1 forwarding. See the updated transition doc.
+25 local CTest groups plus interface DOM tests pass; hardware/Windows execution
+and pixel-layout checks remain pending. Publish one grouped source stage;
+no portable/ZIP/Drive release was requested in this turn. Authenticated GitHub
+allowance remains unknown; no hosted compute or binary uploads.

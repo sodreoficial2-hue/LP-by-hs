@@ -36,7 +36,7 @@ void AudioHost::collectRetired() noexcept {
  while(graph){auto next=graph->next;dispose(std::unique_ptr<Graph>(graph));graph=next;}
 }
 void AudioHost::destroyGraphs() noexcept {
- delete pending.exchange(nullptr);delete active;active=nullptr;
+ delete pending.exchange(nullptr);delete waiting;waiting=nullptr;delete active;active=nullptr;
  for(auto& tail:tails){delete tail;tail=nullptr;}
  collectRetired();
 }
@@ -109,7 +109,7 @@ void AudioHost::stop(){
  acceptingMidi.store(false);
  if(stream){auto old=stream;auto stopped=Pa_StopStream(old);if(stopped<0)Pa_AbortStream(old);paCheck(Pa_CloseStream(old));stream=nullptr;}
  clearQueue();if(active)silence(*active);
- for(auto& tail:tails){delete tail;tail=nullptr;}delete pending.exchange(nullptr);collectRetired();
+ for(auto& tail:tails){delete tail;tail=nullptr;}delete pending.exchange(nullptr);delete waiting;waiting=nullptr;collectRetired();
 }
 void AudioHost::controlPanel(int id,void* window){requireAsio(id);bool restart=running();auto oldDevice=device;auto oldBuffer=buffer;stop();auto result=PaAsio_ShowControlPanel(id,window);if(restart)open(oldDevice,oldBuffer);paCheck(result);}
 void AudioHost::load(const std::filesystem::path& path,const std::array<float,16>& params,bool adsr){
@@ -254,12 +254,30 @@ void AudioHost::renderGraph(Graph& graph,float* left,float* right,int frames){
   for(int j=0;j<frames;++j){left[j]+=scratchLeft[j]*v.levelGain;right[j]+=scratchRight[j]*v.levelGain;}
  }
 }
+unsigned AudioHost::graphVoices(const Graph* graph)const noexcept{
+ unsigned n=0;if(graph)for(std::size_t i=0;i<4;++i)if(graph->voices[i]&&(graph->renderMask&(1u<<i))&&(!graph->layered||(graph->audible&(1u<<i))))++n;return n;
+}
+bool AudioHost::handoffReady(const Graph& next)noexcept{
+ if(next.hardSwitch||!smoothTransitions)return true;
+ auto shared=[&](const std::shared_ptr<PartSynth>& voice){for(const auto& candidate:next.voices)if(voice==candidate)return true;return false;};
+ auto outgoing=[&](const Graph* graph){unsigned count=0;if(graph)for(std::size_t i=0;i<4;++i)if(graph->voices[i]&&(graph->renderMask&(1u<<i))&&!shared(graph->voices[i]))++count;return count;};
+ auto shorten=[&](int t){tailStep[t]=std::max(tailStep[t],tailGain[t]/std::max(1.f,static_cast<float>(rate*.020)));};
+ bool ready=true;
+ // Finish the tail before cleaning/reusing its cached engine, avoiding a cut.
+ for(int t=0;t<2;++t)if(tails[t])for(std::size_t i=0;i<4;++i)if(tails[t]->voices[i]&&(tails[t]->renderMask&(1u<<i))&&shared(tails[t]->voices[i])){shorten(t);ready=false;break;}
+ unsigned cost=graphVoices(&next)+outgoing(active)+outgoing(tails[0])+outgoing(tails[1]);
+ bool slot=outgoing(active)&&tails[0]&&tails[1];
+ for(int t=1;t>=0&&(slot||cost>8);--t)if(tails[t]){shorten(t);cost-=outgoing(tails[t]);slot=false;ready=false;}
+ return ready;
+}
 int AudioHost::callback(const void*,void* output,unsigned long frames,const PaStreamCallbackTimeInfo*,PaStreamCallbackFlags flags,void* user)noexcept{return static_cast<AudioHost*>(user)->render(static_cast<float**>(output),frames,flags);}
 int AudioHost::render(float** output,unsigned long frames,PaStreamCallbackFlags flags)noexcept{
  auto started=std::chrono::steady_clock::now();lastFrames.store(frames);
  if(!output||!output[0]||!output[1]){fault.store(true);return paAbort;}if(flags&paOutputUnderflow){underruns.fetch_add(1);for(auto& tail:tails){retire(tail);tail=nullptr;}}
  try{
-  if(auto next=pending.exchange(nullptr,std::memory_order_acq_rel)){
+  if(auto newest=pending.exchange(nullptr,std::memory_order_acq_rel)){retire(waiting);waiting=newest;}
+  if(waiting&&handoffReady(*waiting)){
+   auto next=waiting;waiting=nullptr;
    // A cached synth may still hold notes/DSP from an earlier graph. Only
    // unchanged, continuously active parts retain their live state. All other
    // recalls start clean, on this callback thread (never on the loader).
@@ -275,15 +293,15 @@ int AudioHost::render(float** output,unsigned long frames,PaStreamCallbackFlags 
    if(next->hardSwitch){
     retire(active);for(auto& tail:tails){retire(tail);tail=nullptr;}
    }else{
-    retire(tails[1]);tails[1]=tails[0];tailFrames[1]=tailFrames[0];
-    tails[0]=active;tailFrames[0]=0;
-    if(tails[0]&&!tails[0]->renderMask){retire(tails[0]);tails[0]=nullptr;}
+    if(active&&active->renderMask){
+     retire(tails[1]);tails[1]=tails[0];tailGain[1]=tailGain[0];tailStep[1]=tailStep[0];
+     tails[0]=active;tailGain[0]=1;tailStep[0]=1/static_cast<float>(rate*2);
+    }else retire(active);
    }
-   // At most eight rendered engines (four active plus a four-layer tail).
-   // Rapid switches discard the oldest tail first instead of raising ASIO load.
-   unsigned count=0;auto countVoices=[](const Graph* graph){unsigned n=0;if(graph)for(std::size_t i=0;i<4;++i)if(graph->voices[i]&&(graph->renderMask&(1u<<i)))++n;return n;};
-   count=countVoices(next)+countVoices(tails[0])+countVoices(tails[1]);
-   for(int t=1;t>=0&&count>8;--t)if(tails[t]){count-=countVoices(tails[t]);retire(tails[t]);tails[t]=nullptr;}
+   // Legacy/test mode retains immediate handoff. Production waits for the
+   // oldest fade to finish, so no rendered graph is cut to meet the budget.
+   if(!smoothTransitions){unsigned count=graphVoices(next)+graphVoices(tails[0])+graphVoices(tails[1]);for(int t=1;t>=0&&count>8;--t)if(tails[t]){count-=graphVoices(tails[t]);retire(tails[t]);tails[t]=nullptr;}}
+   activeMix=(tails[0]||tails[1])?0:1;
    if(smoothTransitions){transitionFrom=lastOutput;transitionTotal=transitionFrames=std::max(1,static_cast<int>(rate*.003));}
    active=next;controls(*active);
   }
@@ -300,16 +318,26 @@ int AudioHost::render(float** output,unsigned long frames,PaStreamCallbackFlags 
   float peak=0,gain=master.load();
   for(unsigned long offset=0;offset<frames;){int size=static_cast<int>(std::min<unsigned long>(256,frames-offset));
    if(active)renderGraph(*active,output[0]+offset,output[1]+offset,size);else{std::fill_n(output[0]+offset,size,0);std::fill_n(output[1]+offset,size,0);}
+   std::fill_n(mixLeft.data(),size,0);std::fill_n(mixRight.data(),size,0);std::fill_n(mixWeights.data(),size,0);
+   const bool overlapping=tails[0]||tails[1];bool activeAudible=false;
+   for(int j=0;j<size;++j)if(std::abs(output[0][offset+j])+std::abs(output[1][offset+j])>1e-9f){activeAudible=true;break;}
    for(std::size_t t=0;t<tails.size();++t)if(tails[t]){
-    renderGraph(*tails[t],tailLeft.data(),tailRight.data(),size);
-    for(int j=0;j<size;++j){float fade=std::max(0.f,1.f-static_cast<float>((tailFrames[t]+j)/(rate*2.0)));output[0][offset+j]+=tailLeft[j]*fade;output[1][offset+j]+=tailRight[j]*fade;}
-    tailFrames[t]+=size;if(tailFrames[t]>=rate*2){retire(tails[t]);tails[t]=nullptr;}
+    renderGraph(*tails[t],tailLeft.data(),tailRight.data(),size);bool audible=false;
+    for(int j=0;j<size;++j)if(std::abs(tailLeft[j])+std::abs(tailRight[j])>1e-9f){audible=true;break;}
+    for(int j=0;j<size;++j){float fade=std::max(0.f,tailGain[t]-tailStep[t]*j);mixLeft[j]+=tailLeft[j]*fade;mixRight[j]+=tailRight[j]*fade;if(audible)mixWeights[j]+=fade;}
+    tailGain[t]=std::max(0.f,tailGain[t]-tailStep[t]*size);if(tailGain[t]<=1e-6f){retire(tails[t]);tails[t]=nullptr;}
+   }
+   for(int j=0;j<size;++j){
+    if(smoothTransitions&&overlapping){float step=1/static_cast<float>(rate*.020);activeMix=std::clamp(activeMix+(activeAudible?step:-step),0.f,1.f);
+     float weight=mixWeights[j]>0?activeMix:1,normal=std::max(1.f,weight+mixWeights[j]);
+     output[0][offset+j]=(output[0][offset+j]*weight+mixLeft[j])/normal;output[1][offset+j]=(output[1][offset+j]*weight+mixRight[j])/normal;
+    }else{output[0][offset+j]+=mixLeft[j];output[1][offset+j]+=mixRight[j];if(!overlapping)activeMix=1;}
    }
    for(int j=0;j<size;++j){float smoothing=1-std::exp(-1.f/(static_cast<float>(rate)*.003f));if(smoothTransitions)masterSmoothed+=smoothing*(gain-masterSmoothed);else masterSmoothed=gain;for(int c=0;c<2;++c){auto& sample=output[c][offset+j];sample*=masterSmoothed;if(transitionFrames){float alpha=1-static_cast<float>(transitionFrames)/transitionTotal;sample=transitionFrom[c]*(1-alpha)+sample*alpha;}lastOutput[c]=sample;if(!std::isfinite(sample)){sample=0;meterClip.store(true);}peak=std::max(peak,std::abs(sample));}if(transitionFrames)--transitionFrames;}
    offset+=size;
   }
   auto prior=meterPeak.load();while(prior<peak&&!meterPeak.compare_exchange_weak(prior,peak)){}if(peak>=1)meterClip.store(true);
-  unsigned synths=0;if(active)for(auto& voice:active->voices)if(voice)++synths;liveSynths.store(synths);
+  liveSynths.store(graphVoices(active)+graphVoices(tails[0])+graphVoices(tails[1]));
   auto elapsed=std::chrono::duration<double>(std::chrono::steady_clock::now()-started).count();if(frames)renderLoad.store(static_cast<float>(elapsed*rate/frames));
   return paContinue;
  }catch(...){std::fill_n(output[0],frames,0);std::fill_n(output[1],frames,0);fault.store(true);return paContinue;}
