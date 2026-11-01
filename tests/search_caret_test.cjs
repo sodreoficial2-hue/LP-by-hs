@@ -9,7 +9,7 @@ function fixture(id){
  const elements=new Map();
  const document={activeElement:null,querySelector:()=>elements.get(id),querySelectorAll:()=>[]};
  function element(name,value=''){
-  return {value,selectionStart:0,selectionEnd:0,selectionDirection:'none',scrollTop:87,
+  return {value,style:{},selectionStart:0,selectionEnd:0,selectionDirection:'none',scrollTop:87,
    getAttribute:()=>name,matches:()=>name===id,
    focus(){document.activeElement=this;},
    setSelectionRange(start,end,direction){this.selectionStart=start;this.selectionEnd=end;this.selectionDirection=direction;},
@@ -19,7 +19,7 @@ function fixture(id){
  const $=name=>{if(!elements.has(name))elements.set(name,element(name));return elements.get(name);};
  const input=$(id);input.focus();
  const state={screen:id==='sound-search'?'instruments':'performance',effects:false,category:0,catalog:[],controls:[],audio:{drivers:[],midiInputs:[],latencyMs:0},performance:{instruments:[],instrumentCategories:[],parts:[]}};
- const context={document,$,state,structure:'',CSS:{escape:x=>x},instruments(){},performance(){},home(){},audio(){},profiles(){},keyboard(){},parameters(){},title(){},node(){}};
+ const context={document,$,state,structure:'',masterDragging:false,meterHold:0,meterHoldUntil:0,window:{performance:{now:()=>1000}},CSS:{escape:x=>x},instruments(){},performance(){},home(){},audio(){},profiles(){},keyboard(){},parameters(){},title(){},node(){}};
  vm.createContext(context);vm.runInContext(renderSource,context);
  return {context,$,document,state};
 }

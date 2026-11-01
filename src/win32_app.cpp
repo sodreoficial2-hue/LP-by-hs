@@ -73,20 +73,33 @@ struct App {
  std::vector<std::string> restoreKeys;
  std::wstring catalogSearch;
  float displayedPeak=0;ULONGLONG clipUntil=0;
+ std::atomic<ULONGLONG> lastMidiActivity{0};
+ bool startupPianoPending=false;
+ bool midiActive()const{auto tick=lastMidiActivity.load(std::memory_order_relaxed);return tick&&GetTickCount64()-tick<250;}
+ void updateMeter(){
+  if(loading)return;
+  if(engine){displayedPeak=engine->outputPeak();if(engine->takeOutputClip())clipUntil=GetTickCount64()+2000;}
+  auto peak=displayedPeak>0?20*std::log10(displayedPeak):-90.f;
+  auto meter=GetTickCount64()<clipUntil?std::wstring(L"PICO ALTO — reduza volumes"):(displayedPeak>=.89f?std::wstring(L"Pouca folga — reduza volumes das camadas"):L"Saída: "+std::to_wstring(static_cast<int>(peak))+L" dBFS");
+  SetWindowTextW(item(OutputMeter),meter.c_str());markVisionDirty();
+ }
  std::string profileSnapshot()const{auto snapshot=show;snapshot.performanceLibrary.clear();return snapshot.serialize();}
  bool profileDirty(){syncPerformance();return profileSnapshot()!=savedProfile;}
  void updateIndicators(){
-  if(loading)return;
+  if(loading){
+   if(!startupPianoPending)return;
+   try{if(!engine->pollPerformance())return;previousSound.reset();}
+   catch(const std::exception& e){restoreSound();error(e);}
+   startupPianoPending=false;loading=false;progress=100;layout();SetFocus(item(CategoryCardBase+categoryIndex));
+  }
   bool dirty=profileDirty();auto label=dirty?L"Alterações não salvas":L"Perfil salvo / sem alterações";
   SetWindowTextW(item(ProfileState),label);
   auto title=std::wstring(L"Live Performance")+(dirty?L" * — Alterações não salvas":L"");SetWindowTextW(window,title.c_str());
   if(screen==lp::Screen::PerformanceEditor)for(int i=0;i<4;++i){auto& p=editingPerformance.parts[i];auto label=L"Volume: "+std::to_wstring(static_cast<int>(p.patch.parameters[0]*100))+L"% · "+std::filesystem::u8path(lp::midiNoteLabel(p.low)+" até "+lp::midiNoteLabel(p.high)).wstring();SetWindowTextW(item(PartZoneBase+i),label.c_str());}
   if(engine){auto diagnostics=L"Áudio: "+std::to_wstring(static_cast<int>(engine->callbackLoad()*100))+L"% do tempo · interrupções: "+std::to_wstring(engine->xruns())+L" · bloco: "+std::to_wstring(engine->callbackFrames())+L" · memória: "+std::to_wstring(static_cast<int>(memoryMB()))+L" MB";SetWindowTextW(item(AudioDiagnostics),diagnostics.c_str());}
   for(const auto& failure:backgroundStore.takeErrors())message(L"Não foi possível guardar o rascunho: "+std::filesystem::u8path(failure).wstring());
-  if(engine){try{if(engine->pollPerformance()){previousSound.reset();message(engine->performanceActive()?L"Performance pronta para tocar.":L"Timbre pronto para tocar.");}}catch(const std::exception& e){restoreSound();error(e);}engine->collectRetired();displayedPeak=engine->outputPeak();if(engine->takeOutputClip())clipUntil=GetTickCount64()+2000;}
-  auto peak=displayedPeak>0?20*std::log10(displayedPeak):-90.f;
-  auto meter=GetTickCount64()<clipUntil?std::wstring(L"PICO ALTO — reduza volumes"):(displayedPeak>=.89f?std::wstring(L"Pouca folga — reduza volumes das camadas"):L"Saída: "+std::to_wstring(static_cast<int>(peak))+L" dBFS");
-  SetWindowTextW(item(OutputMeter),meter.c_str());markVisionDirty();
+  if(engine){try{if(engine->pollPerformance()){previousSound.reset();message(engine->performanceActive()?L"Performance pronta para tocar.":L"Timbre pronto para tocar.");}}catch(const std::exception& e){restoreSound();error(e);}engine->collectRetired();}
+  markVisionDirty();
  }
  bool saveProfile(){
   std::filesystem::path path=currentProfile;if(!fileDialog(true,false,path))return false;
@@ -219,6 +232,7 @@ struct App {
  static bool directMidi(lp::MidiMessage m){auto kind=m.status&0xf0;return kind==0x90||kind==0x80||kind==0xe0||(kind==0xb0&&(m.data1==1||m.data1==64));}
  static void CALLBACK midiCallback(HMIDIIN handle,UINT message,DWORD_PTR context,DWORD_PTR packed,DWORD_PTR){
   if(message!=MIM_DATA)return;auto app=reinterpret_cast<App*>(context);auto m=lp::MidiMessage::packed(static_cast<DWORD>(packed));if(!m.valid())return;
+  app->lastMidiActivity.store(GetTickCount64(),std::memory_order_relaxed);
   if((m.status&0xf0)==0x90&&m.data2&&app->splitLearning.load()>=0){PostMessageW(app->window,DirectMidiMessage,reinterpret_cast<WPARAM>(handle),static_cast<LPARAM>(packed));return;}
   if((m.status&0xf0)==0xc0&&m.data1<20&&app->engine){auto ticket=app->engine->beginMidiSwitch();auto tagged=static_cast<unsigned long long>(packed)|(static_cast<unsigned long long>(ticket)<<32);if(!PostMessageW(app->window,DirectMidiMessage,reinterpret_cast<WPARAM>(handle),static_cast<LPARAM>(tagged))){app->engine->panic();app->engine->acknowledgeMidiSwitch(ticket);}return;}
   if(directMidi(m)&&app->engine)app->engine->sendRealtime(m);
@@ -449,14 +463,23 @@ struct App {
   }else completeLibrary(L"Biblioteca pronta. Volumes equilibrados: "+std::to_wstring(result.analyzed)+L" calibrados, "+std::to_wstring(result.reused)+L" recuperados da memoria.");
  }
  void completeLibrary(const std::wstring& statusText){
-  updateSplash(100,statusText);loading=false;layout();SetFocus(item(CategoryCardBase+categoryIndex));SetTimer(window,1,250,nullptr);
+  updateSplash(100,statusText);loading=false;
+  // Use the same visible ordering as category 0, after catalog edits, hidden
+  // sounds and calibration have been applied. Keep the Home screen open.
+  categoryIndex=0;SendMessageW(category,CB_SETCURSEL,0,0);refreshCatalog();
+  if(engine&&!visibleInstruments.empty()){
+   SendMessageW(catalog,LB_SETCURSEL,0,0);audition();
+   if(engine->performanceLoading()){startupPianoPending=true;loading=true;updateSplash(99,L"Preparando o primeiro piano acústico...");}
+  }
+  else message(L"Nenhum piano acústico disponível para o teste inicial. Selecione ou importe um timbre.");
+  layout();SetFocus(item(CategoryCardBase+categoryIndex));SetTimer(window,1,250,nullptr);SetTimer(window,6,100,nullptr);
   if(pendingRestore)SetTimer(window,2,750,nullptr);
   markVisionDirty();flushVision();
  }
  #include "ui_app.inc"
  void cancelAudioRestore(){pendingRestore=false;KillTimer(window,2);}
  void restoreAudio(){
-  if(!pendingRestore||!engine)return;
+  if(!pendingRestore||!engine||engine->performanceLoading())return;
   try{lp::restoreRememberedAudio(*engine,settingsPath);cancelAudioRestore();audioStatus();}
   catch(const std::exception& e){if(++restoreAttempts>=3){cancelAudioRestore();error(e);message(L"Não foi possível reconectar o ASIO salvo. Confira seu driver e clique em Conectar ASIO.");}}
  }
@@ -921,6 +944,7 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
  case VisionCommandMessage:{std::unique_ptr<std::wstring> wire(reinterpret_cast<std::wstring*>(lp));if(wire)app->visionCommand(*wire);return 0;}
  case SoundReadyMessage:app->updateIndicators();app->flushVision();return 0;
  case WM_TIMER:
+  if(wp==6){app->updateMeter();app->flushVision();return 0;}
   if(wp==5){KillTimer(w,5);try{if(app->screen==lp::Screen::PerformanceEditor&&app->editorDraft)app->saveEditorDraft();}catch(const std::exception& e){app->error(e);}return 0;}
   if(wp==4){try{app->pollLevelCalibration();}catch(const std::exception& e){KillTimer(w,4);app->levelCalibration.reset();app->error(e);app->completeLibrary(L"Falha ao aplicar equilibrio de volumes. Confira os avisos.");}return 0;}
   if(wp==3){app->visionLoadTimeout();return 0;}

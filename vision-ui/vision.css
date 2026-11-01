@@ -48,3 +48,17 @@ footer{position:fixed;bottom:0;left:0;right:0;height:var(--footer-height)}
 @media(max-width:900px){:root{--status-height:114px}.session-strip{gap:4px}.master-control{padding:2px 10px}.master-control input{height:28px}}
 
 .master-control.learning{border-color:var(--bright);box-shadow:0 0 0 2px var(--gold)}
+
+/* Large output VU: actual post-Master audio, independent of physical PA volume. */
+footer{position:fixed;bottom:0;left:0;right:0;height:142px;padding:12px 24px;gap:18px}.session-strip{bottom:142px;min-height:52px}.session-strip #profile-state{margin-left:auto}
+main{height:calc(100vh - 390px);padding-bottom:16px}.home-grid{height:100%;min-height:270px}
+.vu-panel{flex:1;min-width:0;display:grid;gap:4px}.vu-heading{display:flex;align-items:center;gap:20px;font-size:16px;line-height:24px}.vu-heading>strong{color:#f5f8ff;letter-spacing:.08em;margin-right:auto}
+.midi-activity,#audio-connection{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}.midi-activity .dot{width:14px;height:14px;background:#445469;border:2px solid #b1bfd0}.midi-activity.active{color:#ffe600}.midi-activity.active .dot{background:#ffe600;box-shadow:0 0 12px #ffe600aa}
+.vu-track{position:relative;overflow:hidden;height:30px;border:2px solid #b7c9dc;border-radius:5px;background:#02060c;container-type:inline-size}.vu-fill{height:100%;width:0;background:linear-gradient(to right,#40e487 0%,#40e487 79%,#ffe600 80%,#ffe600 94%,#ff6159 95%,#ff6159 100%);background-size:100cqw 100%;transition:width .09s linear}
+.vu-track:after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(to right,transparent 0,transparent calc(2.5% - 2px),#02060c 2.5%);pointer-events:none}.vu-peak{position:absolute;top:0;bottom:0;width:3px;background:#fff;transform:translateX(-3px);z-index:1}.vu-track.clipping{border-color:#ff6159;box-shadow:0 0 0 2px #ff6159}
+.vu-scale{height:17px;position:relative;margin:0 3px;color:#c4d4e4;font-size:13px;line-height:17px}.vu-scale span{position:absolute;transform:translateX(-50%)}.vu-scale span:first-child{transform:none}.vu-scale span:last-child{transform:translateX(-100%)}
+.vu-reading{display:flex;justify-content:space-between;gap:18px;font-size:17px;line-height:22px}.vu-reading #loaded-name{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#fff;max-width:50%}.vu-reading #peak-label{white-space:nowrap}.clipping{color:#ff968e}
+#error{bottom:202px}
+@media(max-height:720px){footer{height:132px}.session-strip{bottom:132px;min-height:48px}main{height:calc(100vh - 338px)}.home-grid{min-height:250px}.vu-heading{font-size:14px;gap:12px}.vu-reading{font-size:15px}.vu-track{height:26px}}
+@media(max-width:900px){footer{gap:10px;padding:10px 16px}footer button{padding:8px 12px}.vu-heading{gap:10px;font-size:13px}.vu-reading{font-size:14px}.vu-reading #loaded-name{max-width:42%}.vu-scale{font-size:12px}.session-strip{padding:6px 16px;gap:12px}#profile-state{font-size:13px}}
+@media(forced-colors:active){.vu-track{border:2px solid CanvasText;forced-color-adjust:none}.vu-fill{background:Highlight}.vu-peak{background:CanvasText}.midi-activity.active{outline:2px solid Highlight}}

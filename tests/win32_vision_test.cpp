@@ -66,6 +66,24 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
   command(L"activateFavorite",0);command(L"screen",6);command(L"noteOn",60,100);assert(app.visionNotes[60]);command(L"releaseNotes");assert(!app.visionNotes[60]);
   auto json=app.visionState();assert(json.find("\"version\":1")!=json.npos&&json.find("\"favorites\":[")!=json.npos);
   std::ofstream(app.base/L"vision-native-test-result.txt")<<"PASS: actual App bridge commands; catalog browsing preserves sound; favorite parameters and master; malformed command rejection; Performance split/name/save/mix; virtual note release. PortAudio/sfizz test doubles. No WebView2 or hardware validation.\n";
+  // Startup must choose the first visible acoustic piano, wait for the worker,
+  // and keep Home open. A hidden first piano must never be resurrected.
+  app.show.current.reset();app.show.favorites={};app.previewActive=false;
+  app.screen=lp::Screen::Home;app.effects=false;app.pendingRestore=false;
+  app.instruments.clear();
+  for(int i=0;i<3;++i){auto file=testSettings/(L"startup-"+std::to_wstring(i)+L".sfz");std::ofstream(file)<<"<region> sample=*sine\n";lp::Instrument instrument;instrument.sfz=file;instrument.name="Startup "+std::to_string(i);instrument.category=i?0:1;app.instruments.push_back(instrument);}
+  app.hiddenSounds.exclude(lp::soundExclusionKey(lp::instrumentReference(app.instruments[1]),app.base),testSettings/L"hidden-test.catalog");
+  app.loading=true;app.completeLibrary(L"Startup regression");
+  assert(app.startupPianoPending&&app.loading&&app.categoryIndex==0);
+  deadline=GetTickCount64()+10000;
+  while(app.loading&&GetTickCount64()<deadline){while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE)){TranslateMessage(&message);DispatchMessageW(&message);}app.updateIndicators();Sleep(1);}
+  assert(!app.loading&&app.engine->loaded()&&app.previewActive&&app.screen==lp::Screen::Home);
+  assert(app.previewPatch.sfz==lp::instrumentReference(app.instruments[2]));
+  app.lastMidiActivity.store(GetTickCount64());assert(app.midiActive());
+  app.lastMidiActivity.store(GetTickCount64()-300);assert(!app.midiActive());
+  app.engine->unload();app.instruments.clear();app.previewActive=false;
+  app.loading=true;app.completeLibrary(L"Empty startup regression");
+  assert(!app.loading&&!app.startupPianoPending&&!app.engine->loaded());
   DestroyWindow(window);
  }Gdiplus::GdiplusShutdown(token);CoUninitialize();return 0;
 }

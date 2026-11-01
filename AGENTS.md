@@ -161,3 +161,19 @@ Ctrl+S profile saving and native CC1 forwarding. See the updated transition doc.
 and pixel-layout checks remain pending. Publish one grouped source stage;
 no portable/ZIP/Drive release was requested in this turn. Authenticated GitHub
 allowance remains unknown; no hosted compute or binary uploads.
+
+## Output VU and startup piano (1 November 2026)
+
+Hugo confirms the preceding update worked in an actual show and explicitly
+requests a compiled update ZIP delivered to Google Drive. Add a large real-audio
+VU in the Vision footer and load the first visible acoustic piano at startup.
+Keep Home open; respect catalog edits/exclusions and wait for background piano
+preparation before dismissing the opening. ASIO restore must not cancel that
+load. Preserve direct MIDI/audio routing and all prior controls. See
+`docs/OUTPUT-VU-STARTUP-PIANO.md` for validation and limitations. Local build and
+Drive delivery are authorized. Authenticated GitHub quota remains unknown;
+no hosted compute or GitHub binaries.
+
+Hugo subsequently explicitly authorizes publishing these changes in the repository.
+Verify and use sodreoficial2-hue / LP-by-hs; do not use the old account.
+The preceding block was an automatic approval decision, not a GitHub login error.

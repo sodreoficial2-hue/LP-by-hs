@@ -9,7 +9,7 @@
  let openingVisible=true,openingClosing=false,openingSkip=false,openingTimer=null;
  const openingStarted=window.performance.now();
  const held = new Set(), pendingParameters = new Map();
- let parameterTimer = null, masterDragging=false;
+ let parameterTimer = null, masterDragging=false, meterHold=0, meterHoldUntil=0;
  const svgNS = 'http://www.w3.org/2000/svg';
  function mountOpening(){
   const splash=window.LPVisionSplash,host=$('opening-art');
@@ -237,6 +237,16 @@
   $('master-learn').textContent=state.masterLearning?'Mova o knob':'MIDI';
   $('master-learn').title=state.masterCC>=0?`MIDI CC ${state.masterCC}`:'Aprender controle MIDI';
   const peak=Number(state.peak)||0,db=peak>0?20*Math.log10(peak):-90;
+  const level=peak>0?Math.max(0,Math.min(100,(db+60)/60*100)):0;
+  const now=window.performance.now();
+  if(level>=meterHold||now>=meterHoldUntil){meterHold=level;meterHoldUntil=now+700;}
+  $('vu-fill').style.width=`${level}%`;$('vu-peak').style.left=`${meterHold}%`;
+  $('vu-peak').hidden=meterHold===0;
+  document.querySelector('.vu-track').classList.toggle('clipping',Boolean(state.clipping));
+  $('midi-activity').classList.toggle('active',Boolean(state.midiActive));
+  $('midi-state').textContent=state.midiActive?': recebendo comandos':': aguardando comandos';
+  $('audio-label').textContent=state.audio.connected?'ASIO conectado':'ASIO desconectado';
+  $('output-meter').setAttribute('aria-valuetext',db<=-90?'Silêncio':`${Math.round(db)} dBFS`);
   $('output-meter').value=Math.min(1,peak);$('peak-label').textContent=state.clipping?'Pico excessivo — reduza os volumes':`Saída: ${db<=-90?'silêncio':Math.round(db)+' dBFS'}`;$('peak-label').classList.toggle('clipping',Boolean(state.clipping));if(!state.clipping&&peak>=.89)$('peak-label').textContent='Pouca folga na saída — reduza o volume das camadas';
   if($('sound-search')&&document.activeElement!==$('sound-search'))$('sound-search').value=state.search||'';
   $('loaded-name').textContent=state.loadedName||'Nenhum timbre carregado';$('status').textContent=state.status;$('audio-dot').classList.toggle('connected',state.audio.connected);
