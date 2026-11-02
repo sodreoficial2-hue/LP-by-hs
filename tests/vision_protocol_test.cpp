@@ -2,6 +2,7 @@
 #include <cassert>
 #include <iostream>
 int main(){
+ assert(lp::vision::parse("LP1\t7\tcreateSample\t0\t0\t").action=="createSample");
  auto c=lp::vision::parse("LP1\t1\tparameter\t15\t1000\t");assert(c.a==15&&c.b==1000);
  c=lp::vision::parse("LP1\t2\tperformanceName\t0\t0\tApresenta%C3%A7%C3%A3o%20%22Soul%22");assert(c.text=="Apresentação \"Soul\"");
  assert(lp::vision::quote("a\"\n\\\t") == "\"a\\\"\\u000a\\\\\\u0009\"");

@@ -177,3 +177,14 @@ no hosted compute or GitHub binaries.
 Hugo subsequently explicitly authorizes publishing these changes in the repository.
 Verify and use sodreoficial2-hue / LP-by-hs; do not use the old account.
 The preceding block was an automatic approval decision, not a GitHub login error.
+
+## Automatic audio-to-SF2 creator (2 November 2026)
+
+Hugo requests an update with the most automatic possible audio import, optional
+editing, and recognition/grouping of the same note at different intensities.
+Base this on e408614 (VU/startup piano) in sodreoficial2-hue/LP-by-hs. Keep the
+approved engine, ASIO, MIDI, profiles, catalog and Vision assets. See
+docs/AUTOMATIC-SAMPLE-BUILDER.md for behavior, estimation limits, format support,
+local validation and outstanding Windows/hardware checks. A compiled update is
+requested; do not use hosted Actions. Authenticated GitHub allowance remains
+unknown. Publish one grouped source stage and preserve the prior stable branch.

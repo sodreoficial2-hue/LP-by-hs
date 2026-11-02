@@ -29,6 +29,7 @@
 #include "sf2_headers.hpp"
 #include "audio_preferences.hpp"
 #include "master_midi.hpp"
+#include "sample_builder_window.hpp"
 #include <memory>
 #include <string>
 #include <fstream>
@@ -42,7 +43,7 @@
 #endif
 
 namespace {
-constexpr int Search=160,RestoreSounds=161,RestoreSelected=162,RestoreAll=163,LocateSounds=164,ProfileState=165,OutputMeter=166,PartSearch=167,PartVolumeBase=500,PartSoloBase=504,PartMuteBase=508,PartTargetBase=512,PartCopyBase=516,PartSwapBase=520,PartLowBase=524,PartHighBase=528,PerformanceSaveNew=532,PartZoneBase=536,AudioDiagnostics=170,MasterVolume=171,MasterLabel=172;
+constexpr int Search=160,RestoreSounds=161,RestoreSelected=162,RestoreAll=163,LocateSounds=164,ProfileState=165,OutputMeter=166,PartSearch=167,PartVolumeBase=500,PartSoloBase=504,PartMuteBase=508,PartTargetBase=512,PartCopyBase=516,PartSwapBase=520,PartLowBase=524,PartHighBase=528,PerformanceSaveNew=532,PartZoneBase=536,AudioDiagnostics=170,MasterVolume=171,MasterLabel=172,CreateSample=173;
 constexpr int Catalog=100,Favorites=101,Save=102,Open=103,Midi=104,Effects=105,Import=106,ImportSf2=114,AudioDriver=107,AudioStart=109,AudioStop=110,AudioPanel=111,Panic=112,Category=113,Knob=200,MidiLearnKnob=115,PerformanceButton=116,PerformanceModeControl=117,PerformancePartBase=118,PerformancePlay=122,PerformanceSave=123,PerformanceName=124,PerformanceEditPart=125,PerformanceClearBase=126,AudioMidiButton=140,SettingsButton=141,AboutButton=142,CategoryTile=143,PreviousCategory=144,NextCategory=145,InstrumentArt=146,AboutText=147,HomeButton=148,KeyboardButton=149,CategoryCardBase=400;
 constexpr UINT BeginParameterLearn=WM_APP+40,LoadLibraryMessage=WM_APP+41,ToggleFavoriteMessage=WM_APP+42,SelectSoundMessage=WM_APP+43,RevealFocusMessage=WM_APP+44,VisionCommandMessage=WM_APP+45,DirectMidiMessage=WM_APP+46,SoundReadyMessage=WM_APP+47;
 LRESULT CALLBACK pageProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
@@ -68,6 +69,7 @@ struct App {
  HFONT font{}; HBRUSH background=CreateSolidBrush(lpui::ink),panelBackground=CreateSolidBrush(lpui::panel);
  lp::Session show; lp::MidiRouter router{show};
  std::filesystem::path currentProfile;
+ std::unique_ptr<lp::sampling::BuilderWindow> sampleBuilder;
  std::string savedProfile=profileSnapshot();
  bool editorDraft=false,restoringSounds=false,internalEdit=false;
  std::vector<std::string> restoreKeys;
@@ -243,7 +245,7 @@ struct App {
  bool pendingRestore=false;unsigned restoreAttempts=0;
  HMIDIIN midiHandle{};bool effects=false;
  std::filesystem::path base;
- ~App(){levelCalibration.reset();closeVision();closeMidi();engine.reset();for(auto f:{font,titleFont,signatureFont,largeFont,smallFont,statusFont})if(f)DeleteObject(f);DeleteObject(background);DeleteObject(panelBackground);}
+ ~App(){sampleBuilder.reset();levelCalibration.reset();closeVision();closeMidi();engine.reset();for(auto f:{font,titleFont,signatureFont,largeFont,smallFont,statusFont})if(f)DeleteObject(f);DeleteObject(background);DeleteObject(panelBackground);}
  void closeMidi(){router.cancelLearn();if(engine)engine->panic();if(midiHandle){midiInStop(midiHandle);midiInReset(midiHandle);midiInClose(midiHandle);midiHandle=nullptr;}}
  void message(const std::wstring& text){auto label=text;if(!levelWarning.empty())label+=L" · "+levelWarning;SetWindowTextW(status,label.c_str());markVisionDirty();}
  void error(const std::exception& e){recordVisionError(e);auto s=std::string(e.what());std::wstring text(s.begin(),s.end());MessageBoxW(window,text.c_str(),L"Live Performance",MB_OK|MB_ICONERROR);}
@@ -299,6 +301,7 @@ struct App {
   control(L"BUTTON",L"Salvar perfil",BS_PUSHBUTTON|WS_TABSTOP,Save);
   control(L"BUTTON",L"Importar SFZ",BS_PUSHBUTTON|WS_TABSTOP,Import);
   control(L"BUTTON",L"Importar SF2",BS_PUSHBUTTON|WS_TABSTOP,ImportSf2);
+  control(L"BUTTON",L"Criar timbre de áudio",BS_PUSHBUTTON|WS_TABSTOP,CreateSample);
   effectsButton=control(L"BUTTON",L"Parâmetros (E)",BS_PUSHBUTTON|WS_TABSTOP,Effects);
   category=control(L"COMBOBOX",L"",CBS_DROPDOWNLIST|WS_VSCROLL|WS_TABSTOP,Category);
   for(const auto* name:lp::instrumentCategories){auto text=std::filesystem::u8path(name).wstring();SendMessageW(category,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(text.c_str()));}
@@ -830,6 +833,7 @@ struct App {
     if(engine)engine->masterVolume(show.master);router.cancelLearn();editingPerformanceValid=false;activePerformanceIndex=-1;previewActive=false;show.current.reset();if(engine)engine->unload();refreshFavorites();refreshCatalog();updateIndicators();message(L"Perfil aberto. Use Salvar perfil após novos ajustes.");
    }
   }
+  if(id==CreateSample){if(!sampleBuilder)sampleBuilder=std::make_unique<lp::sampling::BuilderWindow>(window,base/L"sndfile.dll",[this](const std::filesystem::path& path){lp::Instrument sound;sound.sfz=std::filesystem::u8path(lp::makeSf2Reference(path,0,0));sound.name=path.stem().u8string();sound.category=14;addMySound(std::move(sound));saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();message(L"Timbre criado e salvo em Meus Sons.");});sampleBuilder->show();return;}
   if(id==Import){std::filesystem::path path;if(fileDialog(false,true,path)){lp::Instrument p;p.sfz=path;p.name=path.stem().u8string();p.category=14;if(addMySound(std::move(p)))saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();SendMessageW(catalog,LB_SETCURSEL,visibleInstruments.size()-1,0);audition();}}
   if(id==ImportSf2){std::filesystem::path path;if(sf2Dialog(path)){if(!engine)throw std::runtime_error("Audio engine unavailable");auto presets=lp::readSf2PresetHeaders(path);if(presets.empty())throw std::runtime_error("SF2 has no presets");for(const auto& preset:presets){lp::Instrument p;p.sfz=std::filesystem::u8path(lp::makeSf2Reference(path,preset.bank,preset.program));p.name=path.stem().u8string()+" / "+preset.name+" ("+std::to_string(preset.bank)+":"+std::to_string(preset.program)+")";p.category=14;addMySound(std::move(p));}saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();message(L"SF2 importado: escolha um preset na lista Meus Sons.");}}
   if(id==Category&&event==CBN_SELCHANGE)refreshCatalog();
@@ -980,7 +984,7 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
  case WM_ERASEBKGND:return 1;
  case WM_GETMINMAXINFO:reinterpret_cast<MINMAXINFO*>(lp)->ptMinTrackSize={1024,600};return 0;
  case WM_CLOSE:try{if(!app->confirmProfileChange())return 0;app->releaseVirtual();if(app->engine)app->persistAudioAndMidi();}catch(const std::exception& e){app->error(e);return 0;}break;
- case WM_DESTROY:app->levelCalibration.reset();app->closeVision();app->closeMidi();PostQuitMessage(0);return 0;
+ case WM_DESTROY:app->sampleBuilder.reset();app->levelCalibration.reset();app->closeVision();app->closeMidi();PostQuitMessage(0);return 0;
  }
  return DefWindowProcW(w,msg,wp,lp);
 }
@@ -996,6 +1000,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show){
  App app;WNDCLASSW cls{};cls.lpfnWndProc=proc;cls.hInstance=instance;cls.lpszClassName=L"LPbyHSAccessible";cls.hCursor=LoadCursorW(nullptr,IDC_ARROW);cls.hIcon=LoadIconW(instance,MAKEINTRESOURCEW(3));RegisterClassW(&cls);
  auto w=CreateWindowW(cls.lpszClassName,L"Live Performance by Hugo Sodré",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,CW_USEDEFAULT,CW_USEDEFAULT,1360,900,nullptr,nullptr,instance,&app);
  if(w){if(!app.visionPending())ShowWindow(w,show);UpdateWindow(w);MSG msg{};while(GetMessageW(&msg,nullptr,0,0)>0){
+  if(app.sampleBuilder&&app.sampleBuilder->ownsMessage(&msg)){if(!app.sampleBuilder->dialogMessage(&msg)){TranslateMessage(&msg);DispatchMessageW(&msg);}continue;}
   if(app.visionVisible()){TranslateMessage(&msg);DispatchMessageW(&msg);continue;}
   if(app.keyCommand(msg))continue;
   if(app.wheelCommand(msg))continue;

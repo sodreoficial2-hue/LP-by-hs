@@ -6,7 +6,7 @@
  int pageTop() const {return 156;}
  int pageMinimum() const {
   if(effects)return performanceControls()?360:864;
-  switch(screen){case lp::Screen::Home:return 316;case lp::Screen::Keyboard:return 360;case lp::Screen::Instruments:return 400;case lp::Screen::AudioMidi:return 660;case lp::Screen::Settings:return 760;case lp::Screen::PerformanceEditor:return 1600;case lp::Screen::About:return 600;}
+  switch(screen){case lp::Screen::Home:return 316;case lp::Screen::Keyboard:return 360;case lp::Screen::Instruments:return 400;case lp::Screen::AudioMidi:return 660;case lp::Screen::Settings:return 850;case lp::Screen::PerformanceEditor:return 1600;case lp::Screen::About:return 600;}
   return 580;
  }
  void scrollPage(int delta){if(pageScroll.move(delta))layout();}
@@ -104,7 +104,7 @@
    int actionWidth=(width-144)/3;place(AudioStart,56,p+340,actionWidth,60);place(AudioStop,72+actionWidth,p+340,actionWidth,60);place(AudioPanel,88+2*actionWidth,p+340,actionWidth,60);place(AudioDiagnostics,56,p+440,width-112,86);place(Panic,width-300,p+540,244,60);
   }else if(screen==lp::Screen::Settings){
    int half=(width-84)/2;
-   place(Open,32,p+28,half,160);place(Save,52+half,p+28,half,160);place(Import,32,p+208,half,160);place(ImportSf2,52+half,p+208,half,160);place(RestoreSounds,32,p+388,width-64,68);place(LocateSounds,32,p+472,width-64,68);place(Panic,width-300,p+578,244,60);
+   place(Open,32,p+28,half,160);place(Save,52+half,p+28,half,160);place(Import,32,p+208,half,160);place(ImportSf2,52+half,p+208,half,160);place(RestoreSounds,32,p+388,width-64,68);place(LocateSounds,32,p+472,width-64,68);place(CreateSample,32,p+558,width-64,68);place(Panic,width-300,p+650,244,60);
   }else if(screen==lp::Screen::PerformanceEditor){
    place(PartSearch,56,p+10,width-112,44);p+=64;
    place(PerformanceModeControl,56,p+68,width-112,300);

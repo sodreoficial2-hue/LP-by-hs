@@ -123,7 +123,7 @@
    else if(c.action=="releaseNotes")releaseVisionNotes();
    else if(c.action=="touch"){/* Compatibility with earlier frontends; no inactivity timer. */}
    else{
-    const std::pair<const char*,int> actions[]={{"connect",AudioStart},{"disconnect",AudioStop},{"controlPanel",AudioPanel},{"panic",Panic},{"save",Save},{"open",Open},{"importSfz",Import},{"importSf2",ImportSf2},{"performancePlay",PerformancePlay},{"performanceSave",PerformanceSave}};
+    const std::pair<const char*,int> actions[]={{"connect",AudioStart},{"disconnect",AudioStop},{"controlPanel",AudioPanel},{"panic",Panic},{"save",Save},{"open",Open},{"importSfz",Import},{"importSf2",ImportSf2},{"createSample",CreateSample},{"performancePlay",PerformancePlay},{"performanceSave",PerformanceSave}};
     bool found=false;for(const auto& action:actions)if(c.action==action.first){if(c.action=="panic")releaseVisionNotes();command(action.second,BN_CLICKED);found=true;break;}if(!found)throw std::invalid_argument("Comando indisponível");
    }
   }catch(const std::exception& e){visionLastError=e.what();message(visionWide(visionLastError));}
