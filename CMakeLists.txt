@@ -10,7 +10,7 @@ target_include_directories(lp_engine PUBLIC src)
 target_link_libraries(lp_engine PRIVATE ${CMAKE_DL_LIBS} Threads::Threads)
 # Offline conversion uses sample_builder.hpp's existing dynamic libsndfile ABI.
 # sndfile.dll is already copied to the portable; no codec work runs on audio threads.
-add_library(lp_timbre_import src/nki_reader.cpp src/sfz_policy.cpp src/timbre_format.cpp src/sfz_conversion.cpp src/nsmp_to_sfz.cpp src/nki_to_sfz.cpp src/npno_reader.cpp src/npno_to_sfz.cpp
+add_library(lp_timbre_import src/nki_reader.cpp src/sfz_calibration.cpp src/sfz_policy.cpp src/timbre_format.cpp src/sfz_conversion.cpp src/nsmp_to_sfz.cpp src/nki_to_sfz.cpp src/npno_reader.cpp src/npno_to_sfz.cpp
  src/nsmp/cbin.cpp src/nsmp/nsmp_sections.cpp src/nsmp/nsmp_codek.cpp
  src/nsmp/nw1_dsp.cpp src/nsmp/bitstream.cpp src/nsmp/checksum.cpp)
 target_include_directories(lp_timbre_import PUBLIC src)
@@ -364,4 +364,25 @@ if(LP_SNDFILE_LIBRARY)
    "${LP_SNDFILE_LIBRARY}" "${CMAKE_BINARY_DIR}" "${CMAKE_BINARY_DIR}/render-output")
   set_tests_properties(shared_format_real_render PROPERTIES FIXTURES_REQUIRED "nki_spec;pitch_spec")
  endif()
+endif()
+
+# Personal v5/v6 audio gates are explicit, independent and never replaced by synthetic vectors.
+set(LP_NPNO_V5_REAL_FIXTURE "" CACHE FILEPATH "Personal NPNO internal 0x450 for real render/calibration")
+set(LP_NPNO_V6_REAL_FIXTURE "" CACHE FILEPATH "Personal NPNO internal 0x464 for real render/calibration")
+if(UNIX AND LP_REAL_SFIZZ_LIBRARY AND LP_SNDFILE_LIBRARY)
+ add_executable(lp_npno_personal_render_test tests/npno_personal_render_test.cpp)
+ target_link_libraries(lp_npno_personal_render_test PRIVATE lp_timbre_import)
+ foreach(version 5 6)
+  add_test(NAME npno_personal_v${version}_render COMMAND lp_npno_personal_render_test
+   "${LP_REAL_SFIZZ_LIBRARY}" "${LP_SNDFILE_LIBRARY}" "${LP_NPNO_V${version}_REAL_FIXTURE}"
+   "${CMAKE_BINARY_DIR}/npno-personal-v${version}" "${version}")
+  set_tests_properties(npno_personal_v${version}_render PROPERTIES SKIP_RETURN_CODE 77)
+ endforeach()
+endif()
+if(LP_SNDFILE_LIBRARY)
+ add_test(NAME timbre_conversion_cli COMMAND "${Python3_EXECUTABLE}"
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/convert_cli_test.py" $<TARGET_FILE:lp_convert_timbre>
+  "${LP_SNDFILE_LIBRARY}" "${LP_IMPORT_FIXTURE_ROOT}" "${CMAKE_BINARY_DIR}/nki-fixtures"
+  "${CMAKE_BINARY_DIR}/cli-validation" "${LP_REAL_SFIZZ_LIBRARY}")
+ set_tests_properties(timbre_conversion_cli PROPERTIES FIXTURES_REQUIRED "nki_spec;pitch_spec")
 endif()

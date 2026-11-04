@@ -1,0 +1,16 @@
+{
+  "src/sfizz_engine.cpp": "b69e09b7cf07b329ca52a03a07a47d6f6212e74a6153e78cc98debee8dc53a0d",
+  "src/sf2_engine.cpp": "f0f62ff3510dfefe94a04c7be3d6938e05f0d07f120afa2a7e2cbedc03dffc84",
+  "src/dsp.cpp": "cf4257f37c807f6edf15074d4be7c6fddfa8225c2a29b83d104ace64bdf1dee1",
+  "src/audio_host.cpp": "c78fc357a8072ae5f05c8f1a4d50c7e85c183c1cc8c02dcf7e28bc9e1e9020cf",
+  "src/sample_builder.hpp": "b85e4359071a543fbee29a8c8766922fea535ab674c3e74042766de97fc774b6",
+  "vision-ui/index.html": "90554bead796c16b1d63870b329bc37db5c62c51bda4b3baac5293a2d81798db",
+  "vision-ui/asset-provenance.json": "4daf61967030f297b7e825b5feb232bc6b3200ff11563ba8ee295096758880b7",
+  "vision-ui/assets.js": "98668c22b150e0f0372d7e86030db20580530d8244b588320a1dfc0de0527e9a",
+  "vision-ui/vision.css": "c4b6c8ef661cc2a9ec2781fd3a1317d6732e12d5b1da827c4d9fb6b22b77e6d5",
+  "vision-ui/splash-assets.js": "43ec47f117067d62cc92138003958c471966542f0620b0ca3549144b9ab813c2",
+  "vision-ui/vision.js": "18cf5fb16d5bbd1c215faf5e7bb8426679091dc35dd08f8d3755e1f8eafd8d77",
+  "vision-ui/splash-provenance.json": "68bb3946bc271fe24619828162495af9c3b95b45e12211808157a6e9bd560c00",
+  "vision-ui/licenses/dmsans-OFL.txt": "2af94f4fb533be8fa23282eb33e08ca311ddf47c2f32777e2040b282deeec65c",
+  "vision-ui/licenses/plusjakartasans-OFL.txt": "995c7199cab65954f545996326755daee7b63cc6b42b06c13da1f9502ab08a99"
+}

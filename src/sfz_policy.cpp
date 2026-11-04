@@ -25,8 +25,9 @@ void auditVelocityCoverage(const std::vector<ConvertedZone>& zones){
  }
 }
 void prepareSfzZones(std::vector<ConvertedZone>& zones,MetaSidecar& meta,const ConversionOptions& options){
+ if(zones.size()>65536)throw std::runtime_error("Instrumento excede limite de 65536 regiões SFZ");
  if(options.crossfadeWidth<1||options.crossfadeWidth>16)throw std::runtime_error("Crossfade velocity deve ter 1 a 16 passos MIDI");
- for(auto& z:zones){z.velLow=std::max(1,z.velLow);if(z.keyLow<0||z.keyHigh>127||z.keyLow>z.keyHigh||z.velLow>z.velHigh||z.velHigh>127)throw std::runtime_error("Região fora dos limites MIDI");}
+ for(auto& z:zones){z.sourceVelLow=std::max(1,z.velLow);z.sourceVelHigh=z.velHigh;z.velLow=std::max(1,z.velLow);if(z.keyLow<0||z.keyHigh>127||z.keyLow>z.keyHigh||z.velLow>z.velHigh||z.velHigh>127)throw std::runtime_error("Região fora dos limites MIDI");}
  // Split neighboring roots at the overlap midpoint. Original ranges remain in source metadata.
  for(std::size_t i=0;i<zones.size();++i)for(std::size_t j=i+1;j<zones.size();++j){auto& a=zones[i];auto& b=zones[j];
   if(a.muted||b.muted||!sameTrigger(a,b)||a.velLow>b.velHigh||b.velLow>a.velHigh||a.keyLow>b.keyHigh||b.keyLow>a.keyHigh)continue;
@@ -45,12 +46,21 @@ void prepareSfzZones(std::vector<ConvertedZone>& zones,MetaSidecar& meta,const C
  if(!options.velocityCrossfade)return;
  const auto original=zones;
  for(std::size_t i=0;i<zones.size();++i)for(std::size_t j=0;j<zones.size();++j){auto& a=zones[i];auto& b=zones[j];const auto& oa=original[i];const auto& ob=original[j];
-  if(i==j||condition(oa)!=condition(ob)||oa.keyLow!=ob.keyLow||oa.keyHigh!=ob.keyHigh||oa.sequencePosition!=ob.sequencePosition||oa.velHigh+1!=ob.velLow)continue;
+  if(oa.muted||ob.muted||i==j||condition(oa)!=condition(ob)||oa.keyLow!=ob.keyLow||oa.keyHigh!=ob.keyHigh||oa.sequencePosition!=ob.sequencePosition||oa.velHigh+1!=ob.velLow)continue;
   int width=std::min({options.crossfadeWidth,(oa.velHigh-oa.velLow+1)/2,(ob.velHigh-ob.velLow+1)/2});
   if(width==0){meta.limitations.push_back("Crossfade omitido: camada estreita demais para dois pontos de interpolação");continue;}
   int lo=std::max(oa.velLow,ob.velLow-width),hi=std::min(ob.velHigh,ob.velLow+width-1);
   a.velHigh=hi;b.velLow=lo;a.xfoutLowVel=lo;a.xfoutHighVel=hi;b.xfinLowVel=lo;b.xfinHighVel=hi;
  }
 }
-std::string writeSfzInstrument(const std::vector<ConvertedZone>& zones){auto s=sfzStream();writeSfzGroup(s);for(const auto& z:zones)writeSfzRegion(s,z);return s.str();}
+std::string writeSfzInstrument(const std::vector<ConvertedZone>& zones){
+ auto s=sfzStream();
+ // Stable first-seen group order, stable source order inside each group. Regions
+ // retain their controls too: a new group cannot leak inherited CC/trigger state.
+ using Group=std::tuple<int,int,bool,int,int>;
+ std::vector<Group> order;std::map<Group,std::vector<const ConvertedZone*>> groups;
+ for(const auto& z:zones){Group key{z.program,z.sourceBank,z.releaseTrigger,z.cc64Low,z.cc64High};if(!groups.count(key))order.push_back(key);groups[key].push_back(&z);}
+ for(const auto& key:order){writeSfzGroup(s);s<<"// source_bank="<<std::get<1>(key)<<"; controls repeated per region\n";for(auto z:groups[key])writeSfzRegion(s,*z);}
+ return s.str();
+}
 }
