@@ -20,7 +20,7 @@ public:
  explicit WavWriter(const std::filesystem::path& library);
  ~WavWriter(){unload();}WavWriter(const WavWriter&)=delete;WavWriter& operator=(const WavWriter&)=delete;
  void write(const std::filesystem::path& path,int rate,int channels,const std::vector<float>& interleaved);
- void writePcm16(const std::filesystem::path& path,int rate,const std::vector<std::int16_t>& mono);
+ void writePcm16(const std::filesystem::path& path,int rate,const std::vector<std::int16_t>& interleaved,int channels=1);
 };
 std::ostringstream sfzStream();
 void writeSfzGroup(std::ostream& out);
@@ -30,6 +30,7 @@ double linearGainDb(double gain);
 // Excludes note-on velocity 0. Missing/duplicate layers are an error, never filled silently.
 void auditVelocityCoverage(const std::vector<ConvertedZone>& zones);
 void prepareSfzZones(std::vector<ConvertedZone>& zones,MetaSidecar& meta,const ConversionOptions& options={});
+void calibrateSfzZones(std::vector<ConvertedZone>& zones,MetaSidecar& meta,const ConversionOptions& options,const std::filesystem::path& output);
 std::string writeSfzInstrument(const std::vector<ConvertedZone>& zones);
 std::string bytesHex(const std::uint8_t* data,std::size_t size);
 }

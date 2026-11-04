@@ -39,10 +39,17 @@ struct ConvertedZone {
  bool muted=false;
  int xfinLowVel=-1,xfinHighVel=-1,xfoutLowVel=-1,xfoutHighVel=-1;
  int program=0;
+ int sourceBank=-1; // NPNO: 0 attack, 1 pedal alternative, 2 key release; not a DSP resonance flag.
+ int sourceVelLow=1,sourceVelHigh=127;
+ double ampVeltrack=100,calibrationOffsetDb=0,calibrationResidualDb=0;
+ bool calibrated=false;
 };
 struct ConversionOptions {
  bool velocityCrossfade=false;
- int crossfadeWidth=4; // MIDI velocity steps; additional voices are opt-in
+ int crossfadeWidth=8; // Half window in MIDI steps, capped by neighboring layer widths.
+ bool velocityCrossfadeExplicit=false; // NPNO defaults on, others retain opt-in behavior.
+ bool stereoMonoFallback=false;
+ std::filesystem::path calibrationSfizzLibrary; // Explicit offline renderer; empty = measured calibration N/A.
 
 };
 struct MetaSidecar {

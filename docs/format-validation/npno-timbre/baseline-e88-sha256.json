@@ -1,0 +1,7 @@
+{
+  "commit": "e88eac85f8223682580c4f139a54e491889b684a",
+  "files": {
+    "docs/FORMAT-INTEGRATION-2026-11-04.md": "d20738c33877c4b5f948d41a410fd18343b05511bdb0ab434805ed22aa0d57e2",
+    "scripts/verify_timbre_import.sh": "045fab0daa7713fc63c776aad526d8eeae74143a3a60a02ae833468f879fc385"
+  }
+}

@@ -1,3 +1,5 @@
+> **Última etapa NPNO/NPMO:** consulte “Atualização NPNO/NPMO: timbre, camadas e estéreo” ao final. Aceite amplo parcial; resultados e pendências explícitos.
+
 > **Estado atual:** consulte a seção “Atualização: fechamento das lacunas P1–P6”. O registro inicial abaixo é histórico. O aceite amplo ainda depende de monólitos Kontakt não suportados.
 
 # Consolidação dos importadores — 4 de novembro de 2026
@@ -239,3 +241,92 @@ porque P1.6, no sentido amplo de qualquer monólito, permanece FALHADO.**
   os geradores/vetores necessários para reproduzir as saídas offline.
 
 A última execução CTest concluída retornou **0**, com os 34 testes disponíveis aprovados e os 2 fixtures pessoais ausentes explicitamente pulados; as 2 exclusões legadas permanecem as documentadas acima.
+
+---
+
+## Atualização NPNO/NPMO: timbre, camadas e estéreo (4 de novembro de 2026)
+
+**Estado: melhorias implementadas e medidas; aceite amplo ainda parcial.**
+Os registros anteriores permanecem históricos. P1.6 (monólitos Kontakt) continua
+**FALHADO**. Não houve comparação auditiva com teclado Nord nem novo EXE Windows.
+
+[Reprodução, referência de calibração, decisões e fontes](format-validation/npno-timbre/README.md).
+[Métricas desta execução](format-validation/npno-timbre/metrics.json).
+[Arquivos alterados](format-validation/npno-timbre/files-changed.txt).
+[Resultados completos](format-validation/npno-timbre/test-results.txt).
+[Confronto dos 201 limiares](format-validation/npno-timbre/threshold-comparison.json).
+
+| Aspecto NPNO atual | Estado e evidência |
+|---|---|
+| Parser efetivo | PASSOU estrutural: CBIN/CNSP 0x450/0x464, diretório 0x732 × 0x76; `npno_import_test`, referências confrontadas. Trim v5 agora u16; interpretação v6 permanece divergente |
+| Áudio/taxa | PASSOU: PCM16 35002 Hz sem normalização/resampling, todos os valores L/R conferidos contra PCM independente |
+| Zonas/velocity/loops | PASSOU cobertura exata 1..127 antes do crossfade; limites de loop conservados. FALHADO para paridade da curva Touch com hardware: referências conflitantes |
+| RR | N/A: não há campo NPNO confirmado, takes não viram RR inventado; política comum de sequência preservada |
+| Crossfade | PASSOU: padrão ligado NPNO, largura 8 (1..16 configurável), duas regiões apenas na janela; NKI/NSMP opt-in |
+| Calibração de ganho | PASSOU na referência de projeto PCM+trim/isotônica com sfizz real; N/A sem biblioteca explícita; FALHADO para curva contínua/DSP de origem não recuperados |
+| Estéreo | PASSOU: um WAV intercalado por stroke, uma região por stroke/zona, uma voz por camada; fallback mono com compensação da lei de pan |
+| Release | PASSOU: constantes conservadoras 0,2/2,0/0,2 s registradas; banco 2 só note-off e sem retrigger por bouncing. N/A conversão de fades desconhecidos |
+| Limites restantes | DSP simpatético, Touch por modelo/perfil, trim v6, corpus pessoal e equivalência auditiva não comprovados; volume [-144,+10.8] dB, 65536 regiões, original/sidecar preservados |
+
+### Relatório aditivo por subitem
+
+| Item | Estado | Evidência, decisão ou pendência |
+|---|---|---|
+| T1.1 | PASSOU | CLI `--velocity-crossfade`, `--crossfade-width=N` padrão 8; três formatos; alias antigo mantido; `timbre_conversion_cli` |
+| T1.2 | PASSOU | NPNO liga por padrão, `--no-velocity-crossfade` desliga; sidecar `velocity_crossfade=on; width=N`; auditoria anterior permanece |
+| T1.3 | PASSOU nos fixtures | `shared_format_real_render`: 128 teclas × 127 velocities × 2 pedais × 2 versões = 65024 combinações; janela e opcodes conferidos; uma voz fora, duas na janela inclusive endpoints de ganho zero |
+| T2.1 | PASSOU | Grupos por programa/banco/trigger/CC64, ordem de grupos por primeira ocorrência e ordem de regiões mantida dentro deles; controles repetidos evitam herança acidental |
+| T2.2 | PASSOU na referência de projeto | Constantes iniciais -12/-18 dB e calibração RMS contra ataque normal por tecla/camada. `shared_format_real_render` verifica diferenças dentro de 0,5 dB |
+| T2.3 | PASSOU pela alternativa conservadora | `damperTop` confirma amortecimento, não ausência de banco 2: regiões superiores mantidas; dúvida explícita no sidecar |
+| T2: ressonância simpatética real | FALHADO no escopo amplo | Banco 1 continua substituto exclusivo do ataque com pedal, como documenta nord-format; grupos/ganho não implementam DSP de notas já soando |
+| T3.1 | PASSOU na aproximação por camada; FALHADO na curva contínua de origem | RMS real, 3 velocities únicas por faixa, referência PCM+trim isotônica. NPNO subdivide por tecla para compensar duração de release transposto; cada região resultante tem uma tecla possível. Curva contínua Nord desconhecida, não inventada |
+| T3.2 | PASSOU para compensação explícita | `amp_veltrack=0`, offset e erro residual por região, rerender pós-ajuste; erro máximo sintético 0,00000252628 dB. Calibração é explícita `--calibrate-sfizz=LIB`; ausência registrada N/A |
+| T3.3 | PASSOU | PCM16 de cada valor e canal idêntico ao oracle; compensação apenas `volumeDb`; bounds verificados |
+| T4.1 | PASSOU parcial; N/A documentos indisponíveis | nord-format 0.8.0 e código OpenNord consultados; `NSP-FORMAT.md` não localizado nas revisões consultadas, análise Jeroen indisponível. URLs/revisões no README de reprodução |
+| T4.2 | PASSOU para offsets; FALHADO para semântica integral | Diretório, mapa, fine tune, bancos, loop e decay confrontados; regras de velocity e trim divergem entre fontes |
+| T4.3 | PASSOU na correção trim v5; FALHADO para conflito Touch/v6 | v5 +0x34 agora unsigned. Não se escolhe nova curva nem unidade v6 sem resolver a divergência. Comparação legada/log OpenNord mostra até 20 passos MIDI; não é erro medido contra Nord |
+| T4.4 | PASSOU | Nome, 21 pares threshold/MIDI, interpolação, regra v5/v6, estimativa legada e conflito registrados em cada `source_metadata.velocity_curve` |
+| T5.1 | PASSOU | PCM16 estéreo nativo exato; fase L/R preservada e uma voz estéreo real. `npno_import_validation` e `shared_format_real_render` |
+| T5.2 | PASSOU | `--stereo-mono-fallback`; par mono hard-pan e -3,01029995664 dB por lane para lei de pan; caminho registrado no sidecar; erro de comparação permitido <0,02 dB |
+| T5.3 | PASSOU | Regiões estéreo únicas aceitas pela auditoria; pares antigos -L/-R continuam aceitos, duplicatas ambíguas continuam falhando |
+| T6.1 | PASSOU pela alternativa conservadora | Sem unidade confirmada dos fades, constantes 0,2/2,0/0,2 s preservadas e decisão gravada; coeficientes de loop não convertidos arbitrariamente em ampeg_release |
+| T6.2 | PASSOU nos fixtures | Banco 2 isolado tem zero voz no note-on, uma no note-off, uma após alternar 127/0/127/0 em CC64; nenhum novo ataque criado pelo pedal |
+| T7.1 | PASSOU no escopo medido | Varredura completa v5/v6 com contagem no ataque e note-off, janelas de crossfade, RMS dos bancos, PCM/fase e polifonia estéreo. Não constitui teste perceptivo contra teclado |
+| T7.2 | N/A | Dois testes pessoais v5/v6 com variáveis CMake independentes e skip 77; nenhum módulo pessoal fornecido |
+| T7.3 | FALHADO na suíte completa; PASSOU nos gates desta tarefa | Resultado exato e falha legada OSC/ADSR abaixo. A falha não foi apagada/excluída da execução completa |
+| T7.4 | PASSOU | P1.6 continua FALHADO; nenhuma equivalência auditiva ou Windows/ASIO afirmada |
+| T8.1 | PASSOU | Tabela acima e relatório aditivo preservam estado e evidências anteriores |
+| T8.2 | PASSOU | Limitations atualizadas: tracking adicional removido, estéreo novo e dúvidas reais explicitadas |
+| T8.3 | PASSOU no registro | Arquivos, métricas, fontes, reprodução e resultados brutos anexados nesta seção/diretório de evidências |
+
+### Medições e custo
+
+- Erro RMS máximo sintético da referência de calibração: **0,00000252628 dB**, tolerância 0,5 dB, sem alteração dos WAVs. Os offsets calculados podem ser maiores que 10,8 dB; o **ganho final**, não o offset, é limitado a [-144,+10.8] dB.
+- Fora da janela: uma voz de ataque por nota; dentro: duas. Note-off acrescenta somente a(s) camada(s) de release documentada(s), separadas da cauda do ataque. Bouncing do pedal não acrescenta instâncias de release.
+- Estéreo: uma voz por camada contra duas no fallback mono. No piano lógico de 88 teclas × 6 camadas × 2 RR: **1056 regiões estéreo contra 2112 mono**, 8 contra 16 vozes no primeiro acorde; 128 vozes no acorde 16 contra 8 com sustain. O antigo número 1056 já era o número de regiões lógicas mono do teste, não 2112 canais de um arquivo Nord real.
+- Calibração por tecla dos fixtures v5/v6 gera 1152 regiões por módulo, reutilizando 18 WAVs. Conversão sem calibração gera 36 regiões nativas nesses fixtures (72 no antigo estéreo em pares mono). Subdivisão não aumenta as vozes por nota.
+- Crossfade no teste lógico mantém 1056 regiões e antecipa o teto de 128 vozes do acorde 16 para o 8. Não é latência do áudio e não elimina o custo de pedal continuamente pressionado.
+- Divergência Touch: até **20 passos MIDI** entre a tabela legada e a aproximação logarítmica OpenNord no sweep 0..200; não há referência de hardware para declarar erro ≤2.
+
+### Resultado final e escopo preservado
+
+CMake configurou e compilou localmente. CTest completo: **36 PASSOU, 1 FALHADO,
+4 N/A/Skipped**, 41 testes registrados (exit 8). A falha é o teste legado
+OSC/ADSR descrito abaixo; todos os testes de importação, render e CLI desta
+etapa passaram. Os quatro skips são fixtures pessoais ausentes. O script sem
+CMake aprovou os cinco grupos originais, NKI binário, política comum, render real
+e CLI (exit 0); detalhes em `format-validation/npno-timbre/test-results.txt`.
+Há 14 hashes de arquivos protegidos em `protected-sha256.json`: motores, DSP,
+AudioHost, criador SF2 e Vision idênticos à base. O original, SHA-256, prefixo,
+registros completos e XML NKI continuam preservados. PCM não é normalizado por
+esta etapa. Auditorias permanecem com exceção explícita e rollback.
+
+A falha legada é **`real_sfizz_envelope`: `Real OSC ADSR readback`**, antes de seu
+trecho de banco recuperado. O teste e o motor são idênticos à base; não se atribui
+essa falha à ausência de banco nem se modifica o DSP fora do escopo. O teste
+`real_performance_controls` passou nesta execução, apesar de ter sido excluído
+em relatório histórico anterior.
+
+Pendências visíveis: conflito de Touch/trim v6, curva contínua do DSP, ressonância
+simpatética, fixtures pessoais, comparação auditiva, teste legado OSC/ADSR e
+P1.6 amplo. Sem novo EXE Windows, sem Actions; quota autenticada desconhecida.

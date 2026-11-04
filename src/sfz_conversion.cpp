@@ -29,13 +29,13 @@ void WavWriter::write(const std::filesystem::path& path,int rate,int channels,co
  try{std::int64_t pos=0,count=static_cast<std::int64_t>(pcm.size()/channels);while(pos<count){auto written=writeFrames(file,pcm.data()+pos*channels,std::min<std::int64_t>(8192,count-pos));if(written<=0)throw std::runtime_error("Falha na gravação WAV");pos+=written;}auto result=closeFile(file);closed=true;if(result)throw std::runtime_error("Falha ao concluir WAV");}catch(...){if(!closed)closeFile(file);std::error_code ec;std::filesystem::remove(path,ec);throw;}
 }
 std::ostringstream sfzStream(){std::ostringstream s;s.imbue(std::locale::classic());s<<std::setprecision(12)<<"// Live Performance offline conversion; see original .meta.json\n";return s;}
-void WavWriter::writePcm16(const std::filesystem::path& path,int rate,const std::vector<std::int16_t>& pcm){
- if(rate<8000||rate>192000||pcm.empty())throw std::runtime_error("WAV: áudio PCM16 inválido");
+void WavWriter::writePcm16(const std::filesystem::path& path,int rate,const std::vector<std::int16_t>& pcm,int channels){
+ if(rate<8000||rate>192000||pcm.empty()||channels<1||channels>2||pcm.size()%channels)throw std::runtime_error("WAV: áudio PCM16 inválido");
  auto writeShort=reinterpret_cast<std::int64_t (*)(void*,const std::int16_t*,std::int64_t)>(symbol("sf_writef_short"));
  if(!writeShort)throw std::runtime_error("libsndfile sem função de gravação PCM16");
- Info info{};info.samplerate=rate;info.channels=1;info.format=0x10002;
+ Info info{};info.samplerate=rate;info.channels=channels;info.format=0x10002;
  auto file=open(path.c_str(),0x20,&info);if(!file)throw std::runtime_error("Não foi possível criar WAV PCM16");bool closed=false;
- try{std::int64_t pos=0,count=static_cast<std::int64_t>(pcm.size());while(pos<count){auto n=writeShort(file,pcm.data()+pos,std::min<std::int64_t>(8192,count-pos));if(n<=0)throw std::runtime_error("Falha ao gravar WAV PCM16");pos+=n;}auto result=closeFile(file);closed=true;if(result)throw std::runtime_error("Falha ao concluir WAV PCM16");}
+ try{std::int64_t pos=0,count=static_cast<std::int64_t>(pcm.size()/channels);while(pos<count){auto n=writeShort(file,pcm.data()+pos*channels,std::min<std::int64_t>(8192,count-pos));if(n<=0)throw std::runtime_error("Falha ao gravar WAV PCM16");pos+=n;}auto result=closeFile(file);closed=true;if(result)throw std::runtime_error("Falha ao concluir WAV PCM16");}
  catch(...){if(!closed)closeFile(file);std::error_code ignored;std::filesystem::remove(path,ignored);throw;}
 }
 void writeSfzGroup(std::ostream& out){out<<"<group>\n";}
@@ -60,6 +60,7 @@ bool writeSfzRegion(std::ostream& s,const ConvertedZone& z,std::vector<std::stri
  if(z.zoneMode==1)s<<" pitch_keytrack=0";
  int transpose=static_cast<int>(std::trunc(z.tuneCents/100));if(transpose<-127||transpose>127)throw std::runtime_error("Afinação excede limites SFZ; original preservado");
  s<<" volume="<<std::max(-144.0,z.volumeDb)<<" transpose="<<transpose<<" tune="<<z.tuneCents-transpose*100;
+ if(z.ampVeltrack!=100)s<<" amp_veltrack="<<z.ampVeltrack;
  if(z.hasPan)s<<" pan="<<z.pan;
  if(z.releaseTrigger)s<<" trigger=release_key";
  if(z.releaseSeconds>=0)s<<" ampeg_release="<<z.releaseSeconds;

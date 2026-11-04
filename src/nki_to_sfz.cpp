@@ -39,7 +39,7 @@ std::filesystem::path samplesFolder(const std::filesystem::path& input){
  throw MissingNkiSamples("NKI sem amostras externas localizadas; decodificação integral pendente. Selecione Samples ou a raiz desta biblioteca KONTAKT");
 }
 }
-static std::filesystem::path nkiFallback(const std::filesystem::path& input,const std::filesystem::path& output,MetaSidecar& out,const std::filesystem::path& library,const std::filesystem::path& sampleRoot){
+static std::filesystem::path nkiFallback(const std::filesystem::path& input,const std::filesystem::path& output,MetaSidecar& out,const std::filesystem::path& library,const std::filesystem::path& sampleRoot,const ConversionOptions& options){
  if(detectarTimbreFormat(input)!=TimbreFormat::NKI)throw std::runtime_error("Arquivo não reconhecido como candidato NKI");out=MetaSidecar{};out.name=input.stem().u8string();out.format="NKI";out.version="unknown";out.originalSha256=sha256File(input);out.status="approximate_companion_wav_sfz_map";
  std::ifstream in(input,std::ios::binary);std::uint8_t signature[16]{};in.read(reinterpret_cast<char*>(signature),16);out.signatureHex=bytesHex(signature,static_cast<std::size_t>(in.gcount()));
  out.limitations={
@@ -65,7 +65,9 @@ static std::filesystem::path nkiFallback(const std::filesystem::path& input,cons
    if(s.explicitVelocity){auto& values=velocities[s.root];auto v=values.find(s.velocity);z.velLow=v==values.begin()?1:(*std::prev(v)+s.velocity)/2+1;z.velHigh=std::next(v)==values.end()?127:(s.velocity+*std::next(v))/2;}
   }out.zones.push_back(z);writeSfzRegion(sfz,z);
  }
- return transaction.finish(input,out,sfz.str());
+ calibrateSfzZones(out.zones,out,options,output);
+ if(options.velocityCrossfade||!options.calibrationSfizzLibrary.empty())prepareSfzZones(out.zones,out,options);
+ return transaction.finish(input,out,writeSfzInstrument(out.zones));
 }
 namespace {
 double number(const std::map<std::string,std::string>& v,const std::string& key,double fallback){
@@ -97,7 +99,7 @@ std::vector<std::pair<std::size_t,std::size_t>> embeddedAudio(const nki::Documen
 }
 std::filesystem::path nkiParaSFZ(const std::filesystem::path& input,const std::filesystem::path& output,MetaSidecar& out,const std::filesystem::path& library,const std::filesystem::path& sampleRoot,const ConversionOptions& options){
  if(detectarTimbreFormat(input)!=TimbreFormat::NKI)throw std::runtime_error("NKI: arquivo de outro formato");
- auto doc=nki::read(input);if(!doc.recognized)return nkiFallback(input,output,out,library,sampleRoot);
+ auto doc=nki::read(input);if(!doc.recognized)return nkiFallback(input,output,out,library,sampleRoot,options);
  out=MetaSidecar{};out.name=input.stem().u8string();out.format="NKI";out.version=doc.root.attr("version","XML");out.status="binary_k2_xml_sfz";out.signatureConfirmed=true;out.signatureHex="zlib_or_gzip/K2_Container";out.originalSha256=sha256File(input);
  out.preservedFeatures.push_back("Full source XML (includes unmapped fields): "+doc.xml);
  out.preservedFeatures.push_back("compressed_payload_offset="+std::to_string(doc.payloadOffset)+"; compressed_payload_end="+std::to_string(doc.payloadEnd));
@@ -143,7 +145,7 @@ std::filesystem::path nkiParaSFZ(const std::filesystem::path& input,const std::f
   }
  }
  if(out.zones.empty())throw std::runtime_error("NKI XML: nenhuma zona válida com áudio");
- prepareSfzZones(out.zones,out,options);
+ calibrateSfzZones(out.zones,out,options,output);prepareSfzZones(out.zones,out,options);
  std::string first;
  for(std::size_t i=0;i<sfzNames.size();++i){std::vector<ConvertedZone> selected;for(const auto& z:out.zones)if(z.program==int(i+1))selected.push_back(z);if(selected.empty())continue;auto sfz=writeSfzInstrument(selected);atomicWrite(output/std::filesystem::u8path(sfzNames[i]),sfz);if(first.empty())first=sfz;}
  return transaction.finish(input,out,first);

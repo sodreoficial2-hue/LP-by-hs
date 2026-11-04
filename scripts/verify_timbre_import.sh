@@ -13,7 +13,7 @@ lp_sndfile="${1:-/lib/x86_64-linux-gnu/libsndfile.so.1}"
 lp_run() { chmod u+x "$1"; "$@"; }
 tar -xzf "$lp_root/tests/fixtures/import-fixtures.tar.gz" -C "$lp_test_dir"
 cd "$lp_root"
-lp_sources=(src/nki_reader.cpp src/sfz_policy.cpp src/timbre_format.cpp src/sfz_conversion.cpp src/nsmp_to_sfz.cpp
+lp_sources=(src/nki_reader.cpp src/sfz_calibration.cpp src/sfz_policy.cpp src/timbre_format.cpp src/sfz_conversion.cpp src/nsmp_to_sfz.cpp
  src/nki_to_sfz.cpp src/npno_reader.cpp src/npno_to_sfz.cpp src/nsmp/*.cpp)
 lp_objects=()
 for lp_source in "${lp_sources[@]}"; do
@@ -39,4 +39,7 @@ if [[ -n "${LP_REAL_SFIZZ_LIBRARY:-}" ]]; then
 else
  echo 'N/A: real sfizz rendering; set LP_REAL_SFIZZ_LIBRARY to run measured pitch/voices/pedal gates'
 fi
-echo 'PASS: 5 original + 2 new import/policy regression groups'
+g++ -std=c++17 -g -Isrc src/timbre_convert_main.cpp "${lp_objects[@]}" -ldl -lz -lexpat -o "$lp_test_dir/lp_convert_timbre"
+chmod u+x "$lp_test_dir/lp_convert_timbre"
+python3 tests/convert_cli_test.py "$lp_test_dir/lp_convert_timbre" "$lp_sndfile" "$lp_test_dir/tests/fixtures" "$lp_test_dir/nki-fixtures" "$lp_test_dir/cli-output" "${LP_REAL_SFIZZ_LIBRARY:-}"
+echo 'PASS: 5 original + 2 import/policy + CLI groups; real render when explicitly configured'

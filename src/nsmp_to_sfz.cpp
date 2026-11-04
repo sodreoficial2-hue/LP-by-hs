@@ -40,6 +40,6 @@ std::filesystem::path nsmpParaSFZ(const std::filesystem::path& input,const std::
   }if(!used)out.preservedFeatures.push_back("Unmapped stroke exported without a playing SFZ region: id="+std::to_string(stroke.id));
  }
  for(const auto& zone:zones)if(!mapped.count(zone.id))throw std::runtime_error("Nord: zona perdeu seu áudio; conversão cancelada");
- prepareSfzZones(out.zones,out,options);return transaction.finish(input,out,writeSfzInstrument(out.zones));
+ calibrateSfzZones(out.zones,out,options,output);prepareSfzZones(out.zones,out,options);return transaction.finish(input,out,writeSfzInstrument(out.zones));
 }
 }

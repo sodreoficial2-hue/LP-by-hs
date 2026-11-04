@@ -1,0 +1,29 @@
+Base: e88eac85f8223682580c4f139a54e491889b684a
+Build: GCC C++17 Debug; assertions ativas; CMake local configure/build exit 0.
+Sfizz real: 1.2.3, 4e70dc0bef53b41f2853ed46e26f5911114c92d0, freewheeling, 48000 Hz, blocos 256, limite 128 vozes.
+
+Script verify_timbre_import.sh: exit 0.
+5 grupos originais PASSOU: timbre_import_test, npno_import_test, instrument_catalog_test, catalog_edits_test, sample_builder_test.
+2 grupos adicionais PASSOU: nki_binary_test, format_policy_test.
+Render real PASSOU: format_render_test.
+CLI pública PASSOU: convert_cli_test.py (três formatos, width/alias/fallback, calibração NKI/NSMP, argumentos inválidos).
+Total: 9 gates PASSOU, 0 FALHADO, 0 skip nesta execução explicitamente configurada com sfizz.
+
+CMake/CTest COMPLETO: exit 8.
+41 testes registrados: 36 PASSOU, 1 FALHADO, 4 Skipped.
+FALHADO: real_sfizz_envelope — Real OSC ADSR readback. Motor/teste preservados da base; falha anterior ao trecho de banco recuperado. Não foi corrigida fora do escopo nem omitida da execução completa.
+Skips (77): npno_external_fixture, nsmp_external_real_fixture, npno_personal_v5_render, npno_personal_v6_render. Motivo: fixtures pessoais ausentes.
+real_performance_controls: PASSOU (sem repetir a exclusão histórica).
+Os gates de importação, política, PCM, calibração, release, estéreo e CLI desta tarefa passaram.
+
+65024 combinações de note-on/note-off: 128 teclas × 127 velocities × CC64 off/on × v5/v6.
+Calibração: ver metrics.json e calibration-modules.json; tolerância de projeto 0.5 dB. Não equivale à curva contínua do DSP Nord.
+Estéreo: 1 voz vs 2 em fallback; 1056 regiões vs 2112, 8 vs 16 vozes/acorde, teto de 128 no acorde 16 vs 8.
+Touch: divergência legada/log de até 20 passos, sem corpus para escolher a interpretação correta.
+
+JSON: 120 sidecars desta execução e CMake analisados sem erro.
+git diff --check: PASSOU.
+Hashes de 14 arquivos protegidos: idênticos à base.
+Nenhum EXE Windows/ASIO, audição com teclado original, Action ou computação hospedada.
+Cota autenticada GitHub desconhecida: nenhuma ferramenta de quota autenticada disponível.
+P1.6 amplo: FALHADO, sem alteração.

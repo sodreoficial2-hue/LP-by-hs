@@ -1,0 +1,1211 @@
+{
+  "max_difference_steps": 20,
+  "samples": [
+    {
+      "threshold": 0,
+      "legacy_midi": 127,
+      "opennord_log_midi": 127,
+      "difference_steps": 0
+    },
+    {
+      "threshold": 1,
+      "legacy_midi": 125,
+      "opennord_log_midi": 125,
+      "difference_steps": 0
+    },
+    {
+      "threshold": 2,
+      "legacy_midi": 123,
+      "opennord_log_midi": 124,
+      "difference_steps": -1
+    },
+    {
+      "threshold": 3,
+      "legacy_midi": 121,
+      "opennord_log_midi": 122,
+      "difference_steps": -1
+    },
+    {
+      "threshold": 4,
+      "legacy_midi": 119,
+      "opennord_log_midi": 121,
+      "difference_steps": -2
+    },
+    {
+      "threshold": 5,
+      "legacy_midi": 117,
+      "opennord_log_midi": 119,
+      "difference_steps": -2
+    },
+    {
+      "threshold": 6,
+      "legacy_midi": 115,
+      "opennord_log_midi": 118,
+      "difference_steps": -3
+    },
+    {
+      "threshold": 7,
+      "legacy_midi": 113,
+      "opennord_log_midi": 117,
+      "difference_steps": -4
+    },
+    {
+      "threshold": 8,
+      "legacy_midi": 111,
+      "opennord_log_midi": 115,
+      "difference_steps": -4
+    },
+    {
+      "threshold": 9,
+      "legacy_midi": 109,
+      "opennord_log_midi": 114,
+      "difference_steps": -5
+    },
+    {
+      "threshold": 10,
+      "legacy_midi": 107,
+      "opennord_log_midi": 113,
+      "difference_steps": -6
+    },
+    {
+      "threshold": 11,
+      "legacy_midi": 106,
+      "opennord_log_midi": 111,
+      "difference_steps": -5
+    },
+    {
+      "threshold": 12,
+      "legacy_midi": 106,
+      "opennord_log_midi": 110,
+      "difference_steps": -4
+    },
+    {
+      "threshold": 13,
+      "legacy_midi": 106,
+      "opennord_log_midi": 109,
+      "difference_steps": -3
+    },
+    {
+      "threshold": 14,
+      "legacy_midi": 106,
+      "opennord_log_midi": 108,
+      "difference_steps": -2
+    },
+    {
+      "threshold": 15,
+      "legacy_midi": 106,
+      "opennord_log_midi": 106,
+      "difference_steps": 0
+    },
+    {
+      "threshold": 16,
+      "legacy_midi": 105,
+      "opennord_log_midi": 105,
+      "difference_steps": 0
+    },
+    {
+      "threshold": 17,
+      "legacy_midi": 105,
+      "opennord_log_midi": 104,
+      "difference_steps": 1
+    },
+    {
+      "threshold": 18,
+      "legacy_midi": 105,
+      "opennord_log_midi": 103,
+      "difference_steps": 2
+    },
+    {
+      "threshold": 19,
+      "legacy_midi": 105,
+      "opennord_log_midi": 102,
+      "difference_steps": 3
+    },
+    {
+      "threshold": 20,
+      "legacy_midi": 105,
+      "opennord_log_midi": 100,
+      "difference_steps": 5
+    },
+    {
+      "threshold": 21,
+      "legacy_midi": 104,
+      "opennord_log_midi": 99,
+      "difference_steps": 5
+    },
+    {
+      "threshold": 22,
+      "legacy_midi": 103,
+      "opennord_log_midi": 98,
+      "difference_steps": 5
+    },
+    {
+      "threshold": 23,
+      "legacy_midi": 103,
+      "opennord_log_midi": 97,
+      "difference_steps": 6
+    },
+    {
+      "threshold": 24,
+      "legacy_midi": 102,
+      "opennord_log_midi": 96,
+      "difference_steps": 6
+    },
+    {
+      "threshold": 25,
+      "legacy_midi": 102,
+      "opennord_log_midi": 95,
+      "difference_steps": 7
+    },
+    {
+      "threshold": 26,
+      "legacy_midi": 101,
+      "opennord_log_midi": 94,
+      "difference_steps": 7
+    },
+    {
+      "threshold": 27,
+      "legacy_midi": 100,
+      "opennord_log_midi": 93,
+      "difference_steps": 7
+    },
+    {
+      "threshold": 28,
+      "legacy_midi": 100,
+      "opennord_log_midi": 92,
+      "difference_steps": 8
+    },
+    {
+      "threshold": 29,
+      "legacy_midi": 99,
+      "opennord_log_midi": 90,
+      "difference_steps": 9
+    },
+    {
+      "threshold": 30,
+      "legacy_midi": 99,
+      "opennord_log_midi": 89,
+      "difference_steps": 10
+    },
+    {
+      "threshold": 31,
+      "legacy_midi": 98,
+      "opennord_log_midi": 88,
+      "difference_steps": 10
+    },
+    {
+      "threshold": 32,
+      "legacy_midi": 97,
+      "opennord_log_midi": 87,
+      "difference_steps": 10
+    },
+    {
+      "threshold": 33,
+      "legacy_midi": 97,
+      "opennord_log_midi": 86,
+      "difference_steps": 11
+    },
+    {
+      "threshold": 34,
+      "legacy_midi": 96,
+      "opennord_log_midi": 85,
+      "difference_steps": 11
+    },
+    {
+      "threshold": 35,
+      "legacy_midi": 96,
+      "opennord_log_midi": 84,
+      "difference_steps": 12
+    },
+    {
+      "threshold": 36,
+      "legacy_midi": 95,
+      "opennord_log_midi": 83,
+      "difference_steps": 12
+    },
+    {
+      "threshold": 37,
+      "legacy_midi": 94,
+      "opennord_log_midi": 82,
+      "difference_steps": 12
+    },
+    {
+      "threshold": 38,
+      "legacy_midi": 94,
+      "opennord_log_midi": 81,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 39,
+      "legacy_midi": 93,
+      "opennord_log_midi": 81,
+      "difference_steps": 12
+    },
+    {
+      "threshold": 40,
+      "legacy_midi": 93,
+      "opennord_log_midi": 80,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 41,
+      "legacy_midi": 92,
+      "opennord_log_midi": 79,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 42,
+      "legacy_midi": 91,
+      "opennord_log_midi": 78,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 43,
+      "legacy_midi": 90,
+      "opennord_log_midi": 77,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 44,
+      "legacy_midi": 89,
+      "opennord_log_midi": 76,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 45,
+      "legacy_midi": 89,
+      "opennord_log_midi": 75,
+      "difference_steps": 14
+    },
+    {
+      "threshold": 46,
+      "legacy_midi": 88,
+      "opennord_log_midi": 74,
+      "difference_steps": 14
+    },
+    {
+      "threshold": 47,
+      "legacy_midi": 87,
+      "opennord_log_midi": 73,
+      "difference_steps": 14
+    },
+    {
+      "threshold": 48,
+      "legacy_midi": 86,
+      "opennord_log_midi": 73,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 49,
+      "legacy_midi": 85,
+      "opennord_log_midi": 72,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 50,
+      "legacy_midi": 85,
+      "opennord_log_midi": 71,
+      "difference_steps": 14
+    },
+    {
+      "threshold": 51,
+      "legacy_midi": 84,
+      "opennord_log_midi": 70,
+      "difference_steps": 14
+    },
+    {
+      "threshold": 52,
+      "legacy_midi": 83,
+      "opennord_log_midi": 69,
+      "difference_steps": 14
+    },
+    {
+      "threshold": 53,
+      "legacy_midi": 83,
+      "opennord_log_midi": 68,
+      "difference_steps": 15
+    },
+    {
+      "threshold": 54,
+      "legacy_midi": 82,
+      "opennord_log_midi": 68,
+      "difference_steps": 14
+    },
+    {
+      "threshold": 55,
+      "legacy_midi": 82,
+      "opennord_log_midi": 67,
+      "difference_steps": 15
+    },
+    {
+      "threshold": 56,
+      "legacy_midi": 81,
+      "opennord_log_midi": 66,
+      "difference_steps": 15
+    },
+    {
+      "threshold": 57,
+      "legacy_midi": 80,
+      "opennord_log_midi": 65,
+      "difference_steps": 15
+    },
+    {
+      "threshold": 58,
+      "legacy_midi": 80,
+      "opennord_log_midi": 65,
+      "difference_steps": 15
+    },
+    {
+      "threshold": 59,
+      "legacy_midi": 79,
+      "opennord_log_midi": 64,
+      "difference_steps": 15
+    },
+    {
+      "threshold": 60,
+      "legacy_midi": 79,
+      "opennord_log_midi": 63,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 61,
+      "legacy_midi": 78,
+      "opennord_log_midi": 62,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 62,
+      "legacy_midi": 77,
+      "opennord_log_midi": 62,
+      "difference_steps": 15
+    },
+    {
+      "threshold": 63,
+      "legacy_midi": 77,
+      "opennord_log_midi": 61,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 64,
+      "legacy_midi": 76,
+      "opennord_log_midi": 60,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 65,
+      "legacy_midi": 76,
+      "opennord_log_midi": 60,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 66,
+      "legacy_midi": 75,
+      "opennord_log_midi": 59,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 67,
+      "legacy_midi": 74,
+      "opennord_log_midi": 58,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 68,
+      "legacy_midi": 74,
+      "opennord_log_midi": 58,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 69,
+      "legacy_midi": 73,
+      "opennord_log_midi": 57,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 70,
+      "legacy_midi": 73,
+      "opennord_log_midi": 56,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 71,
+      "legacy_midi": 72,
+      "opennord_log_midi": 56,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 72,
+      "legacy_midi": 71,
+      "opennord_log_midi": 55,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 73,
+      "legacy_midi": 71,
+      "opennord_log_midi": 54,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 74,
+      "legacy_midi": 70,
+      "opennord_log_midi": 54,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 75,
+      "legacy_midi": 70,
+      "opennord_log_midi": 53,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 76,
+      "legacy_midi": 69,
+      "opennord_log_midi": 52,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 77,
+      "legacy_midi": 68,
+      "opennord_log_midi": 52,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 78,
+      "legacy_midi": 68,
+      "opennord_log_midi": 51,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 79,
+      "legacy_midi": 67,
+      "opennord_log_midi": 51,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 80,
+      "legacy_midi": 67,
+      "opennord_log_midi": 50,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 81,
+      "legacy_midi": 66,
+      "opennord_log_midi": 49,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 82,
+      "legacy_midi": 65,
+      "opennord_log_midi": 49,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 83,
+      "legacy_midi": 65,
+      "opennord_log_midi": 48,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 84,
+      "legacy_midi": 64,
+      "opennord_log_midi": 48,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 85,
+      "legacy_midi": 64,
+      "opennord_log_midi": 47,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 86,
+      "legacy_midi": 63,
+      "opennord_log_midi": 47,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 87,
+      "legacy_midi": 62,
+      "opennord_log_midi": 46,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 88,
+      "legacy_midi": 62,
+      "opennord_log_midi": 46,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 89,
+      "legacy_midi": 61,
+      "opennord_log_midi": 45,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 90,
+      "legacy_midi": 61,
+      "opennord_log_midi": 45,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 91,
+      "legacy_midi": 60,
+      "opennord_log_midi": 44,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 92,
+      "legacy_midi": 60,
+      "opennord_log_midi": 44,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 93,
+      "legacy_midi": 59,
+      "opennord_log_midi": 43,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 94,
+      "legacy_midi": 59,
+      "opennord_log_midi": 43,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 95,
+      "legacy_midi": 59,
+      "opennord_log_midi": 42,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 96,
+      "legacy_midi": 58,
+      "opennord_log_midi": 42,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 97,
+      "legacy_midi": 58,
+      "opennord_log_midi": 41,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 98,
+      "legacy_midi": 57,
+      "opennord_log_midi": 41,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 99,
+      "legacy_midi": 57,
+      "opennord_log_midi": 40,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 100,
+      "legacy_midi": 57,
+      "opennord_log_midi": 40,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 101,
+      "legacy_midi": 56,
+      "opennord_log_midi": 39,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 102,
+      "legacy_midi": 56,
+      "opennord_log_midi": 39,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 103,
+      "legacy_midi": 55,
+      "opennord_log_midi": 38,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 104,
+      "legacy_midi": 55,
+      "opennord_log_midi": 38,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 105,
+      "legacy_midi": 55,
+      "opennord_log_midi": 37,
+      "difference_steps": 18
+    },
+    {
+      "threshold": 106,
+      "legacy_midi": 54,
+      "opennord_log_midi": 37,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 107,
+      "legacy_midi": 54,
+      "opennord_log_midi": 37,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 108,
+      "legacy_midi": 53,
+      "opennord_log_midi": 36,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 109,
+      "legacy_midi": 53,
+      "opennord_log_midi": 36,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 110,
+      "legacy_midi": 53,
+      "opennord_log_midi": 35,
+      "difference_steps": 18
+    },
+    {
+      "threshold": 111,
+      "legacy_midi": 52,
+      "opennord_log_midi": 35,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 112,
+      "legacy_midi": 52,
+      "opennord_log_midi": 34,
+      "difference_steps": 18
+    },
+    {
+      "threshold": 113,
+      "legacy_midi": 52,
+      "opennord_log_midi": 34,
+      "difference_steps": 18
+    },
+    {
+      "threshold": 114,
+      "legacy_midi": 52,
+      "opennord_log_midi": 34,
+      "difference_steps": 18
+    },
+    {
+      "threshold": 115,
+      "legacy_midi": 52,
+      "opennord_log_midi": 33,
+      "difference_steps": 19
+    },
+    {
+      "threshold": 116,
+      "legacy_midi": 51,
+      "opennord_log_midi": 33,
+      "difference_steps": 18
+    },
+    {
+      "threshold": 117,
+      "legacy_midi": 51,
+      "opennord_log_midi": 33,
+      "difference_steps": 18
+    },
+    {
+      "threshold": 118,
+      "legacy_midi": 51,
+      "opennord_log_midi": 32,
+      "difference_steps": 19
+    },
+    {
+      "threshold": 119,
+      "legacy_midi": 51,
+      "opennord_log_midi": 32,
+      "difference_steps": 19
+    },
+    {
+      "threshold": 120,
+      "legacy_midi": 51,
+      "opennord_log_midi": 31,
+      "difference_steps": 20
+    },
+    {
+      "threshold": 121,
+      "legacy_midi": 50,
+      "opennord_log_midi": 31,
+      "difference_steps": 19
+    },
+    {
+      "threshold": 122,
+      "legacy_midi": 49,
+      "opennord_log_midi": 31,
+      "difference_steps": 18
+    },
+    {
+      "threshold": 123,
+      "legacy_midi": 49,
+      "opennord_log_midi": 30,
+      "difference_steps": 19
+    },
+    {
+      "threshold": 124,
+      "legacy_midi": 48,
+      "opennord_log_midi": 30,
+      "difference_steps": 18
+    },
+    {
+      "threshold": 125,
+      "legacy_midi": 48,
+      "opennord_log_midi": 30,
+      "difference_steps": 18
+    },
+    {
+      "threshold": 126,
+      "legacy_midi": 47,
+      "opennord_log_midi": 29,
+      "difference_steps": 18
+    },
+    {
+      "threshold": 127,
+      "legacy_midi": 46,
+      "opennord_log_midi": 29,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 128,
+      "legacy_midi": 46,
+      "opennord_log_midi": 29,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 129,
+      "legacy_midi": 45,
+      "opennord_log_midi": 28,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 130,
+      "legacy_midi": 45,
+      "opennord_log_midi": 28,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 131,
+      "legacy_midi": 44,
+      "opennord_log_midi": 28,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 132,
+      "legacy_midi": 44,
+      "opennord_log_midi": 27,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 133,
+      "legacy_midi": 44,
+      "opennord_log_midi": 27,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 134,
+      "legacy_midi": 44,
+      "opennord_log_midi": 27,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 135,
+      "legacy_midi": 44,
+      "opennord_log_midi": 26,
+      "difference_steps": 18
+    },
+    {
+      "threshold": 136,
+      "legacy_midi": 43,
+      "opennord_log_midi": 26,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 137,
+      "legacy_midi": 43,
+      "opennord_log_midi": 26,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 138,
+      "legacy_midi": 43,
+      "opennord_log_midi": 25,
+      "difference_steps": 18
+    },
+    {
+      "threshold": 139,
+      "legacy_midi": 43,
+      "opennord_log_midi": 25,
+      "difference_steps": 18
+    },
+    {
+      "threshold": 140,
+      "legacy_midi": 43,
+      "opennord_log_midi": 25,
+      "difference_steps": 18
+    },
+    {
+      "threshold": 141,
+      "legacy_midi": 42,
+      "opennord_log_midi": 25,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 142,
+      "legacy_midi": 42,
+      "opennord_log_midi": 24,
+      "difference_steps": 18
+    },
+    {
+      "threshold": 143,
+      "legacy_midi": 41,
+      "opennord_log_midi": 24,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 144,
+      "legacy_midi": 41,
+      "opennord_log_midi": 24,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 145,
+      "legacy_midi": 41,
+      "opennord_log_midi": 23,
+      "difference_steps": 18
+    },
+    {
+      "threshold": 146,
+      "legacy_midi": 40,
+      "opennord_log_midi": 23,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 147,
+      "legacy_midi": 40,
+      "opennord_log_midi": 23,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 148,
+      "legacy_midi": 39,
+      "opennord_log_midi": 23,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 149,
+      "legacy_midi": 39,
+      "opennord_log_midi": 22,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 150,
+      "legacy_midi": 39,
+      "opennord_log_midi": 22,
+      "difference_steps": 17
+    },
+    {
+      "threshold": 151,
+      "legacy_midi": 38,
+      "opennord_log_midi": 22,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 152,
+      "legacy_midi": 37,
+      "opennord_log_midi": 22,
+      "difference_steps": 15
+    },
+    {
+      "threshold": 153,
+      "legacy_midi": 37,
+      "opennord_log_midi": 21,
+      "difference_steps": 16
+    },
+    {
+      "threshold": 154,
+      "legacy_midi": 36,
+      "opennord_log_midi": 21,
+      "difference_steps": 15
+    },
+    {
+      "threshold": 155,
+      "legacy_midi": 36,
+      "opennord_log_midi": 21,
+      "difference_steps": 15
+    },
+    {
+      "threshold": 156,
+      "legacy_midi": 35,
+      "opennord_log_midi": 21,
+      "difference_steps": 14
+    },
+    {
+      "threshold": 157,
+      "legacy_midi": 34,
+      "opennord_log_midi": 20,
+      "difference_steps": 14
+    },
+    {
+      "threshold": 158,
+      "legacy_midi": 34,
+      "opennord_log_midi": 20,
+      "difference_steps": 14
+    },
+    {
+      "threshold": 159,
+      "legacy_midi": 33,
+      "opennord_log_midi": 20,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 160,
+      "legacy_midi": 33,
+      "opennord_log_midi": 20,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 161,
+      "legacy_midi": 32,
+      "opennord_log_midi": 19,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 162,
+      "legacy_midi": 32,
+      "opennord_log_midi": 19,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 163,
+      "legacy_midi": 32,
+      "opennord_log_midi": 19,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 164,
+      "legacy_midi": 32,
+      "opennord_log_midi": 19,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 165,
+      "legacy_midi": 32,
+      "opennord_log_midi": 19,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 166,
+      "legacy_midi": 31,
+      "opennord_log_midi": 18,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 167,
+      "legacy_midi": 31,
+      "opennord_log_midi": 18,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 168,
+      "legacy_midi": 31,
+      "opennord_log_midi": 18,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 169,
+      "legacy_midi": 31,
+      "opennord_log_midi": 18,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 170,
+      "legacy_midi": 31,
+      "opennord_log_midi": 17,
+      "difference_steps": 14
+    },
+    {
+      "threshold": 171,
+      "legacy_midi": 30,
+      "opennord_log_midi": 17,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 172,
+      "legacy_midi": 30,
+      "opennord_log_midi": 17,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 173,
+      "legacy_midi": 29,
+      "opennord_log_midi": 17,
+      "difference_steps": 12
+    },
+    {
+      "threshold": 174,
+      "legacy_midi": 29,
+      "opennord_log_midi": 17,
+      "difference_steps": 12
+    },
+    {
+      "threshold": 175,
+      "legacy_midi": 29,
+      "opennord_log_midi": 16,
+      "difference_steps": 13
+    },
+    {
+      "threshold": 176,
+      "legacy_midi": 28,
+      "opennord_log_midi": 16,
+      "difference_steps": 12
+    },
+    {
+      "threshold": 177,
+      "legacy_midi": 28,
+      "opennord_log_midi": 16,
+      "difference_steps": 12
+    },
+    {
+      "threshold": 178,
+      "legacy_midi": 27,
+      "opennord_log_midi": 16,
+      "difference_steps": 11
+    },
+    {
+      "threshold": 179,
+      "legacy_midi": 27,
+      "opennord_log_midi": 16,
+      "difference_steps": 11
+    },
+    {
+      "threshold": 180,
+      "legacy_midi": 27,
+      "opennord_log_midi": 15,
+      "difference_steps": 12
+    },
+    {
+      "threshold": 181,
+      "legacy_midi": 26,
+      "opennord_log_midi": 15,
+      "difference_steps": 11
+    },
+    {
+      "threshold": 182,
+      "legacy_midi": 26,
+      "opennord_log_midi": 15,
+      "difference_steps": 11
+    },
+    {
+      "threshold": 183,
+      "legacy_midi": 25,
+      "opennord_log_midi": 15,
+      "difference_steps": 10
+    },
+    {
+      "threshold": 184,
+      "legacy_midi": 25,
+      "opennord_log_midi": 15,
+      "difference_steps": 10
+    },
+    {
+      "threshold": 185,
+      "legacy_midi": 25,
+      "opennord_log_midi": 15,
+      "difference_steps": 10
+    },
+    {
+      "threshold": 186,
+      "legacy_midi": 24,
+      "opennord_log_midi": 14,
+      "difference_steps": 10
+    },
+    {
+      "threshold": 187,
+      "legacy_midi": 24,
+      "opennord_log_midi": 14,
+      "difference_steps": 10
+    },
+    {
+      "threshold": 188,
+      "legacy_midi": 23,
+      "opennord_log_midi": 14,
+      "difference_steps": 9
+    },
+    {
+      "threshold": 189,
+      "legacy_midi": 23,
+      "opennord_log_midi": 14,
+      "difference_steps": 9
+    },
+    {
+      "threshold": 190,
+      "legacy_midi": 23,
+      "opennord_log_midi": 14,
+      "difference_steps": 9
+    },
+    {
+      "threshold": 191,
+      "legacy_midi": 22,
+      "opennord_log_midi": 14,
+      "difference_steps": 8
+    },
+    {
+      "threshold": 192,
+      "legacy_midi": 22,
+      "opennord_log_midi": 13,
+      "difference_steps": 9
+    },
+    {
+      "threshold": 193,
+      "legacy_midi": 22,
+      "opennord_log_midi": 13,
+      "difference_steps": 9
+    },
+    {
+      "threshold": 194,
+      "legacy_midi": 22,
+      "opennord_log_midi": 13,
+      "difference_steps": 9
+    },
+    {
+      "threshold": 195,
+      "legacy_midi": 22,
+      "opennord_log_midi": 13,
+      "difference_steps": 9
+    },
+    {
+      "threshold": 196,
+      "legacy_midi": 21,
+      "opennord_log_midi": 13,
+      "difference_steps": 8
+    },
+    {
+      "threshold": 197,
+      "legacy_midi": 21,
+      "opennord_log_midi": 13,
+      "difference_steps": 8
+    },
+    {
+      "threshold": 198,
+      "legacy_midi": 21,
+      "opennord_log_midi": 12,
+      "difference_steps": 9
+    },
+    {
+      "threshold": 199,
+      "legacy_midi": 21,
+      "opennord_log_midi": 12,
+      "difference_steps": 9
+    },
+    {
+      "threshold": 200,
+      "legacy_midi": 21,
+      "opennord_log_midi": 12,
+      "difference_steps": 9
+    }
+  ]
+}

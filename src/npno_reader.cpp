@@ -99,7 +99,7 @@ Module readModule(const std::filesystem::path& path){
   for(auto at=next;at<s.audioOffset;++at)if(v.byte(at)!=0)throw std::runtime_error("Módulo de piano: dados não identificados entre blocos de áudio");
   next=s.audioOffset+span;
   for(int c=0;c<m.channels;++c)for(int k=0;k<4;++k)s.history[c][k]=static_cast<std::int16_t>(v.signedWord(r+0xc+c*8+k*2));
-  s.loopStart=v.be(r+0x1c,4);s.loopLength=v.be(r+0x20,4);s.loopDecay=v.be(r+0x2e,4);s.trim=v.signedWord(r+0x34);s.threshold=int(v.byte(r+0x74));
+  s.loopStart=v.be(r+0x1c,4);s.loopLength=v.be(r+0x20,4);s.loopDecay=v.be(r+0x2e,4);s.trim=m.streamVersion==0x450?int(v.be(r+0x34,2)):v.signedWord(r+0x34);s.threshold=int(v.byte(r+0x74));
   if(s.loopLength&&(s.loopStart>=s.frames||s.loopLength>s.frames-s.loopStart))throw std::runtime_error("Módulo de piano: loop fora dos limites da amostra");
   m.strokes.push_back(s);
  }
@@ -149,7 +149,7 @@ Audio decodeStroke(const Module& m,const Stroke& s){
  if(emitted!=s.frames)throw std::runtime_error("Módulo de piano: contagem final de frames divergente");return audio;
 }
 std::string Module::metadataJson()const{
- auto o=sfzStream();o.str("");o<<"{\"body_offset\":"<<base<<",\"stream_version\":"<<streamVersion<<",\"sample_rate\":"<<sampleRate<<",\"channels\":"<<channels<<",\"gain_tenths_db\":"<<gain<<",\"damper_top\":"<<damperTop<<",\"velocity_profile\":\"reference_touch_0_approximate\",\"global_detune\":null,\"prefix_hex\":\""<<bytesHex(bytes.data()+base,directory)<<"\",\"strokes\":[";
+ auto o=sfzStream();o.str("");o<<"{\"body_offset\":"<<base<<",\"stream_version\":"<<streamVersion<<",\"sample_rate\":"<<sampleRate<<",\"channels\":"<<channels<<",\"gain_tenths_db\":"<<gain<<",\"damper_top\":"<<damperTop<<",\"velocity_profile\":\"reference_touch_0_approximate\",\"velocity_curve\":{\"name\":\"reference_touch_0_legacy_empirical\",\"threshold_samples\":[0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200],\"midi_samples\":[127,107,105,99,93,85,79,73,67,61,57,53,51,45,43,39,33,31,27,23,21],\"interpolation\":\"linear_with_ceiling_attenuation\",\"uncertainty_midi_steps_estimated\":2,\"uncertainty_independently_confirmed\":false,\"threshold_rule\":\"v5 midpoint rounded up in layer*5 units; v6 byte +0x74 direct\",\"reference_conflict\":\"nord-format 0.8.0 layer floor((127-v)*31/127); OpenNord 40log10(v/127) midpoint attenuation; legacy retained until hardware/profile corpus resolves divergence\"},\"trim_rule\":\"v5 unsigned u16 dB per nord-format 0.8.0; v6 legacy signed tenths retained pending conflict resolution\",\"global_detune\":null,\"prefix_hex\":\""<<bytesHex(bytes.data()+base,directory)<<"\",\"strokes\":[";
  for(std::size_t i=0;i<strokes.size();++i){if(i)o<<',';const auto& s=strokes[i];o<<"{\"index\":"<<i<<",\"record_offset\":"<<s.recordOffset<<",\"root\":"<<s.root<<",\"bank\":"<<s.bank<<",\"layer\":"<<s.layer<<",\"threshold\":"<<s.threshold<<",\"velocity_low\":"<<s.velLow<<",\"velocity_high\":"<<s.velHigh<<",\"audio_offset\":"<<s.audioOffset<<",\"frames\":"<<s.frames<<",\"blocks\":"<<s.blocks<<",\"loop_start\":"<<s.loopStart<<",\"loop_length\":"<<s.loopLength<<",\"loop_decay_q23\":"<<s.loopDecay<<",\"trim\":"<<s.trim<<",\"record_hex\":\""<<bytesHex(bytes.data()+s.recordOffset,recordSize)<<"\"}";}
  o<<"]}";return o.str();
 }
