@@ -1,0 +1,241 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 36b8a45..84e997f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -8,7 +8,7 @@ target_include_directories(lp_engine PUBLIC src)
+ target_link_libraries(lp_engine PRIVATE ${CMAKE_DL_LIBS} Threads::Threads)
+ # Offline conversion uses sample_builder.hpp's existing dynamic libsndfile ABI.
+ # sndfile.dll is already copied to the portable; no codec work runs on audio threads.
+-add_library(lp_timbre_import src/timbre_format.cpp src/sfz_conversion.cpp src/nsmp_to_sfz.cpp src/nki_to_sfz.cpp
++add_library(lp_timbre_import src/timbre_format.cpp src/sfz_conversion.cpp src/nsmp_to_sfz.cpp src/nki_to_sfz.cpp src/npno_reader.cpp src/npno_to_sfz.cpp
+  src/nsmp/cbin.cpp src/nsmp/nsmp_sections.cpp src/nsmp/nsmp_codek.cpp
+  src/nsmp/nw1_dsp.cpp src/nsmp/bitstream.cpp src/nsmp/checksum.cpp)
+ target_include_directories(lp_timbre_import PUBLIC src)
+@@ -305,7 +305,20 @@ endif()
+ add_executable(lp_convert_timbre src/timbre_convert_main.cpp)
+ target_link_libraries(lp_convert_timbre PRIVATE lp_timbre_import)
+ set(LP_NSMP_REAL_FIXTURE "" CACHE FILEPATH "Optional externally sourced real NSMP sample (not a workshop-generated vector)")
++set(LP_NPNO_REAL_FIXTURE "" CACHE FILEPATH "Optional externally sourced piano module for import/audit validation")
+ if(LP_SNDFILE_LIBRARY)
++ add_executable(lp_npno_import_test tests/npno_import_test.cpp)
++ target_link_libraries(lp_npno_import_test PRIVATE lp_timbre_import)
++ add_test(NAME npno_import_validation COMMAND lp_npno_import_test "${LP_SNDFILE_LIBRARY}" "${CMAKE_BINARY_DIR}/npno-import-validation" "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/npno")
++ add_executable(lp_npno_external_fixture_test tests/npno_external_fixture_test.cpp)
++ target_link_libraries(lp_npno_external_fixture_test PRIVATE lp_timbre_import)
++ add_test(NAME npno_external_fixture COMMAND lp_npno_external_fixture_test "${LP_NPNO_REAL_FIXTURE}" "${LP_SNDFILE_LIBRARY}" "${CMAKE_BINARY_DIR}/npno-external-validation")
++ set_tests_properties(npno_external_fixture PROPERTIES SKIP_RETURN_CODE 77)
++ if(LP_REAL_SFIZZ_LIBRARY)
++  add_executable(lp_npno_sfizz_test tests/npno_sfizz_test.cpp)
++  target_link_libraries(lp_npno_sfizz_test PRIVATE lp_timbre_import lp_engine)
++  add_test(NAME npno_real_sfizz_render COMMAND lp_npno_sfizz_test "${LP_REAL_SFIZZ_LIBRARY}" "${LP_SNDFILE_LIBRARY}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/npno" "${CMAKE_BINARY_DIR}/npno-sfizz-validation")
++ endif()
+  add_executable(lp_nsmp_real_fixture_test tests/nsmp_real_fixture_test.cpp)
+  target_link_libraries(lp_nsmp_real_fixture_test PRIVATE lp_timbre_import)
+  add_test(NAME nsmp_external_real_fixture COMMAND lp_nsmp_real_fixture_test "${LP_NSMP_REAL_FIXTURE}" "${LP_SNDFILE_LIBRARY}" "${CMAKE_BINARY_DIR}/nsmp-external-validation")
+diff --git a/src/instrument_catalog.hpp b/src/instrument_catalog.hpp
+index 96f8b8e..c8cf54f 100644
+--- a/src/instrument_catalog.hpp
++++ b/src/instrument_catalog.hpp
+@@ -15,7 +15,7 @@ struct Instrument {
+  unsigned category=10;
+  int testNote=60;
+ };
+-inline bool acceptedBankTimbre(const std::filesystem::path& path){auto e=timbreExtension(path);return e==".sfz"||e==".sf2"||e==".nsmp"||e==".nsmp3"||e==".nsmp4"||e==".nki";}
++inline bool acceptedBankTimbre(const std::filesystem::path& path){auto e=timbreExtension(path);return e==".sfz"||e==".sf2"||e==".nsmp"||e==".nsmp3"||e==".nsmp4"||e==".nki"||e==".npno"||e==".npmo";}
+ // Catalog identity always remains the ORIGINAL; only playback resolves the derivative.
+ inline std::filesystem::path playableInstrument(const std::filesystem::path& path){
+  if(path.u8string().rfind("sf2://",0)==0)return path;
+diff --git a/src/sfz_conversion.cpp b/src/sfz_conversion.cpp
+index 7e1cafb..b5bf041 100644
+--- a/src/sfz_conversion.cpp
++++ b/src/sfz_conversion.cpp
+@@ -29,12 +29,28 @@ void WavWriter::write(const std::filesystem::path& path,int rate,int channels,co
+  try{std::int64_t pos=0,count=static_cast<std::int64_t>(pcm.size()/channels);while(pos<count){auto written=writeFrames(file,pcm.data()+pos*channels,std::min<std::int64_t>(8192,count-pos));if(written<=0)throw std::runtime_error("Falha na gravação WAV");pos+=written;}auto result=closeFile(file);closed=true;if(result)throw std::runtime_error("Falha ao concluir WAV");}catch(...){if(!closed)closeFile(file);std::error_code ec;std::filesystem::remove(path,ec);throw;}
+ }
+ std::ostringstream sfzStream(){std::ostringstream s;s.imbue(std::locale::classic());s<<std::setprecision(12)<<"// Live Performance offline conversion; see original .meta.json\n";return s;}
++void WavWriter::writePcm16(const std::filesystem::path& path,int rate,const std::vector<std::int16_t>& pcm){
++ if(rate<8000||rate>192000||pcm.empty())throw std::runtime_error("WAV: áudio PCM16 inválido");
++ auto writeShort=reinterpret_cast<std::int64_t (*)(void*,const std::int16_t*,std::int64_t)>(symbol("sf_writef_short"));
++ if(!writeShort)throw std::runtime_error("libsndfile sem função de gravação PCM16");
++ Info info{};info.samplerate=rate;info.channels=1;info.format=0x10002;
++ auto file=open(path.c_str(),0x20,&info);if(!file)throw std::runtime_error("Não foi possível criar WAV PCM16");bool closed=false;
++ try{std::int64_t pos=0,count=static_cast<std::int64_t>(pcm.size());while(pos<count){auto n=writeShort(file,pcm.data()+pos,std::min<std::int64_t>(8192,count-pos));if(n<=0)throw std::runtime_error("Falha ao gravar WAV PCM16");pos+=n;}auto result=closeFile(file);closed=true;if(result)throw std::runtime_error("Falha ao concluir WAV PCM16");}
++ catch(...){if(!closed)closeFile(file);std::error_code ignored;std::filesystem::remove(path,ignored);throw;}
++}
++void writeSfzGroup(std::ostream& out){out<<"<group>\n";}
+ void writeSfzRegion(std::ostream& s,const ConvertedZone& z){
+  // All generated names are ASCII, relative, and controlled by the converter.
+  s<<"<region> sample="<<z.sample<<" lokey="<<z.keyLow<<" hikey="<<z.keyHigh<<" pitch_keycenter="<<z.root<<" lovel="<<z.velLow<<" hivel="<<z.velHigh<<" offset=0 end="<<z.frames-1;
+  if(z.zoneMode==1)s<<" pitch_keytrack=0";
+  int transpose=static_cast<int>(std::trunc(z.tuneCents/100));if(transpose<-127||transpose>127)throw std::runtime_error("Afinação excede limites SFZ; original preservado");
+  s<<" volume="<<z.volumeDb<<" transpose="<<transpose<<" tune="<<z.tuneCents-transpose*100;
++ if(z.hasPan)s<<" pan="<<z.pan;
++ if(z.releaseTrigger)s<<" trigger=release_key";
++ if(z.releaseSeconds>=0)s<<" ampeg_release="<<z.releaseSeconds;
++ if(z.cc64Low>=0)s<<" locc64="<<z.cc64Low;
++ if(z.cc64High>=0)s<<" hicc64="<<z.cc64High;
++ if(z.sequenceLength>0)s<<" seq_length="<<z.sequenceLength<<" seq_position="<<z.sequencePosition;
+  if(z.zoneOneShot)s<<" loop_mode=one_shot";
+  else if(z.loop)s<<" loop_mode=loop_continuous loop_start="<<z.loopStart<<" loop_end="<<z.loopEnd-1; // sfizz uses inclusive ends; Nord frames are exclusive.
+  else s<<" loop_mode=no_loop";
+diff --git a/src/sfz_conversion.hpp b/src/sfz_conversion.hpp
+index 6c4e6ae..16379e5 100644
+--- a/src/sfz_conversion.hpp
++++ b/src/sfz_conversion.hpp
+@@ -20,8 +20,10 @@ public:
+  explicit WavWriter(const std::filesystem::path& library);
+  ~WavWriter(){unload();}WavWriter(const WavWriter&)=delete;WavWriter& operator=(const WavWriter&)=delete;
+  void write(const std::filesystem::path& path,int rate,int channels,const std::vector<float>& interleaved);
++ void writePcm16(const std::filesystem::path& path,int rate,const std::vector<std::int16_t>& mono);
+ };
+ std::ostringstream sfzStream();
++void writeSfzGroup(std::ostream& out);
+ void writeSfzRegion(std::ostream& out,const ConvertedZone& zone);
+ std::string bytesHex(const std::uint8_t* data,std::size_t size);
+ }
+diff --git a/src/timbre_convert_main.cpp b/src/timbre_convert_main.cpp
+index ca16391..3a4e04a 100644
+--- a/src/timbre_convert_main.cpp
++++ b/src/timbre_convert_main.cpp
+@@ -1,3 +1,3 @@
+ #include "timbre_format.hpp"
+ #include <iostream>
+-int main(int argc,char** argv){try{if(argc<4||argc>5){std::cerr<<"Uso: lp_convert_timbre ORIGINAL PASTA_NOVA LIBSNDFILE [PASTA_SAMPLES]\n";return 2;}auto input=std::filesystem::u8path(argv[1]),output=std::filesystem::u8path(argv[2]),library=std::filesystem::u8path(argv[3]);lp::MetaSidecar meta;auto format=lp::detectarTimbreFormat(input);std::filesystem::path sfz;if(format==lp::TimbreFormat::NSMP)sfz=lp::nsmpParaSFZ(input,output,meta,library);else if(format==lp::TimbreFormat::NKI)sfz=lp::nkiParaSFZ(input,output,meta,library,argc==5?std::filesystem::u8path(argv[4]):std::filesystem::path{});else throw std::runtime_error("Conversor destinado a NSMP/NSMP3/NSMP4 e NKI; SFZ/SF2 seguem o importador existente");std::cout<<sfz.u8string()<<'\n';return 0;}catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}
++int main(int argc,char** argv){try{if(argc<4||argc>5){std::cerr<<"Uso: lp_convert_timbre ORIGINAL PASTA_NOVA LIBSNDFILE [PASTA_SAMPLES]\n";return 2;}auto input=std::filesystem::u8path(argv[1]),output=std::filesystem::u8path(argv[2]),library=std::filesystem::u8path(argv[3]);lp::MetaSidecar meta;auto format=lp::detectarTimbreFormat(input);std::filesystem::path sfz;if(format==lp::TimbreFormat::NPNO)sfz=lp::npnoParaSFZ(input,output,meta,library,[](const std::string& s){std::cerr<<s<<'\n';});else if(format==lp::TimbreFormat::NSMP)sfz=lp::nsmpParaSFZ(input,output,meta,library);else if(format==lp::TimbreFormat::NKI)sfz=lp::nkiParaSFZ(input,output,meta,library,argc==5?std::filesystem::u8path(argv[4]):std::filesystem::path{});else throw std::runtime_error("Conversor destinado a NSMP/NSMP3/NSMP4 e NKI/npno; SFZ/SF2 seguem o importador existente");std::cout<<sfz.u8string()<<'\n';return 0;}catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}
+diff --git a/src/timbre_format.cpp b/src/timbre_format.cpp
+index 373546b..a5b09b0 100644
+--- a/src/timbre_format.cpp
++++ b/src/timbre_format.cpp
+@@ -1,6 +1,7 @@
+ #include "timbre_format.hpp"
+ #include "atomic_file.hpp"
+ #include "nsmp/nsmp.hpp"
++#include "npno_reader.hpp"
+ #include <locale>
+ #include <array>
+ #include <fstream>
+@@ -37,7 +38,12 @@ CbinHeader lerHeaderCbin(const std::filesystem::path& path){return nsmp::readCbi
+ TimbreFormat detectarVersaoNsmp(const std::filesystem::path& path){auto id=nsmp::identifyNsmp(nsmp::readFile(path));auto e=timbreExtension(path);if((e==".nsmp3"&&id.codec!=3)||(e==".nsmp4"&&id.codec!=4)||(e==".nsmp"&&id.codec>2))throw std::runtime_error("Extensão e geração Nord não correspondem");return TimbreFormat::NSMP;}
+ TimbreFormat detectarTimbreFormat(const std::filesystem::path& path){
+  std::size_t n;auto b=head(path,n);auto e=timbreExtension(path);
+- if(n>=4&&magic(b.data(),"CBIN"))return detectarVersaoNsmp(path);
++ if(n>=4&&magic(b.data(),"CBIN")){
++  if(n>=12&&magic(b.data()+8,"npno")){if(npno::sniff(path))return TimbreFormat::NPNO;throw std::runtime_error("Módulo de piano truncado ou sem assinatura CNSP");}
++  if(e==".npno"||e==".npmo")throw std::runtime_error("Módulo de piano: assinatura de formato desconhecida");
++  return detectarVersaoNsmp(path);
++ }
++ if(e==".npno"||e==".npmo")throw std::runtime_error("Módulo de piano: assinatura desconhecida (CBIN/npno/CNSP ausente)");
+  if(n>=12&&magic(b.data(),"RIFF")&&magic(b.data()+8,"sfbk"))return TimbreFormat::SF2;
+  // Recognize the compressed SoundFont family; the normal SF2 reader rejects sfArk audio explicitly.
+  if(std::search(b.begin(),b.begin()+n,"sfArk","sfArk"+5)!=b.begin()+n)return TimbreFormat::SF2;
+@@ -50,16 +56,16 @@ TimbreFormat detectarTimbreFormat(const std::filesystem::path& path){
+ std::string MetaSidecar::json()const{
+  std::ostringstream o;o.imbue(std::locale::classic());o<<"{\n  \"schema\": 2,\n  \"name\": "<<quote(name)<<",\n  \"format\": "<<quote(format)<<",\n  \"format_version\": "<<quote(version)<<",\n  \"original_sha256\": "<<quote(originalSha256)<<",\n  \"signature_hex\": "<<quote(signatureHex)<<",\n  \"signature_confirmed\": "<<(signatureConfirmed?"true":"false")<<",\n  \"status\": "<<quote(status)<<",\n  \"limitations\": [";
+  for(std::size_t i=0;i<limitations.size();++i){if(i)o<<',';o<<'\n'<<"    "<<quote(limitations[i]);}o<<"\n  ],\n  \"zones\": [";
+- for(std::size_t i=0;i<zones.size();++i){if(i)o<<',';auto& z=zones[i];o<<"\n    {\"sample\": "<<quote(z.sample)<<", \"root_source\": "<<quote(z.rootSource)<<", \"root\": "<<z.root<<", \"key_low\": "<<z.keyLow<<", \"key_high\": "<<z.keyHigh<<", \"velocity_low\": "<<z.velLow<<", \"velocity_high\": "<<z.velHigh<<", \"sample_rate\": "<<z.rate<<", \"channels\": "<<z.channels<<", \"frames\": "<<z.frames<<", \"loop\": "<<(z.loop?"true":"false")<<", \"loop_start\": "<<z.loopStart<<", \"loop_end_exclusive\": "<<z.loopEnd<<", \"alternate_start\": "<<z.altStart<<", \"volume_db\": "<<z.volumeDb<<", \"tune_cents\": "<<z.tuneCents<<", \"loop_decay_db_per_second\": "<<z.decayDbPerSecond<<", \"raw_pcm_peak\": "<<z.pcmPeak<<", \"zone_mode\": "<<z.zoneMode<<", \"zone_playback\": "<<z.zonePlayback<<", \"zone_one_shot\": "<<z.zoneOneShot<<'}';}o<<"\n  ],\n  \"sample_sha256\": [";for(std::size_t i=0;i<sampleHashes.size();++i){if(i)o<<',';o<<quote(sampleHashes[i]);}o<<"],\n  \"codec\": "<<codec<<",\n  \"checksum_valid\": "<<(checksumValid?"true":"false")<<",\n  \"preserved_features\": [";for(std::size_t i=0;i<preservedFeatures.size();++i){if(i)o<<',';o<<quote(preservedFeatures[i]);}o<<"]\n}\n";return o.str();
++ for(std::size_t i=0;i<zones.size();++i){if(i)o<<',';auto& z=zones[i];o<<"\n    {\"sample\": "<<quote(z.sample)<<", \"root_source\": "<<quote(z.rootSource)<<", \"root\": "<<z.root<<", \"key_low\": "<<z.keyLow<<", \"key_high\": "<<z.keyHigh<<", \"velocity_low\": "<<z.velLow<<", \"velocity_high\": "<<z.velHigh<<", \"sample_rate\": "<<z.rate<<", \"channels\": "<<z.channels<<", \"frames\": "<<z.frames<<", \"loop\": "<<(z.loop?"true":"false")<<", \"loop_start\": "<<z.loopStart<<", \"loop_end_exclusive\": "<<z.loopEnd<<", \"alternate_start\": "<<z.altStart<<", \"volume_db\": "<<z.volumeDb<<", \"tune_cents\": "<<z.tuneCents<<", \"loop_decay_db_per_second\": "<<z.decayDbPerSecond<<", \"raw_pcm_peak\": "<<z.pcmPeak<<", \"zone_mode\": "<<z.zoneMode<<", \"zone_playback\": "<<z.zonePlayback<<", \"zone_one_shot\": "<<z.zoneOneShot;if(!sourceMetadataJson.empty())o<<", \"pan\": "<<z.pan<<", \"pan_present\": "<<(z.hasPan?"true":"false")<<", \"release_trigger\": "<<(z.releaseTrigger?"true":"false")<<", \"release_seconds\": "<<z.releaseSeconds<<", \"cc64_low\": "<<z.cc64Low<<", \"cc64_high\": "<<z.cc64High;o<<'}';}o<<"\n  ],\n  \"sample_sha256\": [";for(std::size_t i=0;i<sampleHashes.size();++i){if(i)o<<',';o<<quote(sampleHashes[i]);}o<<"],\n  \"codec\": "<<codec<<",\n  \"checksum_valid\": "<<(checksumValid?"true":"false")<<",\n  \"preserved_features\": [";for(std::size_t i=0;i<preservedFeatures.size();++i){if(i)o<<',';o<<quote(preservedFeatures[i]);}o<<"]";if(!sourceMetadataJson.empty())o<<",\n  \"source_metadata\": "<<sourceMetadataJson;o<<"\n}\n";return o.str();
+ }
+-std::filesystem::path importarTimbreConvertido(const std::filesystem::path& original,const std::filesystem::path& destination,const std::filesystem::path& library,const std::filesystem::path& root){
++std::filesystem::path importarTimbreConvertido(const std::filesystem::path& original,const std::filesystem::path& destination,const std::filesystem::path& library,const std::filesystem::path& root,const ConversionProgress& progress){
+  auto f=detectarTimbreFormat(original);if(!convertedTimbre(original))throw std::runtime_error("Formato não requer conversão");
+  auto hash=sha256File(original);std::filesystem::create_directories(destination);std::filesystem::path stage,final;bool reserved=false;
+  for(unsigned i=0;i<10000;++i){final=destination/(hash+"-"+std::to_string(i));stage=final;stage+=".staging";if(std::filesystem::exists(final))continue;if(std::filesystem::create_directory(stage)){reserved=true;break;}}
+  if(!reserved)throw std::runtime_error("Não foi possível reservar pasta de importação");
+  try{
+   MetaSidecar meta;auto bank=stage/"bank";
+-  if(f==TimbreFormat::NKI)nkiParaSFZ(original,bank,meta,library,root);else nsmpParaSFZ(original,bank,meta,library);
++  if(f==TimbreFormat::NPNO)npnoParaSFZ(original,bank,meta,library,progress);else if(f==TimbreFormat::NKI)nkiParaSFZ(original,bank,meta,library,root);else nsmpParaSFZ(original,bank,meta,library);
+   auto copy=bank/original.filename();if(hash!=meta.originalSha256||hash!=sha256File(copy))throw std::runtime_error("Original mudou durante a importação");
+   std::filesystem::rename(bank,final);std::error_code ignored;std::filesystem::remove(stage,ignored);return final/original.filename();
+  }catch(...){std::error_code ignored;std::filesystem::remove_all(stage,ignored);throw;}
+diff --git a/src/timbre_format.hpp b/src/timbre_format.hpp
+index c36484b..bf7c5d8 100644
+--- a/src/timbre_format.hpp
++++ b/src/timbre_format.hpp
+@@ -6,8 +6,9 @@
+ #include <vector>
+ #include <algorithm>
+ #include <cctype>
++#include <functional>
+ namespace lp {
+-enum class TimbreFormat { SFZ,SF2,NSMP,NKI,UNKNOWN };
++enum class TimbreFormat { SFZ,SF2,NSMP,NKI,NPNO,UNKNOWN };
+ struct CbinHeader {
+  std::uint32_t formatType=0,category=0,version=0,crc32=0;
+  std::uint16_t bank=0,slot=0;
+@@ -15,7 +16,7 @@ struct CbinHeader {
+  std::uintmax_t recordOffset=0,recordLength=0;
+ };
+ inline std::string timbreExtension(const std::filesystem::path& path){auto e=path.extension().u8string();std::transform(e.begin(),e.end(),e.begin(),[](unsigned char c){return static_cast<char>(std::tolower(c));});return e;}
+-inline bool convertedTimbre(const std::filesystem::path& path){auto e=timbreExtension(path);return e==".nsmp"||e==".nsmp3"||e==".nsmp4"||e==".nki";}
++inline bool convertedTimbre(const std::filesystem::path& path){auto e=timbreExtension(path);return e==".nsmp"||e==".nsmp3"||e==".nsmp4"||e==".nki"||e==".npno"||e==".npmo";}
+ // Append, rather than replace, to keep different originals with the same stem distinct.
+ inline std::filesystem::path derivedSfz(const std::filesystem::path& path){auto out=path;out+=".converted.sfz";return out;}
+ CbinHeader lerHeaderCbin(const std::filesystem::path& path);
+@@ -29,6 +30,10 @@ struct ConvertedZone {
+  bool loop=false;std::uintmax_t loopStart=0,loopEnd=0,altStart=0;
+  double volumeDb=0,tuneCents=0,decayDbPerSecond=0,pcmPeak=0;
+  int zoneMode=0,zonePlayback=0,zoneOneShot=0;
++ // Optional piano-module controls; defaults preserve existing writer output.
++ bool hasPan=false,releaseTrigger=false;
++ double pan=0,releaseSeconds=-1;
++ int cc64Low=-1,cc64High=-1,sequenceLength=0,sequencePosition=0;
+ };
+ struct MetaSidecar {
+  std::string name,format,version,originalSha256,signatureHex,status;
+@@ -39,13 +44,17 @@ struct MetaSidecar {
+  std::vector<ConvertedZone> zones;
+  std::vector<std::filesystem::path> samples;
+  std::vector<std::string> sampleHashes;
++ std::string sourceMetadataJson;
+  std::string json()const;
+ };
+ struct MissingNkiSamples:std::runtime_error {using std::runtime_error::runtime_error;};
++using ConversionProgress=std::function<void(const std::string&)>;
++std::filesystem::path npnoParaSFZ(const std::filesystem::path& entrada,const std::filesystem::path& dirSaida,MetaSidecar& out,
++ const std::filesystem::path& sndfileLibrary,const ConversionProgress& progress={});
+ std::filesystem::path nsmpParaSFZ(const std::filesystem::path& entrada,const std::filesystem::path& dirSaida,MetaSidecar& out,const std::filesystem::path& sndfileLibrary);
+ std::filesystem::path nkiParaSFZ(const std::filesystem::path& entrada,const std::filesystem::path& dirSaida,MetaSidecar& out,
+  const std::filesystem::path& sndfileLibrary,const std::filesystem::path& sampleRoot={});
+ // Private staging directory, published by rename only after original, SFZ, samples and sidecar succeed.
+ std::filesystem::path importarTimbreConvertido(const std::filesystem::path& original,const std::filesystem::path& destination,
+- const std::filesystem::path& sndfileLibrary,const std::filesystem::path& sampleRoot={});
++ const std::filesystem::path& sndfileLibrary,const std::filesystem::path& sampleRoot={},const ConversionProgress& progress={});
+ }
+diff --git a/src/win32_app.cpp b/src/win32_app.cpp
+index dd8531d..c34aaf1 100644
+--- a/src/win32_app.cpp
++++ b/src/win32_app.cpp
+@@ -697,7 +697,7 @@ struct App {
+    message(L"Os 20 favoritos estão ocupados.");
+   }catch(const std::exception& e){error(e);}
+  }
+- bool fileDialog(bool saving,bool sfz,std::filesystem::path& path,bool allTimbres=false){wchar_t file[32768]{};if(saving&&!path.empty())wcsncpy(file,path.c_str(),32767);OPENFILENAMEW dialog{};dialog.lStructSize=sizeof(dialog);dialog.hwndOwner=window;dialog.lpstrFile=file;dialog.nMaxFile=32768;dialog.lpstrFilter=allTimbres?L"Timbres (*.sf2;*.sfz;*.nsmp;*.nsmp3;*.nsmp4;*.nki)\0*.sf2;*.sfz;*.nsmp;*.nsmp3;*.nsmp4;*.nki\0Instrumento SFZ\0*.sfz\0SoundFont SF2\0*.sf2\0\0":sfz?L"Instrumento SFZ\0*.sfz\0\0":L"Perfil Live Performance\0*.lphs\0\0";dialog.lpstrDefExt=sfz?L"sfz":L"lphs";dialog.Flags=OFN_NOCHANGEDIR|OFN_PATHMUSTEXIST|(saving?OFN_OVERWRITEPROMPT:OFN_FILEMUSTEXIST);bool ok=saving?GetSaveFileNameW(&dialog):GetOpenFileNameW(&dialog);if(ok)path=file;else if(CommDlgExtendedError())throw std::runtime_error("File dialog failed");return ok;}
++ bool fileDialog(bool saving,bool sfz,std::filesystem::path& path,bool allTimbres=false){wchar_t file[32768]{};if(saving&&!path.empty())wcsncpy(file,path.c_str(),32767);OPENFILENAMEW dialog{};dialog.lStructSize=sizeof(dialog);dialog.hwndOwner=window;dialog.lpstrFile=file;dialog.nMaxFile=32768;dialog.lpstrFilter=allTimbres?L"Timbres (*.sf2;*.sfz;*.nsmp;*.nsmp3;*.nsmp4;*.nki;*.npno;*.npmo)\0*.sf2;*.sfz;*.nsmp;*.nsmp3;*.nsmp4;*.nki;*.npno;*.npmo\0Instrumento SFZ\0*.sfz\0SoundFont SF2\0*.sf2\0\0":sfz?L"Instrumento SFZ\0*.sfz\0\0":L"Perfil Live Performance\0*.lphs\0\0";dialog.lpstrDefExt=sfz?L"sfz":L"lphs";dialog.Flags=OFN_NOCHANGEDIR|OFN_PATHMUSTEXIST|(saving?OFN_OVERWRITEPROMPT:OFN_FILEMUSTEXIST);bool ok=saving?GetSaveFileNameW(&dialog):GetOpenFileNameW(&dialog);if(ok)path=file;else if(CommDlgExtendedError())throw std::runtime_error("File dialog failed");return ok;}
+  bool sf2Dialog(std::filesystem::path& path){wchar_t file[32768]{};OPENFILENAMEW dialog{};dialog.lStructSize=sizeof(dialog);dialog.hwndOwner=window;dialog.lpstrFile=file;dialog.nMaxFile=32768;dialog.lpstrFilter=L"SoundFont SF2\0*.sf2\0\0";dialog.lpstrDefExt=L"sf2";dialog.Flags=OFN_NOCHANGEDIR|OFN_PATHMUSTEXIST|OFN_FILEMUSTEXIST;bool ok=GetOpenFileNameW(&dialog);if(ok)path=file;else if(CommDlgExtendedError())throw std::runtime_error("SF2 file dialog failed");return ok;}
+  void filterPerformanceChoices(const std::wstring& query){
+   std::array<int,4> selected{};
+@@ -838,11 +838,11 @@ struct App {
+   }
+   if(id==CreateSample){if(!sampleBuilder)sampleBuilder=std::make_unique<lp::sampling::BuilderWindow>(window,base/L"sndfile.dll",[this](const std::filesystem::path& path){lp::Instrument sound;sound.sfz=std::filesystem::u8path(lp::makeSf2Reference(path,0,0));sound.name=path.stem().u8string();sound.category=14;addMySound(std::move(sound));saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();message(L"Timbre criado e salvo em Meus Sons.");});sampleBuilder->show();return;}
+   if(id==Import){std::filesystem::path path;if(fileDialog(false,true,path,true)){
+-   auto format=lp::detectarTimbreFormat(path);
++   auto format=lp::detectarTimbreFormat(path);bool conversionWarnings=false;
+    if(format==lp::TimbreFormat::SF2){importSf2Path(path);return;}
+-   if(lp::convertedTimbre(path)){
+-    message(format==lp::TimbreFormat::NKI?L"Importando NKI: mapa aproximado de WAVs, sem scripts ou zonas KONTAKT.":L"Convertendo amostras Nord para SFZ e WAV...");
+-    try{path=lp::importarTimbreConvertido(path,settingsPath.parent_path()/L"imported-timbres",base/L"sndfile.dll");}
++   if(format==lp::TimbreFormat::NPNO||lp::convertedTimbre(path)){
++    message(format==lp::TimbreFormat::NPNO?L"Lendo módulo de piano (formato proprietário)...":format==lp::TimbreFormat::NKI?L"Importando NKI: mapa aproximado de WAVs, sem scripts ou zonas KONTAKT.":L"Convertendo amostras Nord para SFZ e WAV...");
++    try{path=lp::importarTimbreConvertido(path,settingsPath.parent_path()/L"imported-timbres",base/L"sndfile.dll",{},[this,&conversionWarnings](const std::string& status){if(status.rfind("Aviso:",0)==0)conversionWarnings=true;message(std::filesystem::u8path(status).wstring());flushVision();UpdateWindow(window);});}
+     catch(const lp::MissingNkiSamples& e){
+      message(std::filesystem::u8path(e.what()).wstring());BROWSEINFOW browse{};browse.hwndOwner=window;browse.lpszTitle=L"Escolha Samples ou a raiz desta biblioteca KONTAKT (mapa aproximado)";browse.ulFlags=BIF_RETURNONLYFSDIRS|BIF_NEWDIALOGSTYLE;
+      auto pidl=SHBrowseForFolderW(&browse);if(!pidl)return;wchar_t folder[MAX_PATH]{};bool ok=SHGetPathFromIDListW(pidl,folder);CoTaskMemFree(pidl);if(!ok)throw std::runtime_error("Pasta de amostras indisponível");
+@@ -850,6 +850,7 @@ struct App {
+     }
+    }else if(format!=lp::TimbreFormat::SFZ)throw std::runtime_error("Formato de timbre não suportado");
+    lp::Instrument p;p.sfz=path;p.name=path.stem().u8string();p.category=14;if(addMySound(std::move(p)))saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();SendMessageW(catalog,LB_SETCURSEL,visibleInstruments.size()-1,0);audition();
++   if(format==lp::TimbreFormat::NPNO)message(conversionWarnings?L"Módulo de piano: concluído com avisos. Consulte o sidecar e o relatório junto ao original.":L"Módulo de piano: concluído. SFZ, WAV e relatório de auditoria salvos junto ao original.");
+    if(format==lp::TimbreFormat::NKI)message(L"NKI importado com mapa WAV aproximado. Original, amostras e limitações foram preservados.");
+   }}
+   if(id==ImportSf2){std::filesystem::path path;if(sf2Dialog(path))importSf2Path(path);}

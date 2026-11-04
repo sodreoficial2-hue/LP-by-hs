@@ -1,0 +1,296 @@
+[
+  {
+    "file": "tine-demo.npno",
+    "sha256": "b9910e341008adb31a708daa9080293faff1c47e191d9d5f1b191a1bb0b748db",
+    "origin": "public synthesized demo",
+    "golden": [
+      {
+        "index": 0,
+        "frames": 53876,
+        "channels": 1,
+        "file": "tine-demo.npno.0.pcm",
+        "sha256": "f37cdb7c922fbbde35333b077988c93d95054a20ed2e8ad12864071fdecfc580"
+      },
+      {
+        "index": 1,
+        "frames": 35238,
+        "channels": 1,
+        "file": "tine-demo.npno.1.pcm",
+        "sha256": "83fce469b9cb9ebab253071c1721d796b427b3272c363774d927dd33786a2c40"
+      },
+      {
+        "index": 2,
+        "frames": 23095,
+        "channels": 1,
+        "file": "tine-demo.npno.2.pcm",
+        "sha256": "2c63f7a773a3491ee979116b9e5eced37ffac18b657c5c8680d59bec52bd4c81"
+      }
+    ]
+  },
+  {
+    "file": "layers-v5.npno",
+    "sha256": "b2777ad255a969cb062847b4c61ea0ac6bf6ceb3e56f7d4321887b8fee9e6598",
+    "origin": "independent upstream synthetic encoder",
+    "golden": [
+      {
+        "index": 0,
+        "frames": 2410,
+        "channels": 1,
+        "file": "layers-v5.npno.0.pcm",
+        "sha256": "0c9ba10346ef782831b47b00c6cbe0fdfb057399c22c255ec4c36ea8b71afd45"
+      },
+      {
+        "index": 1,
+        "frames": 2410,
+        "channels": 1,
+        "file": "layers-v5.npno.1.pcm",
+        "sha256": "c890e5fffbf9afa6cd71e215a4a83d0a53449d0e0a5334ccc525f4cd14ddce78"
+      },
+      {
+        "index": 2,
+        "frames": 2320,
+        "channels": 1,
+        "file": "layers-v5.npno.2.pcm",
+        "sha256": "377c21f1043c9be57fbd0fdb929890047cad43ef38156df7d1940fa9fb9a07a2"
+      },
+      {
+        "index": 3,
+        "frames": 2818,
+        "channels": 1,
+        "file": "layers-v5.npno.3.pcm",
+        "sha256": "f4175194d55ddfbddae5bb997a4e033fbde80f2311da7648db9eee6ebc1348b8"
+      },
+      {
+        "index": 4,
+        "frames": 2410,
+        "channels": 1,
+        "file": "layers-v5.npno.4.pcm",
+        "sha256": "054380a816d880d9c52dd9c636b1d023ced0b6f4b8105d732b550c2db7cc3384"
+      },
+      {
+        "index": 5,
+        "frames": 2320,
+        "channels": 1,
+        "file": "layers-v5.npno.5.pcm",
+        "sha256": "cc7a5e944e50be5676334f8b8a3703e198390e0083956f451943d5bc590ef7f3"
+      },
+      {
+        "index": 6,
+        "frames": 2818,
+        "channels": 1,
+        "file": "layers-v5.npno.6.pcm",
+        "sha256": "ce990408038d055b3fa6a0b493849796ee4239bdb83c0426a76fce1eb31629bb"
+      },
+      {
+        "index": 7,
+        "frames": 2410,
+        "channels": 1,
+        "file": "layers-v5.npno.7.pcm",
+        "sha256": "2bfe3314b65d32f2a276b7e1455285a6f8ce241ed06873214991b2f99de1464b"
+      },
+      {
+        "index": 8,
+        "frames": 2320,
+        "channels": 1,
+        "file": "layers-v5.npno.8.pcm",
+        "sha256": "1deefdc3ddc302e73e9c99c65911c1b88dec88d7bc5eaf80e93907549e5a115d"
+      },
+      {
+        "index": 9,
+        "frames": 2410,
+        "channels": 1,
+        "file": "layers-v5.npno.9.pcm",
+        "sha256": "144e188e128bfcd67c5a7eb7373fe0996cb86018739c7791177f9feae6e0f5f2"
+      },
+      {
+        "index": 10,
+        "frames": 2320,
+        "channels": 1,
+        "file": "layers-v5.npno.10.pcm",
+        "sha256": "a327627c464b8f53e24fd6858a0ca8a6282853a0a0b20627bb40348c3b196296"
+      },
+      {
+        "index": 11,
+        "frames": 2048,
+        "channels": 1,
+        "file": "layers-v5.npno.11.pcm",
+        "sha256": "24a46cf12aaabe5f8f621e7be984e488dd0c44c72719ff7811a4fee1f936d402"
+      },
+      {
+        "index": 12,
+        "frames": 2410,
+        "channels": 1,
+        "file": "layers-v5.npno.12.pcm",
+        "sha256": "7c6791b8781538d15839427960970cfdabdfa3e68a86ec0a83be3ba8d27c8e89"
+      },
+      {
+        "index": 13,
+        "frames": 2320,
+        "channels": 1,
+        "file": "layers-v5.npno.13.pcm",
+        "sha256": "2ac1b42ed933e0b28d66b72a734ff28d16ca844faa7c64fd33e7a5ac8b78efc5"
+      },
+      {
+        "index": 14,
+        "frames": 2048,
+        "channels": 1,
+        "file": "layers-v5.npno.14.pcm",
+        "sha256": "405cf1491ec3a7246c3d1bb0e16dfde78bd9b3b3f21d767d277ebf05cb6c45f4"
+      },
+      {
+        "index": 15,
+        "frames": 2410,
+        "channels": 1,
+        "file": "layers-v5.npno.15.pcm",
+        "sha256": "7eae27340de546ac8eba16f6142a02ed9e583030f1cf955788adcf8a41f5e0b9"
+      },
+      {
+        "index": 16,
+        "frames": 2320,
+        "channels": 1,
+        "file": "layers-v5.npno.16.pcm",
+        "sha256": "872e4c4a4ec08709f850ba56cc26491b032e29706b942420775ebedce3381b0d"
+      },
+      {
+        "index": 17,
+        "frames": 2048,
+        "channels": 1,
+        "file": "layers-v5.npno.17.pcm",
+        "sha256": "67928108837dfe2764291e18645558f09ed8ff16b6edb585b2157077fbbef6f2"
+      }
+    ]
+  },
+  {
+    "file": "layers-v6.npno",
+    "sha256": "56e7194592a2cc8d273cb8636f149ce8c047c466d0bc26c8e7644986928374bb",
+    "origin": "independent upstream synthetic encoder",
+    "golden": [
+      {
+        "index": 0,
+        "frames": 2412,
+        "channels": 2,
+        "file": "layers-v6.npno.0.pcm",
+        "sha256": "8b065dfe942e43cab1a07fdda68250ca45e856a08f62fd116f30580403f51fe4"
+      },
+      {
+        "index": 1,
+        "frames": 2412,
+        "channels": 2,
+        "file": "layers-v6.npno.1.pcm",
+        "sha256": "8d4bddfd7a4779a1286338216c3a0262195bf323fb4cb45bd014aa246bbef01b"
+      },
+      {
+        "index": 2,
+        "frames": 2321,
+        "channels": 2,
+        "file": "layers-v6.npno.2.pcm",
+        "sha256": "1158d045329711ae6e49ebc7954a4d5e7dc0745debf2ef592e31ebb53f309604"
+      },
+      {
+        "index": 3,
+        "frames": 2821,
+        "channels": 2,
+        "file": "layers-v6.npno.3.pcm",
+        "sha256": "a15736263dd60112207389f9d640b7883d7ff3696332e2f6c26e360c281d3563"
+      },
+      {
+        "index": 4,
+        "frames": 2412,
+        "channels": 2,
+        "file": "layers-v6.npno.4.pcm",
+        "sha256": "408018001062024e5802ea45624bba855f0dc2f837b3afd34da8d5c387f8c7a4"
+      },
+      {
+        "index": 5,
+        "frames": 2321,
+        "channels": 2,
+        "file": "layers-v6.npno.5.pcm",
+        "sha256": "f1475909fb738247c22cb777975ee2a08347f362767f2b9b24a5c1d3af00a717"
+      },
+      {
+        "index": 6,
+        "frames": 2412,
+        "channels": 2,
+        "file": "layers-v6.npno.6.pcm",
+        "sha256": "8564cb7a6a30f274bec6f261e30922a0add77e5241ffb547736c2077623179d2"
+      },
+      {
+        "index": 7,
+        "frames": 2412,
+        "channels": 2,
+        "file": "layers-v6.npno.7.pcm",
+        "sha256": "65b09e1651a9b18bb86921b26c9392faac5d8b94440bb5605551458b2de962a3"
+      },
+      {
+        "index": 8,
+        "frames": 2321,
+        "channels": 2,
+        "file": "layers-v6.npno.8.pcm",
+        "sha256": "1790951425515126e7993ae71662ca077bbf5c54637d10e0d534536f56687b6a"
+      },
+      {
+        "index": 9,
+        "frames": 2412,
+        "channels": 2,
+        "file": "layers-v6.npno.9.pcm",
+        "sha256": "1b3857a04c54d582c288eb5b54c3351b2e090516295ea39be00ac63239f8eadc"
+      },
+      {
+        "index": 10,
+        "frames": 2321,
+        "channels": 2,
+        "file": "layers-v6.npno.10.pcm",
+        "sha256": "849e99f7dec2fa2460488e88933e9a0e32be48829ff2a0bf3320076a78adbe8a"
+      },
+      {
+        "index": 11,
+        "frames": 2049,
+        "channels": 2,
+        "file": "layers-v6.npno.11.pcm",
+        "sha256": "a083ed4f37f9d4c9c481853770ac11eef65b524cdeec347767c9055d465316d7"
+      },
+      {
+        "index": 12,
+        "frames": 2412,
+        "channels": 2,
+        "file": "layers-v6.npno.12.pcm",
+        "sha256": "cd96eb3c6ad398bb1d71ff4c19c426bb6ce1c11466ac474ec5fa4fd108943552"
+      },
+      {
+        "index": 13,
+        "frames": 2321,
+        "channels": 2,
+        "file": "layers-v6.npno.13.pcm",
+        "sha256": "dc807c285e3c848d04ddeed4c565ed9f84b027402e5e64c53701618968f04f42"
+      },
+      {
+        "index": 14,
+        "frames": 2049,
+        "channels": 2,
+        "file": "layers-v6.npno.14.pcm",
+        "sha256": "33a9b9b6ce84060a0d90e5cf11ab921a3c88b39b7d177de22ac593fc36d0cbd9"
+      },
+      {
+        "index": 15,
+        "frames": 2412,
+        "channels": 2,
+        "file": "layers-v6.npno.15.pcm",
+        "sha256": "3c4a5a02d543e326fefce3e4f477e2dc963702d97c1b9cb80ac399e5b41907a6"
+      },
+      {
+        "index": 16,
+        "frames": 2321,
+        "channels": 2,
+        "file": "layers-v6.npno.16.pcm",
+        "sha256": "54f095193eb250616a64380f744eb3db921b40fffa5edb01bbffc28b43a970ab"
+      },
+      {
+        "index": 17,
+        "frames": 2049,
+        "channels": 2,
+        "file": "layers-v6.npno.17.pcm",
+        "sha256": "c460d0ba988fc5fb8994495cb3e67c87c294484023a50243c886ad43979b1833"
+      }
+    ]
+  }
+]

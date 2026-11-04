@@ -2,6 +2,7 @@
 #include "session.hpp"
 #include "display_name.hpp"
 #include "sf2_reference.hpp"
+#include "timbre_format.hpp"
 #include <set>
 
 namespace lp {
@@ -14,6 +15,14 @@ struct Instrument {
  unsigned category=10;
  int testNote=60;
 };
+inline bool acceptedBankTimbre(const std::filesystem::path& path){auto e=timbreExtension(path);return e==".sfz"||e==".sf2"||e==".nsmp"||e==".nsmp3"||e==".nsmp4"||e==".nki"||e==".npno"||e==".npmo";}
+// Catalog identity always remains the ORIGINAL; only playback resolves the derivative.
+inline std::filesystem::path playableInstrument(const std::filesystem::path& path){
+ if(path.u8string().rfind("sf2://",0)==0)return path;
+ if(convertedTimbre(path)){auto sfz=derivedSfz(path);auto sidecar=path;sidecar+=".meta.json";if(!std::filesystem::is_regular_file(path)||!std::filesystem::is_regular_file(sfz)||!std::filesystem::is_regular_file(sidecar))throw std::runtime_error("Timbre convertido incompleto; reimporte o original");return sfz;}
+ if(timbreExtension(path)==".sf2")return std::filesystem::u8path(makeSf2Reference(path,0,0));
+ return path;
+}
 inline std::vector<Instrument> loadInstrumentBank(const std::filesystem::path& root,const std::set<std::string>& deletedIds={},std::vector<std::string>* warnings=nullptr){
  std::ifstream in(root/"catalog.txt",std::ios::binary);std::string line;
  if(!std::getline(in,line))throw std::runtime_error("Catálogo de timbres inválido");
@@ -25,7 +34,7 @@ inline std::vector<Instrument> loadInstrumentBank(const std::filesystem::path& r
   Instrument p;std::string path,extra;std::istringstream row(line);
   if(!(row>>std::quoted(p.id)>>p.category>>std::quoted(p.name)>>std::quoted(path)>>p.testNote>>std::quoted(p.mode)>>std::quoted(p.license))||(row>>extra)||p.id.empty()||p.name.empty()||p.category>=instrumentCategories.size()||p.testNote<0||p.testNote>127||(p.mode!="poly"&&p.mode!="mono"&&p.mode!="kit"))throw std::runtime_error("Entrada inválida no catálogo de timbres");
   auto relative=std::filesystem::u8path(path);
-  if(relative.empty()||relative.is_absolute()||relative.has_root_name()||relative.extension()!=".sfz")throw std::runtime_error("Caminho inválido no banco de timbres");
+  if(relative.empty()||relative.is_absolute()||relative.has_root_name()||!acceptedBankTimbre(relative))throw std::runtime_error("Caminho inválido no banco de timbres");
   for(const auto& part:relative)if(part=="..")throw std::runtime_error("Caminho fora do banco de timbres");
   p.sfz=std::filesystem::absolute(root/relative).lexically_normal();
   if(deletedIds.count(p.id)&&!std::filesystem::exists(p.sfz))continue;
@@ -38,8 +47,8 @@ inline std::vector<Instrument> loadInstrumentBank(const std::filesystem::path& r
 // Stable IDs keep new favorites usable after moving the portable application.
 inline std::filesystem::path resolveInstrument(const std::string& reference,const std::vector<Instrument>& bank){
  constexpr const char* prefix="bank://";
- if(reference.compare(0,7,prefix)==0){auto id=reference.substr(7);for(const auto& p:bank)if(p.id==id)return p.sfz;throw std::runtime_error("Timbre do banco não instalado: "+id);}
- return std::filesystem::u8path(reference); // Preserve existing imported/legacy favorites.
+ if(reference.compare(0,7,prefix)==0){auto id=reference.substr(7);for(const auto& p:bank)if(p.id==id)return playableInstrument(p.sfz);throw std::runtime_error("Timbre do banco não instalado: "+id);}
+ return playableInstrument(std::filesystem::u8path(reference)); // Preserve existing imported/legacy favorites.
 }
 inline std::string instrumentReference(const Instrument& p){return p.id.empty()?p.sfz.u8string():"bank://"+p.id;}
 inline std::string instrumentDisplayName(const Instrument& instrument){

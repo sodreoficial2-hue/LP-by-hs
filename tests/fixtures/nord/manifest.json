@@ -1,0 +1,753 @@
+{
+  "upstream": "https://github.com/simonflore/opennord",
+  "commit": "67ba1b657ff65a803d568f0ba1fba08598fdc830",
+  "provenance": "Generated synthetic user audio through upstream workshop writers, not a hardware-origin recording",
+  "fixtures": [
+    {
+      "name": "workshop-og.nsmp",
+      "sha256": "ff46a8f5d646cf2a4f3d1082d5b79381d1701f59c2183888f2eed1ae6a4c1a50",
+      "codec": 0,
+      "legacy": true,
+      "sections": [
+        {
+          "tag": ".NWS",
+          "version": 8,
+          "size": 0,
+          "payloadOffset": 33,
+          "endOffset": 33
+        },
+        {
+          "tag": ".hdr",
+          "version": 8,
+          "size": 18,
+          "payloadOffset": 42,
+          "endOffset": 60
+        },
+        {
+          "tag": ".map",
+          "version": 9,
+          "size": 809,
+          "payloadOffset": 69,
+          "endOffset": 878
+        },
+        {
+          "tag": ".stk",
+          "version": 8,
+          "size": 2346,
+          "payloadOffset": 887,
+          "endOffset": 3233
+        },
+        {
+          "tag": ".stk",
+          "version": 8,
+          "size": 4287,
+          "payloadOffset": 3242,
+          "endOffset": 7529
+        },
+        {
+          "tag": ".sty",
+          "version": 5,
+          "size": 9,
+          "payloadOffset": 7538,
+          "endOffset": 7547
+        }
+      ],
+      "zones": [
+        {
+          "velTop": 127,
+          "velLow": 0,
+          "keyHigh": 96,
+          "keyLow": 72,
+          "rootKey": 72,
+          "zoneMode": 0,
+          "zonePlayback": 0,
+          "zoneIsOneShot": 0,
+          "globalID": 900,
+          "recordOffset": 866
+        },
+        {
+          "velTop": 127,
+          "velLow": 0,
+          "keyHigh": 71,
+          "keyLow": 0,
+          "rootKey": 60,
+          "zoneMode": 0,
+          "zonePlayback": 0,
+          "zoneIsOneShot": 0,
+          "globalID": 673,
+          "recordOffset": 854
+        }
+      ],
+      "strokes": [
+        {
+          "id": 673,
+          "rate": 35002,
+          "channels": 1,
+          "frames": 4096,
+          "loop": {
+            "loopStart": 4096,
+            "loopEnd": 4096,
+            "loops": false,
+            "altStart": 0,
+            "decayDbPerSecond": 0
+          },
+          "pcm": "workshop-og.nsmp.stroke0.pcm",
+          "sha256": "74f338a0a0ede4048851895e22bf8cce5908dfff6cfe8cce84493b75c16181db"
+        },
+        {
+          "id": 900,
+          "rate": 35002,
+          "channels": 2,
+          "frames": 4096,
+          "loop": {
+            "loopStart": 4096,
+            "loopEnd": 4096,
+            "loops": false,
+            "altStart": 0,
+            "decayDbPerSecond": 0
+          },
+          "pcm": "workshop-og.nsmp.stroke1.pcm",
+          "sha256": "4b04475824ba43e9740d14d0f66a41564449698544be3124e25364f4cfe5b92f"
+        }
+      ]
+    },
+    {
+      "name": "workshop-v2.nsmp",
+      "sha256": "d00bb277c7315fb0645ad0b0342dc4b4e380966abb31263970a9fede15dc5617",
+      "codec": 2,
+      "legacy": true,
+      "sections": [
+        {
+          "tag": ".NWS",
+          "version": 11,
+          "size": 0,
+          "payloadOffset": 33,
+          "endOffset": 33
+        },
+        {
+          "tag": ".hdr",
+          "version": 9,
+          "size": 111,
+          "payloadOffset": 42,
+          "endOffset": 153
+        },
+        {
+          "tag": ".cat",
+          "version": 5,
+          "size": 9,
+          "payloadOffset": 162,
+          "endOffset": 171
+        },
+        {
+          "tag": ".map",
+          "version": 10,
+          "size": 816,
+          "payloadOffset": 180,
+          "endOffset": 996
+        },
+        {
+          "tag": ".stk",
+          "version": 9,
+          "size": 2382,
+          "payloadOffset": 1005,
+          "endOffset": 3387
+        },
+        {
+          "tag": ".stk",
+          "version": 9,
+          "size": 4257,
+          "payloadOffset": 3396,
+          "endOffset": 7653
+        },
+        {
+          "tag": ".sty",
+          "version": 5,
+          "size": 9,
+          "payloadOffset": 7662,
+          "endOffset": 7671
+        }
+      ],
+      "zones": [
+        {
+          "velTop": 127,
+          "velLow": 0,
+          "keyHigh": 96,
+          "keyLow": 72,
+          "rootKey": 72,
+          "zoneMode": 0,
+          "zonePlayback": 0,
+          "zoneIsOneShot": 0,
+          "globalID": 900,
+          "recordOffset": 966
+        },
+        {
+          "velTop": 127,
+          "velLow": 0,
+          "keyHigh": 71,
+          "keyLow": 0,
+          "rootKey": 60,
+          "zoneMode": 0,
+          "zonePlayback": 0,
+          "zoneIsOneShot": 0,
+          "globalID": 673,
+          "recordOffset": 981
+        }
+      ],
+      "strokes": [
+        {
+          "id": 673,
+          "rate": 35002,
+          "channels": 1,
+          "frames": 4096,
+          "loop": {
+            "loopStart": 1024,
+            "loopEnd": 4096,
+            "loops": true,
+            "altStart": 256,
+            "decayDbPerSecond": 0
+          },
+          "pcm": "workshop-v2.nsmp.stroke0.pcm",
+          "sha256": "74f338a0a0ede4048851895e22bf8cce5908dfff6cfe8cce84493b75c16181db"
+        },
+        {
+          "id": 900,
+          "rate": 35002,
+          "channels": 2,
+          "frames": 4096,
+          "loop": {
+            "loopStart": 4096,
+            "loopEnd": 4096,
+            "loops": false,
+            "altStart": 0,
+            "decayDbPerSecond": 0
+          },
+          "pcm": "workshop-v2.nsmp.stroke1.pcm",
+          "sha256": "4b04475824ba43e9740d14d0f66a41564449698544be3124e25364f4cfe5b92f"
+        }
+      ]
+    },
+    {
+      "name": "workshop-v3.nsmp3",
+      "sha256": "c158ca974aea7ba79908964fc52707a7bac7a98692ae40f407c6dcc9089abb3f",
+      "codec": 3,
+      "legacy": false,
+      "sections": [
+        {
+          "tag": "NSMP",
+          "version": 30,
+          "size": 4,
+          "payloadOffset": 56,
+          "endOffset": 60
+        },
+        {
+          "tag": ".hdr",
+          "version": 10,
+          "size": 112,
+          "payloadOffset": 72,
+          "endOffset": 184
+        },
+        {
+          "tag": ".cat",
+          "version": 7,
+          "size": 8,
+          "payloadOffset": 196,
+          "endOffset": 204
+        },
+        {
+          "tag": ".map",
+          "version": 14,
+          "size": 808,
+          "payloadOffset": 216,
+          "endOffset": 1024
+        },
+        {
+          "tag": ".stk",
+          "version": 11,
+          "size": 4516,
+          "payloadOffset": 1036,
+          "endOffset": 5552
+        },
+        {
+          "tag": ".stk",
+          "version": 11,
+          "size": 2420,
+          "payloadOffset": 5564,
+          "endOffset": 7984
+        },
+        {
+          "tag": ".sty",
+          "version": 7,
+          "size": 24,
+          "payloadOffset": 7996,
+          "endOffset": 8020
+        },
+        {
+          "tag": "meta",
+          "version": 1,
+          "size": 12,
+          "payloadOffset": 8032,
+          "endOffset": 8044
+        }
+      ],
+      "zones": [
+        {
+          "velTop": 60,
+          "velLow": 0,
+          "rootKey": 60,
+          "keyHigh": 72,
+          "keyLow": 40,
+          "zoneMode": 0,
+          "zonePlayback": 0,
+          "zoneIsOneShot": 0,
+          "globalID": 1,
+          "recordOffset": 991
+        },
+        {
+          "velTop": 127,
+          "velLow": 61,
+          "rootKey": 72,
+          "keyHigh": 90,
+          "keyLow": 73,
+          "zoneMode": 0,
+          "zonePlayback": 0,
+          "zoneIsOneShot": 0,
+          "globalID": 2,
+          "recordOffset": 1007
+        }
+      ],
+      "strokes": [
+        {
+          "id": 1,
+          "rate": 35002,
+          "channels": 2,
+          "frames": 4096,
+          "loop": {
+            "loopStart": 1024,
+            "loopEnd": 4096,
+            "loops": true,
+            "altStart": 256,
+            "decayDbPerSecond": 0
+          },
+          "pcm": "workshop-v3.nsmp3.stroke0.pcm",
+          "sha256": "4b04475824ba43e9740d14d0f66a41564449698544be3124e25364f4cfe5b92f"
+        },
+        {
+          "id": 2,
+          "rate": 35002,
+          "channels": 1,
+          "frames": 4096,
+          "loop": {
+            "loopStart": 4096,
+            "loopEnd": 4096,
+            "loops": false,
+            "altStart": 0,
+            "decayDbPerSecond": 0
+          },
+          "pcm": "workshop-v3.nsmp3.stroke1.pcm",
+          "sha256": "74f338a0a0ede4048851895e22bf8cce5908dfff6cfe8cce84493b75c16181db"
+        }
+      ]
+    },
+    {
+      "name": "workshop-v4.nsmp4",
+      "sha256": "1daf61f0f75e15db0c0c3f61a3860a682cf5acb003cbc3a6d06cf460d098fc56",
+      "codec": 4,
+      "legacy": false,
+      "sections": [
+        {
+          "tag": "NSMP",
+          "version": 40,
+          "size": 4,
+          "payloadOffset": 56,
+          "endOffset": 60
+        },
+        {
+          "tag": ".hdr",
+          "version": 11,
+          "size": 112,
+          "payloadOffset": 72,
+          "endOffset": 184
+        },
+        {
+          "tag": ".cat",
+          "version": 7,
+          "size": 8,
+          "payloadOffset": 196,
+          "endOffset": 204
+        },
+        {
+          "tag": ".map",
+          "version": 21,
+          "size": 1364,
+          "payloadOffset": 216,
+          "endOffset": 1580
+        },
+        {
+          "tag": ".stk",
+          "version": 11,
+          "size": 4600,
+          "payloadOffset": 1592,
+          "endOffset": 6192
+        },
+        {
+          "tag": ".stk",
+          "version": 11,
+          "size": 2420,
+          "payloadOffset": 6204,
+          "endOffset": 8624
+        },
+        {
+          "tag": ".stk",
+          "version": 11,
+          "size": 1780,
+          "payloadOffset": 8636,
+          "endOffset": 10416
+        },
+        {
+          "tag": ".sty",
+          "version": 17,
+          "size": 24,
+          "payloadOffset": 10428,
+          "endOffset": 10452
+        },
+        {
+          "tag": "meta",
+          "version": 1,
+          "size": 12,
+          "payloadOffset": 10464,
+          "endOffset": 10476
+        }
+      ],
+      "zones": [
+        {
+          "rootKey": 60,
+          "keyHigh": 72,
+          "keyLow": 48,
+          "zoneMode": 0,
+          "zonePlayback": 0,
+          "zoneIsOneShot": 0,
+          "globalID": 1,
+          "velLow": 0,
+          "velTop": 63,
+          "recordOffset": 1534
+        },
+        {
+          "rootKey": 60,
+          "keyHigh": 72,
+          "keyLow": 48,
+          "zoneMode": 0,
+          "zonePlayback": 0,
+          "zoneIsOneShot": 0,
+          "globalID": 2,
+          "velLow": 64,
+          "velTop": 127,
+          "recordOffset": 1534,
+          "strokeEntryOffset": 1550
+        },
+        {
+          "rootKey": 84,
+          "keyHigh": 96,
+          "keyLow": 73,
+          "zoneMode": 1,
+          "zonePlayback": 0,
+          "zoneIsOneShot": 1,
+          "globalID": 3,
+          "velLow": 0,
+          "velTop": 127,
+          "recordOffset": 1558
+        }
+      ],
+      "strokes": [
+        {
+          "id": 1,
+          "rate": 35002,
+          "channels": 2,
+          "frames": 4096,
+          "loop": {
+            "loopStart": 1024,
+            "loopEnd": 4096,
+            "loops": true,
+            "altStart": 256,
+            "decayDbPerSecond": 0
+          },
+          "pcm": "workshop-v4.nsmp4.stroke0.pcm",
+          "sha256": "4b04475824ba43e9740d14d0f66a41564449698544be3124e25364f4cfe5b92f"
+        },
+        {
+          "id": 2,
+          "rate": 35002,
+          "channels": 1,
+          "frames": 4096,
+          "loop": {
+            "loopStart": 1024,
+            "loopEnd": 4096,
+            "loops": true,
+            "altStart": 256,
+            "decayDbPerSecond": 0
+          },
+          "pcm": "workshop-v4.nsmp4.stroke1.pcm",
+          "sha256": "74f338a0a0ede4048851895e22bf8cce5908dfff6cfe8cce84493b75c16181db"
+        },
+        {
+          "id": 3,
+          "rate": 35002,
+          "channels": 1,
+          "frames": 4096,
+          "loop": {
+            "loopStart": 4096,
+            "loopEnd": 4096,
+            "loops": false,
+            "altStart": 0,
+            "decayDbPerSecond": 0
+          },
+          "pcm": "workshop-v4.nsmp4.stroke2.pcm",
+          "sha256": "1549be293bdfb8f621a5e31fdf4f62554d8ce29f35b1cab4b02d3cfe96a8118e"
+        }
+      ]
+    },
+    {
+      "name": "workshop-v3-format0.nsmp3",
+      "sha256": "954299e12ba31ea2ed791e14a0e176f17a21003c8e5f5f2f82e84d04debb1d24",
+      "codec": 3,
+      "legacy": false,
+      "sections": [
+        {
+          "tag": "NSMP",
+          "version": 30,
+          "size": 4,
+          "payloadOffset": 36,
+          "endOffset": 40
+        },
+        {
+          "tag": ".hdr",
+          "version": 10,
+          "size": 112,
+          "payloadOffset": 52,
+          "endOffset": 164
+        },
+        {
+          "tag": ".cat",
+          "version": 7,
+          "size": 8,
+          "payloadOffset": 176,
+          "endOffset": 184
+        },
+        {
+          "tag": ".map",
+          "version": 14,
+          "size": 808,
+          "payloadOffset": 196,
+          "endOffset": 1004
+        },
+        {
+          "tag": ".stk",
+          "version": 11,
+          "size": 4516,
+          "payloadOffset": 1016,
+          "endOffset": 5532
+        },
+        {
+          "tag": ".stk",
+          "version": 11,
+          "size": 2420,
+          "payloadOffset": 5544,
+          "endOffset": 7964
+        },
+        {
+          "tag": ".sty",
+          "version": 7,
+          "size": 24,
+          "payloadOffset": 7976,
+          "endOffset": 8000
+        },
+        {
+          "tag": "meta",
+          "version": 1,
+          "size": 12,
+          "payloadOffset": 8012,
+          "endOffset": 8024
+        }
+      ],
+      "zones": [
+        {
+          "velTop": 60,
+          "velLow": 0,
+          "rootKey": 60,
+          "keyHigh": 72,
+          "keyLow": 40,
+          "zoneMode": 0,
+          "zonePlayback": 0,
+          "zoneIsOneShot": 0,
+          "globalID": 1,
+          "recordOffset": 971
+        },
+        {
+          "velTop": 127,
+          "velLow": 61,
+          "rootKey": 72,
+          "keyHigh": 90,
+          "keyLow": 73,
+          "zoneMode": 0,
+          "zonePlayback": 0,
+          "zoneIsOneShot": 0,
+          "globalID": 2,
+          "recordOffset": 987
+        }
+      ],
+      "strokes": [
+        {
+          "id": 1,
+          "rate": 35002,
+          "channels": 2,
+          "frames": 4096,
+          "loop": {
+            "loopStart": 1024,
+            "loopEnd": 4096,
+            "loops": true,
+            "altStart": 256,
+            "decayDbPerSecond": 0
+          },
+          "pcm": "workshop-v3-format0.nsmp3.stroke0.pcm",
+          "sha256": "4b04475824ba43e9740d14d0f66a41564449698544be3124e25364f4cfe5b92f"
+        },
+        {
+          "id": 2,
+          "rate": 35002,
+          "channels": 1,
+          "frames": 4096,
+          "loop": {
+            "loopStart": 4096,
+            "loopEnd": 4096,
+            "loops": false,
+            "altStart": 0,
+            "decayDbPerSecond": 0
+          },
+          "pcm": "workshop-v3-format0.nsmp3.stroke1.pcm",
+          "sha256": "74f338a0a0ede4048851895e22bf8cce5908dfff6cfe8cce84493b75c16181db"
+        }
+      ]
+    },
+    {
+      "name": "workshop-v3-map12.nsmp3",
+      "sha256": "801581340cddd95bd7a81da658df003e147265928ddffc56c5ec4e0b53599126",
+      "codec": 3,
+      "legacy": false,
+      "sections": [
+        {
+          "tag": "NSMP",
+          "version": 30,
+          "size": 4,
+          "payloadOffset": 56,
+          "endOffset": 60
+        },
+        {
+          "tag": ".hdr",
+          "version": 10,
+          "size": 112,
+          "payloadOffset": 72,
+          "endOffset": 184
+        },
+        {
+          "tag": ".cat",
+          "version": 7,
+          "size": 8,
+          "payloadOffset": 196,
+          "endOffset": 204
+        },
+        {
+          "tag": ".map",
+          "version": 12,
+          "size": 796,
+          "payloadOffset": 216,
+          "endOffset": 1012
+        },
+        {
+          "tag": ".stk",
+          "version": 11,
+          "size": 4516,
+          "payloadOffset": 1024,
+          "endOffset": 5540
+        },
+        {
+          "tag": ".stk",
+          "version": 11,
+          "size": 2420,
+          "payloadOffset": 5552,
+          "endOffset": 7972
+        },
+        {
+          "tag": ".sty",
+          "version": 7,
+          "size": 24,
+          "payloadOffset": 7984,
+          "endOffset": 8008
+        },
+        {
+          "tag": "meta",
+          "version": 1,
+          "size": 12,
+          "payloadOffset": 8020,
+          "endOffset": 8032
+        }
+      ],
+      "zones": [
+        {
+          "velTop": 127,
+          "velLow": 0,
+          "keyHigh": 90,
+          "keyLow": 73,
+          "rootKey": 72,
+          "zoneMode": 0,
+          "zonePlayback": 0,
+          "zoneIsOneShot": 0,
+          "globalID": 2,
+          "recordOffset": 1001
+        },
+        {
+          "velTop": 127,
+          "velLow": 0,
+          "keyHigh": 72,
+          "keyLow": 0,
+          "rootKey": 60,
+          "zoneMode": 0,
+          "zonePlayback": 0,
+          "zoneIsOneShot": 0,
+          "globalID": 1,
+          "recordOffset": 990
+        }
+      ],
+      "strokes": [
+        {
+          "id": 1,
+          "rate": 35002,
+          "channels": 2,
+          "frames": 4096,
+          "loop": {
+            "loopStart": 1024,
+            "loopEnd": 4096,
+            "loops": true,
+            "altStart": 256,
+            "decayDbPerSecond": 0
+          },
+          "pcm": "workshop-v3-map12.nsmp3.stroke0.pcm",
+          "sha256": "4b04475824ba43e9740d14d0f66a41564449698544be3124e25364f4cfe5b92f"
+        },
+        {
+          "id": 2,
+          "rate": 35002,
+          "channels": 1,
+          "frames": 4096,
+          "loop": {
+            "loopStart": 4096,
+            "loopEnd": 4096,
+            "loops": false,
+            "altStart": 0,
+            "decayDbPerSecond": 0
+          },
+          "pcm": "workshop-v3-map12.nsmp3.stroke1.pcm",
+          "sha256": "74f338a0a0ede4048851895e22bf8cce5908dfff6cfe8cce84493b75c16181db"
+        }
+      ]
+    }
+  ]
+}

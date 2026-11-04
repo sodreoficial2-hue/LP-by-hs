@@ -1,0 +1,200 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index f9bcd35..36b8a45 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -6,6 +6,13 @@ find_package(Threads REQUIRED)
+ add_library(lp_engine src/sfizz_engine.cpp src/sf2_engine.cpp src/dsp.cpp src/level_calibration.cpp)
+ target_include_directories(lp_engine PUBLIC src)
+ target_link_libraries(lp_engine PRIVATE ${CMAKE_DL_LIBS} Threads::Threads)
++# Offline conversion uses sample_builder.hpp's existing dynamic libsndfile ABI.
++# sndfile.dll is already copied to the portable; no codec work runs on audio threads.
++add_library(lp_timbre_import src/timbre_format.cpp src/sfz_conversion.cpp src/nsmp_to_sfz.cpp src/nki_to_sfz.cpp
++ src/nsmp/cbin.cpp src/nsmp/nsmp_sections.cpp src/nsmp/nsmp_codek.cpp
++ src/nsmp/nw1_dsp.cpp src/nsmp/bitstream.cpp src/nsmp/checksum.cpp)
++target_include_directories(lp_timbre_import PUBLIC src)
++target_link_libraries(lp_timbre_import PRIVATE ${CMAKE_DL_LIBS})
+ add_executable(lp_catalog src/main.cpp)
+ add_executable(lp_session_test tests/session_test.cpp)
+ target_include_directories(lp_session_test PRIVATE src)
+@@ -60,7 +67,7 @@ if(WIN32 AND NOT LP_TEST_ONLY)
+   target_link_options(LivePerformance PRIVATE /MANIFEST:NO)
+  endif()
+  target_include_directories(LivePerformance PRIVATE src)
+- target_link_libraries(LivePerformance PRIVATE lp_audio winmm comctl32 comdlg32 gdi32 user32 shell32 ole32 uuid gdiplus)
++ target_link_libraries(LivePerformance PRIVATE lp_timbre_import lp_audio winmm comctl32 comdlg32 gdi32 user32 shell32 ole32 uuid gdiplus)
+  if(MINGW)
+   target_link_options(LivePerformance PRIVATE -municode -static)
+  endif()
+@@ -88,7 +95,7 @@ if(WIN32 AND NOT LP_TEST_ONLY)
+   if(MINGW)
+    target_include_directories(LivePerformanceVision PRIVATE src/webview2_compat)
+   endif()
+-  target_link_libraries(LivePerformanceVision PRIVATE lp_audio winmm comctl32 comdlg32 gdi32 user32 shell32 ole32 uuid gdiplus)
++  target_link_libraries(LivePerformanceVision PRIVATE lp_timbre_import lp_audio winmm comctl32 comdlg32 gdi32 user32 shell32 ole32 uuid gdiplus)
+   if(MSVC)
+    target_link_options(LivePerformanceVision PRIVATE /MANIFEST:NO)
+   elseif(MINGW)
+@@ -175,7 +182,7 @@ add_test(NAME vision_bridge_protocol COMMAND lp_vision_protocol_test)
+ if(WIN32)
+  add_executable(lp_win32_layout_test WIN32 tests/win32_layout_test.cpp tests/fake_portaudio.cpp src/audio_host.cpp src/windows.rc)
+  target_include_directories(lp_win32_layout_test PRIVATE src third_party/portaudio)
+- target_link_libraries(lp_win32_layout_test PRIVATE lp_engine winmm comctl32 comdlg32 gdi32 user32 shell32 ole32 uuid gdiplus)
++ target_link_libraries(lp_win32_layout_test PRIVATE lp_timbre_import lp_engine winmm comctl32 comdlg32 gdi32 user32 shell32 ole32 uuid gdiplus)
+  if(MINGW)
+   target_link_options(lp_win32_layout_test PRIVATE -municode -static)
+  endif()
+@@ -185,7 +192,7 @@ if(WIN32 AND LP_ENABLE_VISION_UI)
+  add_executable(lp_win32_vision_test WIN32 tests/win32_vision_test.cpp tests/fake_portaudio.cpp src/audio_host.cpp src/windows.rc)
+  set_target_properties(lp_win32_vision_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/vision-adapter-test")
+  target_include_directories(lp_win32_vision_test PRIVATE src third_party/portaudio "${LP_WEBVIEW2_SDK_ROOT}/build/native/include")
+- target_link_libraries(lp_win32_vision_test PRIVATE lp_engine winmm comctl32 comdlg32 gdi32 user32 shell32 ole32 uuid gdiplus)
++ target_link_libraries(lp_win32_vision_test PRIVATE lp_timbre_import lp_engine winmm comctl32 comdlg32 gdi32 user32 shell32 ole32 uuid gdiplus)
+  if(MSVC)
+   target_link_options(lp_win32_vision_test PRIVATE /MANIFEST:NO)
+   target_compile_options(lp_win32_vision_test PRIVATE /UNDEBUG)
+@@ -288,3 +295,19 @@ add_executable(lp_transition_budget_test tests/transition_budget_test.cpp tests/
+ target_include_directories(lp_transition_budget_test PRIVATE src third_party/portaudio)
+ target_link_libraries(lp_transition_budget_test PRIVATE lp_engine Threads::Threads)
+ add_test(NAME smooth_transition_budget_and_peaks COMMAND lp_transition_budget_test $<TARGET_FILE:lp_fake_sfizz>)
++
++add_executable(lp_timbre_import_test tests/timbre_import_test.cpp)
++target_link_libraries(lp_timbre_import_test PRIVATE lp_timbre_import)
++if(LP_SNDFILE_LIBRARY)
++ add_test(NAME timbre_import_validation COMMAND lp_timbre_import_test "${LP_SNDFILE_LIBRARY}" "${CMAKE_BINARY_DIR}/timbre-import-validation" "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/nord")
++endif()
++
++add_executable(lp_convert_timbre src/timbre_convert_main.cpp)
++target_link_libraries(lp_convert_timbre PRIVATE lp_timbre_import)
++set(LP_NSMP_REAL_FIXTURE "" CACHE FILEPATH "Optional externally sourced real NSMP sample (not a workshop-generated vector)")
++if(LP_SNDFILE_LIBRARY)
++ add_executable(lp_nsmp_real_fixture_test tests/nsmp_real_fixture_test.cpp)
++ target_link_libraries(lp_nsmp_real_fixture_test PRIVATE lp_timbre_import)
++ add_test(NAME nsmp_external_real_fixture COMMAND lp_nsmp_real_fixture_test "${LP_NSMP_REAL_FIXTURE}" "${LP_SNDFILE_LIBRARY}" "${CMAKE_BINARY_DIR}/nsmp-external-validation")
++ set_tests_properties(nsmp_external_real_fixture PROPERTIES SKIP_RETURN_CODE 77)
++endif()
+diff --git a/src/catalog_edits.hpp b/src/catalog_edits.hpp
+index 2496276..af48d57 100644
+--- a/src/catalog_edits.hpp
++++ b/src/catalog_edits.hpp
+@@ -60,7 +60,7 @@ inline void ensureUnsharedDefinition(const std::filesystem::path& source,const s
+ inline void deleteSoundFile(const std::filesystem::path& path){
+  if(std::filesystem::is_symlink(std::filesystem::symlink_status(path)))throw std::runtime_error("Não é permitido deletar timbre por link simbólico");
+  auto ext=path.extension().u8string();std::transform(ext.begin(),ext.end(),ext.begin(),[](unsigned char c){return static_cast<char>(std::tolower(c));});
+- if(ext!=".sf2"&&ext!=".sfz")throw std::runtime_error("Arquivo de timbre inválido");
++ if(!acceptedBankTimbre(path))throw std::runtime_error("Arquivo de timbre inválido");
+  if(!std::filesystem::is_regular_file(path)||!std::filesystem::remove(path))throw std::runtime_error("Não foi possível apagar o arquivo de origem");
+ }
+ }
+diff --git a/src/instrument_catalog.hpp b/src/instrument_catalog.hpp
+index d96eda1..96f8b8e 100644
+--- a/src/instrument_catalog.hpp
++++ b/src/instrument_catalog.hpp
+@@ -2,6 +2,7 @@
+ #include "session.hpp"
+ #include "display_name.hpp"
+ #include "sf2_reference.hpp"
++#include "timbre_format.hpp"
+ #include <set>
+ 
+ namespace lp {
+@@ -14,6 +15,14 @@ struct Instrument {
+  unsigned category=10;
+  int testNote=60;
+ };
++inline bool acceptedBankTimbre(const std::filesystem::path& path){auto e=timbreExtension(path);return e==".sfz"||e==".sf2"||e==".nsmp"||e==".nsmp3"||e==".nsmp4"||e==".nki";}
++// Catalog identity always remains the ORIGINAL; only playback resolves the derivative.
++inline std::filesystem::path playableInstrument(const std::filesystem::path& path){
++ if(path.u8string().rfind("sf2://",0)==0)return path;
++ if(convertedTimbre(path)){auto sfz=derivedSfz(path);auto sidecar=path;sidecar+=".meta.json";if(!std::filesystem::is_regular_file(path)||!std::filesystem::is_regular_file(sfz)||!std::filesystem::is_regular_file(sidecar))throw std::runtime_error("Timbre convertido incompleto; reimporte o original");return sfz;}
++ if(timbreExtension(path)==".sf2")return std::filesystem::u8path(makeSf2Reference(path,0,0));
++ return path;
++}
+ inline std::vector<Instrument> loadInstrumentBank(const std::filesystem::path& root,const std::set<std::string>& deletedIds={},std::vector<std::string>* warnings=nullptr){
+  std::ifstream in(root/"catalog.txt",std::ios::binary);std::string line;
+  if(!std::getline(in,line))throw std::runtime_error("Catálogo de timbres inválido");
+@@ -25,7 +34,7 @@ inline std::vector<Instrument> loadInstrumentBank(const std::filesystem::path& r
+   Instrument p;std::string path,extra;std::istringstream row(line);
+   if(!(row>>std::quoted(p.id)>>p.category>>std::quoted(p.name)>>std::quoted(path)>>p.testNote>>std::quoted(p.mode)>>std::quoted(p.license))||(row>>extra)||p.id.empty()||p.name.empty()||p.category>=instrumentCategories.size()||p.testNote<0||p.testNote>127||(p.mode!="poly"&&p.mode!="mono"&&p.mode!="kit"))throw std::runtime_error("Entrada inválida no catálogo de timbres");
+   auto relative=std::filesystem::u8path(path);
+-  if(relative.empty()||relative.is_absolute()||relative.has_root_name()||relative.extension()!=".sfz")throw std::runtime_error("Caminho inválido no banco de timbres");
++  if(relative.empty()||relative.is_absolute()||relative.has_root_name()||!acceptedBankTimbre(relative))throw std::runtime_error("Caminho inválido no banco de timbres");
+   for(const auto& part:relative)if(part=="..")throw std::runtime_error("Caminho fora do banco de timbres");
+   p.sfz=std::filesystem::absolute(root/relative).lexically_normal();
+   if(deletedIds.count(p.id)&&!std::filesystem::exists(p.sfz))continue;
+@@ -38,8 +47,8 @@ inline std::vector<Instrument> loadInstrumentBank(const std::filesystem::path& r
+ // Stable IDs keep new favorites usable after moving the portable application.
+ inline std::filesystem::path resolveInstrument(const std::string& reference,const std::vector<Instrument>& bank){
+  constexpr const char* prefix="bank://";
+- if(reference.compare(0,7,prefix)==0){auto id=reference.substr(7);for(const auto& p:bank)if(p.id==id)return p.sfz;throw std::runtime_error("Timbre do banco não instalado: "+id);}
+- return std::filesystem::u8path(reference); // Preserve existing imported/legacy favorites.
++ if(reference.compare(0,7,prefix)==0){auto id=reference.substr(7);for(const auto& p:bank)if(p.id==id)return playableInstrument(p.sfz);throw std::runtime_error("Timbre do banco não instalado: "+id);}
++ return playableInstrument(std::filesystem::u8path(reference)); // Preserve existing imported/legacy favorites.
+ }
+ inline std::string instrumentReference(const Instrument& p){return p.id.empty()?p.sfz.u8string():"bank://"+p.id;}
+ inline std::string instrumentDisplayName(const Instrument& instrument){
+diff --git a/src/win32_app.cpp b/src/win32_app.cpp
+index f48cb1a..dd8531d 100644
+--- a/src/win32_app.cpp
++++ b/src/win32_app.cpp
+@@ -443,7 +443,9 @@ struct App {
+   if(engine&&!settingsPath.empty()){
+    try{
+     updateSplash(92,L"Verificando os volumes salvos dos timbres...");
+-    levelCalibration=std::make_unique<lp::LevelCalibrationJob>(engineLibrary,settingsPath.parent_path()/L"volume_calibration.cache",instruments);
++    auto calibrationInstruments=instruments;
++    for(auto& sound:calibrationInstruments)if(lp::convertedTimbre(sound.sfz)||(!lp::parseSf2Reference(sound.sfz.u8string())&&lp::timbreExtension(sound.sfz)==".sf2"))sound.sfz=lp::playableInstrument(sound.sfz);
++    levelCalibration=std::make_unique<lp::LevelCalibrationJob>(engineLibrary,settingsPath.parent_path()/L"volume_calibration.cache",std::move(calibrationInstruments));
+     if(!SetTimer(window,4,100,nullptr))throw std::runtime_error("Nao foi possivel acompanhar o equilibrio de volumes");
+     return;
+    }catch(const std::exception& e){levelCalibration.reset();levelWarning=L"Equilíbrio automático indisponível.";error(e);completeLibrary(L"Equilíbrio automático indisponível. Volumes originais mantidos.");return;}
+@@ -499,7 +501,7 @@ struct App {
+   for(unsigned i=0;i<20;++i)if(show.favorites[i]&&show.favorites[i]->sfz==reference){activate(i);return;}
+   if(!engine)throw std::runtime_error("Motor de áudio indisponível");
+   lp::Patch patch{};patch.sfz=reference;auto sf2=lp::parseSf2Reference(instrument.sfz.u8string());
+-  engine->requestSound(instrument.sfz.u8string(),patch.parameters);
++  engine->requestSound(lp::resolveInstrument(reference,instruments).u8string(),patch.parameters);
+   previewPatch=patch;previewActive=true;editingPerformanceValid=false;activePerformanceIndex=-1;router.cancelLearn();show.current.reset();cancelMidiLearn();refreshParameters();if(effects)layout();audioStatus();
+  }catch(const std::exception& e){error(e);}}
+  std::wstring parameterName(int index){return std::wstring(lp::parameterNames[index],lp::parameterNames[index]+std::char_traits<char>::length(lp::parameterNames[index]));}
+@@ -695,7 +697,7 @@ struct App {
+    message(L"Os 20 favoritos estão ocupados.");
+   }catch(const std::exception& e){error(e);}
+  }
+- bool fileDialog(bool saving,bool sfz,std::filesystem::path& path){wchar_t file[32768]{};if(saving&&!path.empty())wcsncpy(file,path.c_str(),32767);OPENFILENAMEW dialog{};dialog.lStructSize=sizeof(dialog);dialog.hwndOwner=window;dialog.lpstrFile=file;dialog.nMaxFile=32768;dialog.lpstrFilter=sfz?L"Instrumento SFZ\0*.sfz\0\0":L"Perfil Live Performance\0*.lphs\0\0";dialog.lpstrDefExt=sfz?L"sfz":L"lphs";dialog.Flags=OFN_NOCHANGEDIR|OFN_PATHMUSTEXIST|(saving?OFN_OVERWRITEPROMPT:OFN_FILEMUSTEXIST);bool ok=saving?GetSaveFileNameW(&dialog):GetOpenFileNameW(&dialog);if(ok)path=file;else if(CommDlgExtendedError())throw std::runtime_error("File dialog failed");return ok;}
++ bool fileDialog(bool saving,bool sfz,std::filesystem::path& path,bool allTimbres=false){wchar_t file[32768]{};if(saving&&!path.empty())wcsncpy(file,path.c_str(),32767);OPENFILENAMEW dialog{};dialog.lStructSize=sizeof(dialog);dialog.hwndOwner=window;dialog.lpstrFile=file;dialog.nMaxFile=32768;dialog.lpstrFilter=allTimbres?L"Timbres (*.sf2;*.sfz;*.nsmp;*.nsmp3;*.nsmp4;*.nki)\0*.sf2;*.sfz;*.nsmp;*.nsmp3;*.nsmp4;*.nki\0Instrumento SFZ\0*.sfz\0SoundFont SF2\0*.sf2\0\0":sfz?L"Instrumento SFZ\0*.sfz\0\0":L"Perfil Live Performance\0*.lphs\0\0";dialog.lpstrDefExt=sfz?L"sfz":L"lphs";dialog.Flags=OFN_NOCHANGEDIR|OFN_PATHMUSTEXIST|(saving?OFN_OVERWRITEPROMPT:OFN_FILEMUSTEXIST);bool ok=saving?GetSaveFileNameW(&dialog):GetOpenFileNameW(&dialog);if(ok)path=file;else if(CommDlgExtendedError())throw std::runtime_error("File dialog failed");return ok;}
+  bool sf2Dialog(std::filesystem::path& path){wchar_t file[32768]{};OPENFILENAMEW dialog{};dialog.lStructSize=sizeof(dialog);dialog.hwndOwner=window;dialog.lpstrFile=file;dialog.nMaxFile=32768;dialog.lpstrFilter=L"SoundFont SF2\0*.sf2\0\0";dialog.lpstrDefExt=L"sf2";dialog.Flags=OFN_NOCHANGEDIR|OFN_PATHMUSTEXIST|OFN_FILEMUSTEXIST;bool ok=GetOpenFileNameW(&dialog);if(ok)path=file;else if(CommDlgExtendedError())throw std::runtime_error("SF2 file dialog failed");return ok;}
+  void filterPerformanceChoices(const std::wstring& query){
+   std::array<int,4> selected{};
+@@ -770,6 +772,7 @@ struct App {
+   activateEditorPerformance();
+   touchEditor();SetFocus(performancePartControls[index]);
+  }
++ void importSf2Path(const std::filesystem::path& path){if(!engine)throw std::runtime_error("Audio engine unavailable");auto presets=lp::readSf2PresetHeaders(path);if(presets.empty())throw std::runtime_error("SF2 has no presets");for(const auto& preset:presets){lp::Instrument p;p.sfz=std::filesystem::u8path(lp::makeSf2Reference(path,preset.bank,preset.program));p.name=path.stem().u8string()+" / "+preset.name+" ("+std::to_string(preset.bank)+":"+std::to_string(preset.program)+")";p.category=14;addMySound(std::move(p));}saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();message(L"SF2 importado: escolha um preset na lista Meus Sons.");}
+  void command(int id,int event){try{
+   if(id==PartSearch&&event==EN_CHANGE){wchar_t text[257]{};GetWindowTextW(item(PartSearch),text,257);filterPerformanceChoices(text);return;}
+   if(id==Search&&event==EN_CHANGE){
+@@ -834,8 +837,22 @@ struct App {
+    }
+   }
+   if(id==CreateSample){if(!sampleBuilder)sampleBuilder=std::make_unique<lp::sampling::BuilderWindow>(window,base/L"sndfile.dll",[this](const std::filesystem::path& path){lp::Instrument sound;sound.sfz=std::filesystem::u8path(lp::makeSf2Reference(path,0,0));sound.name=path.stem().u8string();sound.category=14;addMySound(std::move(sound));saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();message(L"Timbre criado e salvo em Meus Sons.");});sampleBuilder->show();return;}
+-  if(id==Import){std::filesystem::path path;if(fileDialog(false,true,path)){lp::Instrument p;p.sfz=path;p.name=path.stem().u8string();p.category=14;if(addMySound(std::move(p)))saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();SendMessageW(catalog,LB_SETCURSEL,visibleInstruments.size()-1,0);audition();}}
+-  if(id==ImportSf2){std::filesystem::path path;if(sf2Dialog(path)){if(!engine)throw std::runtime_error("Audio engine unavailable");auto presets=lp::readSf2PresetHeaders(path);if(presets.empty())throw std::runtime_error("SF2 has no presets");for(const auto& preset:presets){lp::Instrument p;p.sfz=std::filesystem::u8path(lp::makeSf2Reference(path,preset.bank,preset.program));p.name=path.stem().u8string()+" / "+preset.name+" ("+std::to_string(preset.bank)+":"+std::to_string(preset.program)+")";p.category=14;addMySound(std::move(p));}saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();message(L"SF2 importado: escolha um preset na lista Meus Sons.");}}
++  if(id==Import){std::filesystem::path path;if(fileDialog(false,true,path,true)){
++   auto format=lp::detectarTimbreFormat(path);
++   if(format==lp::TimbreFormat::SF2){importSf2Path(path);return;}
++   if(lp::convertedTimbre(path)){
++    message(format==lp::TimbreFormat::NKI?L"Importando NKI: mapa aproximado de WAVs, sem scripts ou zonas KONTAKT.":L"Convertendo amostras Nord para SFZ e WAV...");
++    try{path=lp::importarTimbreConvertido(path,settingsPath.parent_path()/L"imported-timbres",base/L"sndfile.dll");}
++    catch(const lp::MissingNkiSamples& e){
++     message(std::filesystem::u8path(e.what()).wstring());BROWSEINFOW browse{};browse.hwndOwner=window;browse.lpszTitle=L"Escolha Samples ou a raiz desta biblioteca KONTAKT (mapa aproximado)";browse.ulFlags=BIF_RETURNONLYFSDIRS|BIF_NEWDIALOGSTYLE;
++     auto pidl=SHBrowseForFolderW(&browse);if(!pidl)return;wchar_t folder[MAX_PATH]{};bool ok=SHGetPathFromIDListW(pidl,folder);CoTaskMemFree(pidl);if(!ok)throw std::runtime_error("Pasta de amostras indisponível");
++     path=lp::importarTimbreConvertido(path,settingsPath.parent_path()/L"imported-timbres",base/L"sndfile.dll",folder);
++    }
++   }else if(format!=lp::TimbreFormat::SFZ)throw std::runtime_error("Formato de timbre não suportado");
++   lp::Instrument p;p.sfz=path;p.name=path.stem().u8string();p.category=14;if(addMySound(std::move(p)))saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();SendMessageW(catalog,LB_SETCURSEL,visibleInstruments.size()-1,0);audition();
++   if(format==lp::TimbreFormat::NKI)message(L"NKI importado com mapa WAV aproximado. Original, amostras e limitações foram preservados.");
++  }}
++  if(id==ImportSf2){std::filesystem::path path;if(sf2Dialog(path))importSf2Path(path);}
+   if(id==Category&&event==CBN_SELCHANGE)refreshCatalog();
+   if(id==Catalog&&event==LBN_SELCHANGE)audition();
+   if(id==Favorites&&event==LBN_SELCHANGE){auto slot=SendMessageW(favorites,LB_GETCURSEL,0,0);if(slot>=0)activate(static_cast<unsigned>(slot));}

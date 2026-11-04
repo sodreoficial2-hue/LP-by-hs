@@ -443,7 +443,9 @@ struct App {
   if(engine&&!settingsPath.empty()){
    try{
     updateSplash(92,L"Verificando os volumes salvos dos timbres...");
-    levelCalibration=std::make_unique<lp::LevelCalibrationJob>(engineLibrary,settingsPath.parent_path()/L"volume_calibration.cache",instruments);
+    auto calibrationInstruments=instruments;
+    for(auto& sound:calibrationInstruments)if(lp::convertedTimbre(sound.sfz)||(!lp::parseSf2Reference(sound.sfz.u8string())&&lp::timbreExtension(sound.sfz)==".sf2"))sound.sfz=lp::playableInstrument(sound.sfz);
+    levelCalibration=std::make_unique<lp::LevelCalibrationJob>(engineLibrary,settingsPath.parent_path()/L"volume_calibration.cache",std::move(calibrationInstruments));
     if(!SetTimer(window,4,100,nullptr))throw std::runtime_error("Nao foi possivel acompanhar o equilibrio de volumes");
     return;
    }catch(const std::exception& e){levelCalibration.reset();levelWarning=L"Equilíbrio automático indisponível.";error(e);completeLibrary(L"Equilíbrio automático indisponível. Volumes originais mantidos.");return;}
@@ -499,7 +501,7 @@ struct App {
   for(unsigned i=0;i<20;++i)if(show.favorites[i]&&show.favorites[i]->sfz==reference){activate(i);return;}
   if(!engine)throw std::runtime_error("Motor de áudio indisponível");
   lp::Patch patch{};patch.sfz=reference;auto sf2=lp::parseSf2Reference(instrument.sfz.u8string());
-  engine->requestSound(instrument.sfz.u8string(),patch.parameters);
+  engine->requestSound(lp::resolveInstrument(reference,instruments).u8string(),patch.parameters);
   previewPatch=patch;previewActive=true;editingPerformanceValid=false;activePerformanceIndex=-1;router.cancelLearn();show.current.reset();cancelMidiLearn();refreshParameters();if(effects)layout();audioStatus();
  }catch(const std::exception& e){error(e);}}
  std::wstring parameterName(int index){return std::wstring(lp::parameterNames[index],lp::parameterNames[index]+std::char_traits<char>::length(lp::parameterNames[index]));}
@@ -695,7 +697,7 @@ struct App {
    message(L"Os 20 favoritos estão ocupados.");
   }catch(const std::exception& e){error(e);}
  }
- bool fileDialog(bool saving,bool sfz,std::filesystem::path& path){wchar_t file[32768]{};if(saving&&!path.empty())wcsncpy(file,path.c_str(),32767);OPENFILENAMEW dialog{};dialog.lStructSize=sizeof(dialog);dialog.hwndOwner=window;dialog.lpstrFile=file;dialog.nMaxFile=32768;dialog.lpstrFilter=sfz?L"Instrumento SFZ\0*.sfz\0\0":L"Perfil Live Performance\0*.lphs\0\0";dialog.lpstrDefExt=sfz?L"sfz":L"lphs";dialog.Flags=OFN_NOCHANGEDIR|OFN_PATHMUSTEXIST|(saving?OFN_OVERWRITEPROMPT:OFN_FILEMUSTEXIST);bool ok=saving?GetSaveFileNameW(&dialog):GetOpenFileNameW(&dialog);if(ok)path=file;else if(CommDlgExtendedError())throw std::runtime_error("File dialog failed");return ok;}
+ bool fileDialog(bool saving,bool sfz,std::filesystem::path& path,bool allTimbres=false){wchar_t file[32768]{};if(saving&&!path.empty())wcsncpy(file,path.c_str(),32767);OPENFILENAMEW dialog{};dialog.lStructSize=sizeof(dialog);dialog.hwndOwner=window;dialog.lpstrFile=file;dialog.nMaxFile=32768;dialog.lpstrFilter=allTimbres?L"Timbres (*.sf2;*.sfz;*.nsmp;*.nsmp3;*.nsmp4;*.nki;*.npno;*.npmo)\0*.sf2;*.sfz;*.nsmp;*.nsmp3;*.nsmp4;*.nki;*.npno;*.npmo\0Instrumento SFZ\0*.sfz\0SoundFont SF2\0*.sf2\0\0":sfz?L"Instrumento SFZ\0*.sfz\0\0":L"Perfil Live Performance\0*.lphs\0\0";dialog.lpstrDefExt=sfz?L"sfz":L"lphs";dialog.Flags=OFN_NOCHANGEDIR|OFN_PATHMUSTEXIST|(saving?OFN_OVERWRITEPROMPT:OFN_FILEMUSTEXIST);bool ok=saving?GetSaveFileNameW(&dialog):GetOpenFileNameW(&dialog);if(ok)path=file;else if(CommDlgExtendedError())throw std::runtime_error("File dialog failed");return ok;}
  bool sf2Dialog(std::filesystem::path& path){wchar_t file[32768]{};OPENFILENAMEW dialog{};dialog.lStructSize=sizeof(dialog);dialog.hwndOwner=window;dialog.lpstrFile=file;dialog.nMaxFile=32768;dialog.lpstrFilter=L"SoundFont SF2\0*.sf2\0\0";dialog.lpstrDefExt=L"sf2";dialog.Flags=OFN_NOCHANGEDIR|OFN_PATHMUSTEXIST|OFN_FILEMUSTEXIST;bool ok=GetOpenFileNameW(&dialog);if(ok)path=file;else if(CommDlgExtendedError())throw std::runtime_error("SF2 file dialog failed");return ok;}
  void filterPerformanceChoices(const std::wstring& query){
   std::array<int,4> selected{};
@@ -770,6 +772,7 @@ struct App {
   activateEditorPerformance();
   touchEditor();SetFocus(performancePartControls[index]);
  }
+ void importSf2Path(const std::filesystem::path& path){if(!engine)throw std::runtime_error("Audio engine unavailable");auto presets=lp::readSf2PresetHeaders(path);if(presets.empty())throw std::runtime_error("SF2 has no presets");for(const auto& preset:presets){lp::Instrument p;p.sfz=std::filesystem::u8path(lp::makeSf2Reference(path,preset.bank,preset.program));p.name=path.stem().u8string()+" / "+preset.name+" ("+std::to_string(preset.bank)+":"+std::to_string(preset.program)+")";p.category=14;addMySound(std::move(p));}saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();message(L"SF2 importado: escolha um preset na lista Meus Sons.");}
  void command(int id,int event){try{
   if(id==PartSearch&&event==EN_CHANGE){wchar_t text[257]{};GetWindowTextW(item(PartSearch),text,257);filterPerformanceChoices(text);return;}
   if(id==Search&&event==EN_CHANGE){
@@ -834,8 +837,23 @@ struct App {
    }
   }
   if(id==CreateSample){if(!sampleBuilder)sampleBuilder=std::make_unique<lp::sampling::BuilderWindow>(window,base/L"sndfile.dll",[this](const std::filesystem::path& path){lp::Instrument sound;sound.sfz=std::filesystem::u8path(lp::makeSf2Reference(path,0,0));sound.name=path.stem().u8string();sound.category=14;addMySound(std::move(sound));saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();message(L"Timbre criado e salvo em Meus Sons.");});sampleBuilder->show();return;}
-  if(id==Import){std::filesystem::path path;if(fileDialog(false,true,path)){lp::Instrument p;p.sfz=path;p.name=path.stem().u8string();p.category=14;if(addMySound(std::move(p)))saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();SendMessageW(catalog,LB_SETCURSEL,visibleInstruments.size()-1,0);audition();}}
-  if(id==ImportSf2){std::filesystem::path path;if(sf2Dialog(path)){if(!engine)throw std::runtime_error("Audio engine unavailable");auto presets=lp::readSf2PresetHeaders(path);if(presets.empty())throw std::runtime_error("SF2 has no presets");for(const auto& preset:presets){lp::Instrument p;p.sfz=std::filesystem::u8path(lp::makeSf2Reference(path,preset.bank,preset.program));p.name=path.stem().u8string()+" / "+preset.name+" ("+std::to_string(preset.bank)+":"+std::to_string(preset.program)+")";p.category=14;addMySound(std::move(p));}saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();message(L"SF2 importado: escolha um preset na lista Meus Sons.");}}
+  if(id==Import){std::filesystem::path path;if(fileDialog(false,true,path,true)){
+   auto format=lp::detectarTimbreFormat(path);bool conversionWarnings=false;
+   if(format==lp::TimbreFormat::SF2){importSf2Path(path);return;}
+   if(format==lp::TimbreFormat::NPNO||lp::convertedTimbre(path)){
+    message(format==lp::TimbreFormat::NPNO?L"Lendo módulo de piano (formato proprietário)...":format==lp::TimbreFormat::NKI?L"Importando NKI: mapa aproximado de WAVs, sem scripts ou zonas KONTAKT.":L"Convertendo amostras Nord para SFZ e WAV...");
+    try{path=lp::importarTimbreConvertido(path,settingsPath.parent_path()/L"imported-timbres",base/L"sndfile.dll",{},[this,&conversionWarnings](const std::string& status){if(status.rfind("Aviso:",0)==0)conversionWarnings=true;message(std::filesystem::u8path(status).wstring());flushVision();UpdateWindow(window);});}
+    catch(const lp::MissingNkiSamples& e){
+     message(std::filesystem::u8path(e.what()).wstring());BROWSEINFOW browse{};browse.hwndOwner=window;browse.lpszTitle=L"Escolha Samples ou a raiz desta biblioteca KONTAKT (mapa aproximado)";browse.ulFlags=BIF_RETURNONLYFSDIRS|BIF_NEWDIALOGSTYLE;
+     auto pidl=SHBrowseForFolderW(&browse);if(!pidl)return;wchar_t folder[MAX_PATH]{};bool ok=SHGetPathFromIDListW(pidl,folder);CoTaskMemFree(pidl);if(!ok)throw std::runtime_error("Pasta de amostras indisponível");
+     path=lp::importarTimbreConvertido(path,settingsPath.parent_path()/L"imported-timbres",base/L"sndfile.dll",folder);
+    }
+   }else if(format!=lp::TimbreFormat::SFZ)throw std::runtime_error("Formato de timbre não suportado");
+   lp::Instrument p;p.sfz=path;p.name=path.stem().u8string();p.category=14;if(addMySound(std::move(p)))saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();SendMessageW(catalog,LB_SETCURSEL,visibleInstruments.size()-1,0);audition();
+   if(format==lp::TimbreFormat::NPNO)message(conversionWarnings?L"Módulo de piano: concluído com avisos. Consulte o sidecar e o relatório junto ao original.":L"Módulo de piano: concluído. SFZ, WAV e relatório de auditoria salvos junto ao original.");
+   if(format==lp::TimbreFormat::NKI)message(L"NKI importado com mapa WAV aproximado. Original, amostras e limitações foram preservados.");
+  }}
+  if(id==ImportSf2){std::filesystem::path path;if(sf2Dialog(path))importSf2Path(path);}
   if(id==Category&&event==CBN_SELCHANGE)refreshCatalog();
   if(id==Catalog&&event==LBN_SELCHANGE)audition();
   if(id==Favorites&&event==LBN_SELCHANGE){auto slot=SendMessageW(favorites,LB_GETCURSEL,0,0);if(slot>=0)activate(static_cast<unsigned>(slot));}

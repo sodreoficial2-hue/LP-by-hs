@@ -1,0 +1,7 @@
+// Live Performance offline conversion; see original .meta.json
+<group>
+<region> sample=Samples/npno-tine-demo-b9910e341008-0.wav lokey=0 hikey=53 pitch_keycenter=52 lovel=1 hivel=127 offset=0 end=53875 volume=2 transpose=0 tune=0 ampeg_release=0.2 loop_mode=no_loop
+<group>
+<region> sample=Samples/npno-tine-demo-b9910e341008-1.wav lokey=54 hikey=77 pitch_keycenter=76 lovel=1 hivel=127 offset=0 end=35237 volume=2 transpose=0 tune=0 ampeg_release=0.2 loop_mode=no_loop
+<group>
+<region> sample=Samples/npno-tine-demo-b9910e341008-2.wav lokey=78 hikey=101 pitch_keycenter=100 lovel=1 hivel=127 offset=0 end=23094 volume=2 transpose=0 tune=0 ampeg_release=0.2 loop_mode=no_loop

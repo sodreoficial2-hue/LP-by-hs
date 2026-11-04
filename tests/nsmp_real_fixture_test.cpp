@@ -1,0 +1,3 @@
+#include "timbre_format.hpp"
+#include <iostream>
+int main(int argc,char** argv){if(argc!=4)return 1;auto input=std::filesystem::u8path(argv[1]);if(input.empty()){std::cout<<"SKIP: arquivo real de origem externa pendente; consulte tests/fixtures/nord/README.md. Vetores workshop são testados separadamente.\n";return 77;}try{auto output=std::filesystem::u8path(argv[3]);std::filesystem::remove_all(output);lp::MetaSidecar meta;auto sfz=lp::nsmpParaSFZ(input,output,meta,std::filesystem::u8path(argv[2]));if(!std::filesystem::exists(sfz)||meta.zones.empty())return 1;std::cout<<"Conversão de arquivo externo: "<<meta.zones.size()<<" regiões; comparar audição com a fonte ainda requer validação.\n";return 0;}catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

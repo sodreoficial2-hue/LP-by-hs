@@ -60,7 +60,7 @@ inline void ensureUnsharedDefinition(const std::filesystem::path& source,const s
 inline void deleteSoundFile(const std::filesystem::path& path){
  if(std::filesystem::is_symlink(std::filesystem::symlink_status(path)))throw std::runtime_error("Não é permitido deletar timbre por link simbólico");
  auto ext=path.extension().u8string();std::transform(ext.begin(),ext.end(),ext.begin(),[](unsigned char c){return static_cast<char>(std::tolower(c));});
- if(ext!=".sf2"&&ext!=".sfz")throw std::runtime_error("Arquivo de timbre inválido");
+ if(!acceptedBankTimbre(path))throw std::runtime_error("Arquivo de timbre inválido");
  if(!std::filesystem::is_regular_file(path)||!std::filesystem::remove(path))throw std::runtime_error("Não foi possível apagar o arquivo de origem");
 }
 }

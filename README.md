@@ -1,5 +1,31 @@
 # Live Performance by Hugo Sodré
 
+## Código consolidado — 4 de novembro de 2026
+
+Esta base reúne as atualizações anteriores de Performance, Master/MIDI Learn,
+Phaser, VU, piano inicial e criador automático SF2 com a importação offline abaixo.
+Os relatos de reconstrução mais antigos, preservados a seguir, são históricos.
+
+| Formato | Integração | Limitação principal |
+|---|---|---|
+| NKI | WAVs externos para SFZ; seleção da pasta Samples | Mapeamento aproximado por nomes; não lê grupos/scripts nem monólitos Kontakt |
+| NSMP / NSMP3 / NSMP4 | Leitor binário NW1, zonas, velocity, canais e loops para SFZ/WAV | Recursos proprietários sem equivalência ficam no sidecar; falta comparação com hardware |
+| NPNO (alias NPMO) | Leitor CNSP, PCM, camadas, bancos de pedal/soltura e auditoria para SFZ/WAV | Curvas de toque e envelopes aproximados; fidelidade auditiva não comprovada |
+
+O importador preserva o original e registra o timbre em Meus Sons; o caminho
+reproduzível aponta para o SFZ derivado. SF2/SFZ e os motores de áudio permanecem
+preservados. Documentação: [NSMP/NKI](docs/NSMP-NKI-IMPORT.md),
+[NPNO](docs/npno/IMPLEMENTACAO.md) e [validação desta integração](docs/FORMAT-INTEGRATION-2026-11-04.md).
+
+Os vetores independentes de teste e o exemplo sintetizado estão em
+`tests/fixtures/import-fixtures.tar.gz`. O CMake os extrai no diretório de build
+quando `LP_SNDFILE_LIBRARY` está configurado. A verificação direta, sem CMake, é
+`bash scripts/verify_timbre_import.sh /caminho/libsndfile.so.1`.
+Esta publicação atualiza o código-fonte; não representa novo teste Windows/ASIO
+nem uma nova distribuição do executável.
+
+## Histórico da reconstrução
+
 Reconstrução iniciada em 20/10/2026. O programa original continua preservado em `recovery/extracted/live`; a nova base já compila com saída ASIO, mas ainda não substitui o programa original em uso de palco.
 
 ## Material recuperado

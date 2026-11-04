@@ -188,3 +188,13 @@ docs/AUTOMATIC-SAMPLE-BUILDER.md for behavior, estimation limits, format support
 local validation and outstanding Windows/hardware checks. A compiled update is
 requested; do not use hosted Actions. Authenticated GitHub allowance remains
 unknown. Publish one grouped source stage and preserve the prior stable branch.
+
+## Format publication (4 November 2026)
+
+Hugo explicitly requests publishing NKI, NSMP/NSMP3/NSMP4 and NPNO integrations
+in sodreoficial2-hue/LP-by-hs. Recover the prepared source, preserve the approved
+347e321 base, validate locally, and consolidate the main source with the latest
+features. NKI is companion-WAV mapping, not an actual Kontakt binary parser.
+Keep documented NSMP/NPNO fidelity limits. Use one grouped source commit and one
+compact golden-vector archive; no Actions, hosted compute or executable upload.
+Authenticated GitHub allowance remains unknown; no quota tool is exposed.

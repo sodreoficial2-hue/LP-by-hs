@@ -1,0 +1,12 @@
+{
+"schema":1,
+"velocity_profile":"reference_touch_0_approximate",
+"velocity_coverage":[{"group":1,"root":52,"bank":0,"low":1,"high":127,"gaps":0,"overlaps":0},{"group":2,"root":76,"bank":0,"low":1,"high":127,"gaps":0,"overlaps":0},{"group":3,"root":100,"bank":0,"low":1,"high":127,"gaps":0,"overlaps":0}],
+"zones_expected":3,"zones_generated":3,
+"sample_records_expected":3,"sample_records_extracted":3,
+"wav_files_expected":3,"wav_files_generated":3,
+"regions_expected":3,"regions_generated":3,
+"pcm_bytes_declared":224418,"pcm_bytes_extracted":224418,
+"compressed_audio_bytes":71540,"overlap_values_checked":4288,
+"divergences":0,"audio_fidelity_verified":false
+}
