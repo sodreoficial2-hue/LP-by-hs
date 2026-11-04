@@ -19,13 +19,14 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
   // Test writes must never replace the musician's permanent Performance library.
   auto testSettings=app.base/L"vision-adapter-test-settings";std::filesystem::create_directories(testSettings);app.settingsPath=testSettings/L"audio.settings";
   auto storePath=testSettings/L"performances.lphs";std::filesystem::remove(storePath);app.performanceStore.load(storePath);app.show.performanceLibrary.clear();
+  std::filesystem::remove(app.parameterMemoryPath());std::filesystem::remove(app.parameterMemoryPath().wstring()+L".backup");app.loadParameterMemory();
   auto command=[&](const wchar_t* action,int a=0,int b=0,const wchar_t* text=L""){app.visionCommand(L"LP1\t1\t"+std::wstring(action)+L"\t"+std::to_wstring(a)+L"\t"+std::to_wstring(b)+L"\t"+text);assert(app.visionLastError.empty());auto limit=GetTickCount64()+10000;while(app.engine->performanceLoading()&&GetTickCount64()<limit){while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE)){TranslateMessage(&message);DispatchMessageW(&message);}Sleep(1);}assert(!app.engine->performanceLoading());};
   command(L"category",1);assert(app.screen==lp::Screen::Instruments&&!app.engine->loaded());
   command(L"select",0);assert(app.previewActive&&app.engine->loaded());auto oldReference=app.previewPatch.sfz;
   command(L"category",2);assert(app.previewPatch.sfz==oldReference&&app.engine->loaded());
   command(L"category",1);command(L"select",0);command(L"favorite",0);assert(app.show.favorites[0]);
   command(L"effects");assert(app.effects);command(L"parameter",1,420);assert(app.show.favorites[0]->parameters[1]==.42f);
-  command(L"parameter",15,350);assert(app.show.master==.35f);
+  command(L"parameter",15,350);assert(app.show.favorites[0]->parameters[15]==.35f);command(L"master",350);assert(app.show.master==.35f);
   app.visionCommand(L"LP1\t1\tparameter\t15\t1001\t");assert(!app.visionLastError.empty()&&app.show.master==.35f);
   for(int tick=0;tick<1000;++tick)SendMessageW(app.window,WM_TIMER,1,0);assert(app.effects);
   command(L"escape");assert(app.effects);
@@ -54,7 +55,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
   app.editSavedPerformance(0,true);assert(app.workspace.original.empty());command(L"performanceSaveNew");assert(app.show.performanceLibrary.size()==2);
   command(L"category",13);command(L"select",0);command(L"effects");assert(app.performanceControls());
   command(L"parameter",0,270);command(L"effects");command(L"activateFavorite",0);command(L"category",13);command(L"select",0);
-  assert(app.editingPerformance.parts[0].patch.parameters[0]==1.f); // unfavorited live mix discarded
+  assert(app.editingPerformance.parts[0].patch.parameters[0]==.27f); // live mix is now permanent outside favorites, too
   command(L"favorite",0);assert(app.show.favorites[1]&&app.show.current==1);
   for(int volume:{310,740,180}){
    command(L"effects");command(L"parameter",0,volume);command(L"parameter",1,650);command(L"effects");
@@ -64,6 +65,22 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
   }
   const auto profile=app.base/L"performance-recall-test.lphs";app.show.save(profile);lp::Session restored;restored.load(profile);assert(restored.favorites[1]->performanceMix->volumes[0]==.18f);
   command(L"activateFavorite",0);command(L"screen",6);command(L"noteOn",60,100);assert(app.visionNotes[60]);command(L"releaseNotes");assert(!app.visionNotes[60]);
+  // Mouse, Vision and MIDI use the same permanent per-instrument memory.
+  app.show.favorites[0].reset();app.show.current.reset();app.previewActive=false;
+  command(L"category",1);command(L"select",0);command(L"effects");assert(app.previewActive&&!app.show.current);
+  app.savedProfile=app.profileSnapshot();
+  for(int index=0;index<16;++index)command(L"parameter",index,100+index*40);
+  app.learningPerformanceParameter=6;app.midiEvent(0x5b28b0);assert(app.previewPatch.cc[6]==40&&app.previewPatch.parameters[6]==91/127.f);
+  command(L"master",610);assert(!app.profileDirty());auto expected=app.previewPatch;
+  app.flushParameterMemory();lp::SoundParameterStore memoryAfterExit;memoryAfterExit.load(app.parameterMemoryPath());
+  // Throw away every in-memory patch, as at a new program launch. No profile load.
+  app.soundParameters=memoryAfterExit;app.previewPatch={};app.previewActive=false;app.show.current.reset();app.show.master=1;app.soundParameters.restoreSession(app.show,app.base);
+  command(L"effects");command(L"category",1);command(L"select",0);
+  assert(app.previewPatch.parameters==expected.parameters&&app.previewPatch.adsrEnabled&&app.previewPatch.cc==expected.cc&&app.show.master==.61f);
+  command(L"favorite",0);assert(app.show.current);auto slot=*app.show.current;command(L"effects");command(L"parameter",6,250);command(L"effects");
+  app.flushParameterMemory();lp::SoundParameterStore reopenedControls;reopenedControls.load(app.parameterMemoryPath());lp::Patch fresh;assert(reopenedControls.restore(lp::soundParameterKey(expected.sfz,app.base),fresh)&&fresh.parameters[6]==.25f);
+  // Removing a favorite cannot erase the instrument's permanent sound settings.
+  app.show.favorites[slot].reset();app.show.current.reset();app.previewActive=false;command(L"category",1);command(L"select",0);assert(app.previewPatch.parameters[6]==.25f);
   auto json=app.visionState();assert(json.find("\"version\":1")!=json.npos&&json.find("\"favorites\":[")!=json.npos);
   std::ofstream(app.base/L"vision-native-test-result.txt")<<"PASS: actual App bridge commands; catalog browsing preserves sound; favorite parameters and master; malformed command rejection; Performance split/name/save/mix; virtual note release. PortAudio/sfizz test doubles. No WebView2 or hardware validation.\n";
   // Startup must choose the first visible acoustic piano, wait for the worker,

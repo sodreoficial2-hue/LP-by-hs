@@ -1,0 +1,46 @@
+{
+  "source_base": "2f6b426d2a821a00221c5b9c66ffffd6c5fe4148",
+  "native_ctest": {
+    "passed": 37,
+    "failed": 1,
+    "skipped": 4
+  },
+  "ctest_exit": 8,
+  "legacy_failure": "real_sfizz_envelope / Real OSC ADSR readback",
+  "windows": {
+    "LivePerformance.exe": {
+      "bytes": 6368441,
+      "sha256": "096a24f23021d5f45f58c3b5592c264e168e8b09f24b7a8daada762c63e212d8",
+      "compiled": true,
+      "run": false
+    },
+    "LivePerformanceVision.exe": {
+      "bytes": 6574551,
+      "sha256": "f62f8d3db9f98d4d2662195a368ef4e1d300d6b8650a085144257731741fba9a",
+      "compiled": true,
+      "run": false
+    },
+    "lp_win32_layout_test.exe": {
+      "bytes": 6295929,
+      "sha256": "ff0050d64cab3c34d09dbc5badaae3ed6cb052e7227cbd0773c4417bd7dc1dde",
+      "compiled": true,
+      "run": false
+    },
+    "lp_win32_parameter_memory_test.exe": {
+      "bytes": 6333860,
+      "sha256": "cdd0ad4433ec5f0f7d393cf133d7f9c5808456db58de3d98e50198b8bdcf0ba2",
+      "compiled": true,
+      "run": false
+    },
+    "lp_win32_vision_test.exe": {
+      "bytes": 6401139,
+      "sha256": "a91fa9d4d3cf7f750d5f3d7bbf239ea34a082da7240e0381abdd7773a3b25f71",
+      "compiled": true,
+      "run": false
+    }
+  },
+  "wine_failure": "wineserver: socket: Operation not permitted",
+  "javascript_syntax": "passed",
+  "diff_check": "passed",
+  "actions_used": false
+}

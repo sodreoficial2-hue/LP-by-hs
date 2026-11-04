@@ -27,7 +27,7 @@
    auto tag=importing?L"BIBLIOTECA DE INSTRUMENTOS":L"PERFIL DE SHOW";
    lpui::text(dc,tag,{r.left+24,r.top+16,r.right-24,r.top+46},smallFont,lpui::gold,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
    wchar_t title[128]{};GetWindowTextW(item->hwndItem,title,128);lpui::text(dc,title,{r.left+24,r.top+50,r.right-24,r.top+100},largeFont,lpui::white,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
-   auto description=save?L"Guarde favoritos, ajustes e controles.":(item->CtlID==Open?L"Retome o repertório de cada apresentação.":(item->CtlID==Import?L"Adicione um instrumento à sua biblioteca.":L"Adicione os timbres de um SoundFont."));
+   auto description=save?L"Guarde o repertório e os favoritos.":(item->CtlID==Open?L"Retome o repertório de cada apresentação.":(item->CtlID==Import?L"Adicione um instrumento à sua biblioteca.":L"Adicione os timbres de um SoundFont."));
    lpui::text(dc,description,{r.left+24,r.top+112,r.right-24,r.bottom-16},smallFont,lpui::muted,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
   }else if(card){
    // Reserve the full card width for the accessible name; photos never compete with text.
@@ -139,7 +139,7 @@
   case lp::Screen::Settings:
    panel({32,p+416,width-32,p+548});
    lpui::text(dc,L"Seu show, pronto para voltar",{56,p+436,width-320,p+480},font,lpui::gold,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
-   label(L"Salve favoritos, ajustes e mapeamentos em um perfil.",{56,p+486,width-320,p+522});break;
+   label(L"Parâmetros são memorizados automaticamente. Perfis guardam o repertório.",{56,p+486,width-320,p+522});break;
   case lp::Screen::PerformanceEditor:
    panel({32,p+8,width-32,p+128});label(L"DISTRIBUIÇÃO DO TECLADO",{56,p+22,width-56,p+56});
    for(int i=0;i<4;++i){int y=p+152+i*300;panel({32,y,width-32,y+298});

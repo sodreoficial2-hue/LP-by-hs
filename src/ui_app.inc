@@ -37,6 +37,7 @@
  void syncPerformance(){
   if(performanceActive()&&show.current&&show.favorites[*show.current]&&show.favorites[*show.current]->sfz=="performance://"+std::to_string(activePerformanceIndex))
    show.favorites[*show.current]->performanceMix=lp::performanceMix(editingPerformance);
+  if(performanceControls())rememberActiveParameters();
  }
  void goHome(){if(!preserveEditorDraft())return;restoringSounds=false;pageScroll.seek(0);screen=lp::Screen::Home;performanceVisible=false;cancelMidiLearn();layout();SetFocus(item(CategoryCardBase+categoryIndex));}
  void openCategory(){if(!preserveEditorDraft())return;restoringSounds=false;catalogSearch.clear();SetWindowTextW(item(Search),L"");pageScroll.seek(0);screen=lp::Screen::Instruments;performanceVisible=false;refreshCatalog();layout();
@@ -135,7 +136,7 @@
  int keyAt(POINT point){for(int pass=0;pass<2;++pass)for(int note=36;note<=96;++note){int pc=note%12;bool black=pc==1||pc==3||pc==6||pc==8||pc==10;if(black!=(pass==0))continue;if(PtInRect(&virtualKeys[note],point))return note;}return -1;}
  void releaseVirtual(){if(virtualNote>=0&&engine)engine->send({0x80,static_cast<std::uint8_t>(virtualNote),0});if(virtualNote>=0)keyDown[virtualNote]=false;virtualNote=-1;InvalidateRect(page,nullptr,FALSE);}
  void virtualKey(POINT point){int note=keyAt(point);if(note==virtualNote)return;releaseVirtual();if(note>=0&&engine&&engine->loaded()){virtualNote=note;keyDown[note]=true;engine->send({0x90,static_cast<std::uint8_t>(note),100});InvalidateRect(page,nullptr,FALSE);}}
- void setMasterValue(float value){show.master=std::clamp(value,0.f,1.f);if(engine)engine->masterVolume(show.master);refreshParameters();}
+ void setMasterValue(float value){show.master=std::clamp(value,0.f,1.f);rememberMasterParameters();if(engine)engine->masterVolume(show.master);refreshParameters();}
  void setPanelValue(int index,float value){
 
   if(performanceControls()){
@@ -167,7 +168,7 @@
    if(key=='K'){openScreen(lp::Screen::Keyboard);return true;}
    }
   }
-  if(!typing&&!(GetKeyState(VK_CONTROL)&0x8000)&&!(GetKeyState(VK_MENU)&0x8000)&&(key==VK_LEFT||key==VK_RIGHT)&&_wcsicmp(kind,TRACKBAR_CLASSW)!=0&&_wcsicmp(kind,L"COMBOBOX")!=0){show.master=std::clamp(show.master+(key==VK_RIGHT?.02f:-.02f),0.f,1.f);if(engine)engine->masterVolume(show.master);refreshParameters();return true;}
+  if(!typing&&!(GetKeyState(VK_CONTROL)&0x8000)&&!(GetKeyState(VK_MENU)&0x8000)&&(key==VK_LEFT||key==VK_RIGHT)&&_wcsicmp(kind,TRACKBAR_CLASSW)!=0&&_wcsicmp(kind,L"COMBOBOX")!=0){setMasterValue(show.master+(key==VK_RIGHT?.02f:-.02f));return true;}
   if(!effects&&!typing&&screen==lp::Screen::Home&&!(GetKeyState(VK_CONTROL)&0x8000)&&!(GetKeyState(VK_MENU)&0x8000)&&
      (key==VK_LEFT||key==VK_RIGHT||key==VK_UP||key==VK_DOWN)){
    int id=GetDlgCtrlID(GetFocus()),index=id>=CategoryCardBase&&id<CategoryCardBase+16?id-CategoryCardBase:categoryIndex;

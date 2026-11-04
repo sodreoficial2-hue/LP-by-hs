@@ -198,3 +198,23 @@ features. NKI is companion-WAV mapping, not an actual Kontakt binary parser.
 Keep documented NSMP/NPNO fidelity limits. Use one grouped source commit and one
 compact golden-vector archive; no Actions, hosted compute or executable upload.
 Authenticated GitHub allowance remains unknown; no quota tool is exposed.
+
+## Permanent sound parameters (4 November 2026)
+
+Hugo explicitly authorizes integrating PR #1 into main and adding permanent
+last-edit-wins parameter memory for every instrument, in every category and
+Favorites, independent of manually saving a show profile. The PR was merged as
+2f6b426d2a821a00221c5b9c66ffffd6c5fe4148. This authorization also covers publishing
+this requested follow-up in main; do not ask again for default-branch permission.
+
+All 16 patch values, ADSR enable and knob CCs share an instrument identity outside
+profiles; SF2 presets stay distinct. Performance part controls are isolated per
+saved arrangement. This supersedes the old temporary nonfavorite Performance mix
+rule. Master value/mapping are permanent globally. Profile imports cannot replace
+newer permanent controls with old values; slot membership and favorite PC bindings
+remain profile-owned. Parameter-only changes must not trigger Save Profile prompts.
+Use a GUI-side 100 ms snapshot queue, the existing background atomic writer and
+flush-on-close. No file IO on audio/MIDI callbacks. See
+`docs/PERMANENT-SOUND-PARAMETERS.md` for recovery, test scope and limitations.
+No new ZIP or Drive delivery was requested. Validate locally; no Actions or hosted
+compute. Authenticated GitHub allowance remains unknown.
