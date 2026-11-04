@@ -5,7 +5,7 @@
 #include <set>
 #include <iomanip>
 namespace lp {
-std::filesystem::path nsmpParaSFZ(const std::filesystem::path& input,const std::filesystem::path& output,MetaSidecar& out,const std::filesystem::path& library){
+std::filesystem::path nsmpParaSFZ(const std::filesystem::path& input,const std::filesystem::path& output,MetaSidecar& out,const std::filesystem::path& library,const ConversionOptions& options){
  out=MetaSidecar{};out.originalSha256=sha256File(input);auto b=nsmp::readFile(input);auto id=nsmp::identifyNsmp(b);auto sections=nsmp::parseNsmpSections(b,id);auto zones=nsmp::readNsmpZones(b,id,sections);out.name=input.stem().u8string();out.codec=id.codec;out.format=id.codec>=3?"NSMP"+std::to_string(id.codec):"NSMP";out.version=std::to_string(id.header.version);out.signatureHex="4342494e";out.signatureConfirmed=true;out.checksumValid=nsmp::verifyChecksum(b,id);out.status="converted_nord_sfz_wav";
  out.limitations={
   "Source: OpenNord 67ba1b657ff65a803d568f0ba1fba08598fdc830, AGPL-3.0-or-later. C++ codec/zone port; original opaque headers retained below.",
@@ -35,11 +35,11 @@ std::filesystem::path nsmpParaSFZ(const std::filesystem::path& input,const std::
    if(stroke.loop){z.loop=stroke.loop->loops;z.loopStart=stroke.loop->start;z.loopEnd=stroke.loop->end;z.altStart=stroke.loop->alt;z.decayDbPerSecond=stroke.loop->decayDbPerSecond;}else out.limitations.push_back("stroke="+std::to_string(stroke.id)+": loop pointers not resolvable; no loop emitted, original header preserved.");
    // Preserve per-key differences: consolidate adjacent keys only when the actual level/detune agrees.
    for(int key=zone.low;key<=zone.high;){auto level=globalLevel*zone.level;auto tune=globalTune+zone.detune;if(!rows.empty()){const auto& r=rows[key];auto gain=(std::uint32_t(r[0])<<16)|(std::uint32_t(r[1])<<8)|r[2];auto raw=(std::uint32_t(r[3])<<16)|(std::uint32_t(r[4])<<8)|r[5];level*=gain/1048576.;tune+=nsmp::dsp2Detune(raw>=0x800000?std::int32_t(raw)-0x1000000:std::int32_t(raw));}
-    int last=key;while(last<zone.high&&(rows.empty()||rows[last+1]==rows[key]))++last;auto region=z;region.keyLow=key;region.keyHigh=last;region.volumeDb=level>0?20*std::log10(level):-144;region.tuneCents=tune;out.zones.push_back(region);if(level>0)writeSfzRegion(sfz,region);else out.preservedFeatures.push_back("Muted region omitted: stroke="+std::to_string(stroke.id)+" keys="+std::to_string(key)+".."+std::to_string(last));key=last+1;
+    int last=key;while(last<zone.high&&(rows.empty()||rows[last+1]==rows[key]))++last;auto region=z;region.keyLow=key;region.keyHigh=last;region.volumeDb=linearGainDb(level);region.muted=!(std::isfinite(level)&&level>0);region.tuneCents=tune;out.zones.push_back(region);if(level>0)writeSfzRegion(sfz,region);else out.preservedFeatures.push_back("Muted region omitted: stroke="+std::to_string(stroke.id)+" keys="+std::to_string(key)+".."+std::to_string(last));key=last+1;
    }
   }if(!used)out.preservedFeatures.push_back("Unmapped stroke exported without a playing SFZ region: id="+std::to_string(stroke.id));
  }
  for(const auto& zone:zones)if(!mapped.count(zone.id))throw std::runtime_error("Nord: zona perdeu seu áudio; conversão cancelada");
- return transaction.finish(input,out,sfz.str());
+ prepareSfzZones(out.zones,out,options);return transaction.finish(input,out,writeSfzInstrument(out.zones));
 }
 }

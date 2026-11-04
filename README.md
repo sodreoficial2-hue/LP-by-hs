@@ -8,7 +8,7 @@ Os relatos de reconstrução mais antigos, preservados a seguir, são histórico
 
 | Formato | Integração | Limitação principal |
 |---|---|---|
-| NKI | WAVs externos para SFZ; seleção da pasta Samples | Mapeamento aproximado por nomes; não lê grupos/scripts nem monólitos Kontakt |
+| NKI | Parser binário zlib/gzip + K2_Container XML, programas separados, zonas/loops/pan/ganho; fallback declarado | Monólitos RIFF/FORM simples; NKS/NIS/NCW sem suporte; scripts/grupos não equivalentes ficam no XML preservado |
 | NSMP / NSMP3 / NSMP4 | Leitor binário NW1, zonas, velocity, canais e loops para SFZ/WAV | Recursos proprietários sem equivalência ficam no sidecar; falta comparação com hardware |
 | NPNO (alias NPMO) | Leitor CNSP, PCM, camadas, bancos de pedal/soltura e auditoria para SFZ/WAV | Curvas de toque e envelopes aproximados; fidelidade auditiva não comprovada |
 
@@ -21,6 +21,7 @@ Os vetores independentes de teste e o exemplo sintetizado estão em
 `tests/fixtures/import-fixtures.tar.gz`. O CMake os extrai no diretório de build
 quando `LP_SNDFILE_LIBRARY` está configurado. A verificação direta, sem CMake, é
 `bash scripts/verify_timbre_import.sh /caminho/libsndfile.so.1`.
+Validação atual: CMake local e renderização Sfizz real, com afinação <3 cents e carga de vozes; veja o relatório por subitem.
 Esta publicação atualiza o código-fonte; não representa novo teste Windows/ASIO
 nem uma nova distribuição do executável.
 

@@ -1,0 +1,6 @@
+// Live Performance offline conversion; see original .meta.json
+<group>
+<region> sample=Samples/sample-0.wav lokey=0 hikey=127 pitch_keycenter=69 lovel=1 hivel=63 offset=0 end=88199 volume=0 transpose=0 tune=0 ampeg_release=0.2 seq_length=2 seq_position=1 loop_mode=loop_sustain loop_start=100 loop_end=44099
+<region> sample=Samples/sample-0.wav lokey=0 hikey=127 pitch_keycenter=69 lovel=1 hivel=63 offset=0 end=88199 volume=0 transpose=0 tune=0 ampeg_release=0.2 seq_length=2 seq_position=2 loop_mode=loop_sustain loop_start=100 loop_end=44099
+<region> sample=Samples/sample-0.wav lokey=0 hikey=127 pitch_keycenter=69 lovel=64 hivel=127 offset=0 end=88199 volume=0 transpose=0 tune=0 ampeg_release=0.2 seq_length=2 seq_position=1 loop_mode=loop_sustain loop_start=100 loop_end=44099
+<region> sample=Samples/sample-0.wav lokey=0 hikey=127 pitch_keycenter=69 lovel=64 hivel=127 offset=0 end=88199 volume=0 transpose=0 tune=0 ampeg_release=0.2 seq_length=2 seq_position=2 loop_mode=loop_sustain loop_start=100 loop_end=44099

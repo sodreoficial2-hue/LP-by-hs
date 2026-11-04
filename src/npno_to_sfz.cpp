@@ -4,7 +4,7 @@
 #include "sfz_conversion.hpp"
 #include <map>
 namespace lp {
-std::filesystem::path npnoParaSFZ(const std::filesystem::path& input,const std::filesystem::path& output,MetaSidecar& out,const std::filesystem::path& library,const ConversionProgress& progress){
+std::filesystem::path npnoParaSFZ(const std::filesystem::path& input,const std::filesystem::path& output,MetaSidecar& out,const std::filesystem::path& library,const ConversionProgress& progress,const ConversionOptions& options){
  auto status=[&](const std::string& text){if(progress)progress(text);};status("lendo módulo...");
  out=MetaSidecar{};out.originalSha256=sha256File(input);auto module=npno::readModule(input);
  out.name=module.name;out.format="npno";out.version=std::to_string(module.header.version);out.codec=module.streamVersion;
@@ -72,6 +72,6 @@ std::filesystem::path npnoParaSFZ(const std::filesystem::path& input,const std::
  audit<<"],\n\"zones_expected\":"<<module.zones.size()<<",\"zones_generated\":"<<groups<<",\n\"sample_records_expected\":"<<module.strokes.size()<<",\"sample_records_extracted\":"<<recordsExtracted<<",\n\"wav_files_expected\":"<<expectedWavs<<",\"wav_files_generated\":"<<out.samples.size()<<",\n\"regions_expected\":"<<expectedRegions<<",\"regions_generated\":"<<emittedRegions<<",\n\"pcm_bytes_declared\":"<<declared<<",\"pcm_bytes_extracted\":"<<extracted<<",\n\"compressed_audio_bytes\":"<<compressed<<",\"overlap_values_checked\":"<<overlapChecked<<",\n\"divergences\":0,\"audio_fidelity_verified\":false\n}\n";
  auto report=output/input.filename();report+=".audit.json";atomicWrite(report,audit.str());
  out.preservedFeatures={"Original binary with SHA-256; full body prefix and every sample record in source_metadata; per-channel WAV hashes; separate extraction and velocity audit.","All source sample records are decoded, including unmapped/unreachable layers; only reachable regions are played."};
- auto result=transaction.finish(input,out,sfz.str());status("concluído");return result;
+ prepareSfzZones(out.zones,out,options);auto result=transaction.finish(input,out,writeSfzInstrument(out.zones));status("concluído");return result;
 }
 }

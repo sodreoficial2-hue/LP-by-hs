@@ -13,7 +13,8 @@ void tile(std::vector<Zone>& zones,const std::map<std::uint32_t,int>& roots){std
 }
 std::vector<Zone> readNsmpZones(const Bytes& b,const Identity& id,const std::vector<Section>& sections){
  const Section* map=nullptr;std::map<std::uint32_t,int> roots;std::size_t strokeCount=0;for(const auto& s:sections){if(suffix(s.tag,"map"))map=&s;if(suffix(s.tag,"stk")){View v(b,s.end);v.require(s.payload,6);auto gid=v.be(s.payload,4);if(!roots.emplace(gid,v.at(s.payload+5)).second)throw std::runtime_error("Nord: id de stroke duplicado");++strokeCount;}}
- if(!map||!strokeCount)throw std::runtime_error("Nord: mapa ou strokes ausentes");if(strokeCount>512)throw std::runtime_error("Nord: limite de 512 strokes");if(map->size>131072)throw std::runtime_error("Nord: seção map excede limite de 128 KiB");View v(b,map->end);std::vector<Zone> zones;auto p=map->payload;
+ if(!map||!strokeCount)throw std::runtime_error("Nord: mapa ou strokes ausentes");if(strokeCount>512)throw std::runtime_error("Nord: limite de 512 strokes");if(map->size>131072)throw std::runtime_error("Nord: seção map excede limite de 128 KiB");if(!((id.codec==1&&map->version==9)||(id.codec==2&&map->version==10)||(id.codec==3&&(map->version==12||map->version==14))||(id.codec==4&&map->version==21)))throw std::runtime_error("NSMP: layout map não suportado; geração="+std::to_string(id.codec)+", versão map="+std::to_string(map->version));
+ View v(b,map->end);std::vector<Zone> zones;auto p=map->payload;
  if(id.legacy&&map->version!=10){
   auto bytes=strokeCount*12;if(bytes>map->size)throw std::runtime_error("Nord: tabela legada truncada");
   bool found=false;for(auto cursor=map->end;cursor>p;){auto o=--cursor;if(o+2>map->end||v.be(o,2)!=strokeCount||o+2+bytes>map->end)continue;auto rec=o+2;bool valid=true;for(std::size_t i=0;i<strokeCount;++i){auto r=rec+i*12;if(v.be(r+6,4)>127||v.be(r+10,2)!=1||!roots.count(v.be(r,3))){valid=false;break;}}if(!valid)continue;

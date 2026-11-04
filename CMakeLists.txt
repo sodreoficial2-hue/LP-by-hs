@@ -3,16 +3,18 @@ project(LPbyHS LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Threads REQUIRED)
+find_package(ZLIB REQUIRED)
+find_package(EXPAT REQUIRED)
 add_library(lp_engine src/sfizz_engine.cpp src/sf2_engine.cpp src/dsp.cpp src/level_calibration.cpp)
 target_include_directories(lp_engine PUBLIC src)
 target_link_libraries(lp_engine PRIVATE ${CMAKE_DL_LIBS} Threads::Threads)
 # Offline conversion uses sample_builder.hpp's existing dynamic libsndfile ABI.
 # sndfile.dll is already copied to the portable; no codec work runs on audio threads.
-add_library(lp_timbre_import src/timbre_format.cpp src/sfz_conversion.cpp src/nsmp_to_sfz.cpp src/nki_to_sfz.cpp src/npno_reader.cpp src/npno_to_sfz.cpp
+add_library(lp_timbre_import src/nki_reader.cpp src/sfz_policy.cpp src/timbre_format.cpp src/sfz_conversion.cpp src/nsmp_to_sfz.cpp src/nki_to_sfz.cpp src/npno_reader.cpp src/npno_to_sfz.cpp
  src/nsmp/cbin.cpp src/nsmp/nsmp_sections.cpp src/nsmp/nsmp_codek.cpp
  src/nsmp/nw1_dsp.cpp src/nsmp/bitstream.cpp src/nsmp/checksum.cpp)
 target_include_directories(lp_timbre_import PUBLIC src)
-target_link_libraries(lp_timbre_import PRIVATE ${CMAKE_DL_LIBS})
+target_link_libraries(lp_timbre_import PRIVATE ${CMAKE_DL_LIBS} ZLIB::ZLIB EXPAT::EXPAT)
 add_executable(lp_catalog src/main.cpp)
 add_executable(lp_session_test tests/session_test.cpp)
 target_include_directories(lp_session_test PRIVATE src)
@@ -337,4 +339,29 @@ if(LP_SNDFILE_LIBRARY)
  target_link_libraries(lp_nsmp_real_fixture_test PRIVATE lp_timbre_import)
  add_test(NAME nsmp_external_real_fixture COMMAND lp_nsmp_real_fixture_test "${LP_NSMP_REAL_FIXTURE}" "${LP_SNDFILE_LIBRARY}" "${CMAKE_BINARY_DIR}/nsmp-external-validation")
  set_tests_properties(nsmp_external_real_fixture PROPERTIES SKIP_RETURN_CODE 77)
+endif()
+
+if(LP_SNDFILE_LIBRARY)
+ find_package(Python3 COMPONENTS Interpreter REQUIRED)
+ add_executable(lp_nki_binary_test tests/nki_binary_test.cpp)
+ target_link_libraries(lp_nki_binary_test PRIVATE lp_timbre_import)
+ add_test(NAME nki_generate_spec_fixtures COMMAND "${Python3_EXECUTABLE}"
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/nki/generate.py" "${CMAKE_BINARY_DIR}/nki-fixtures")
+ set_tests_properties(nki_generate_spec_fixtures PROPERTIES FIXTURES_SETUP nki_spec)
+ add_test(NAME pitch_restore_reference_fixtures COMMAND "${Python3_EXECUTABLE}"
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/pitch/unpack.py" "${CMAKE_BINARY_DIR}/pitch-fixtures")
+ set_tests_properties(pitch_restore_reference_fixtures PROPERTIES FIXTURES_SETUP pitch_spec)
+ add_test(NAME nki_binary_mapping COMMAND lp_nki_binary_test "${LP_SNDFILE_LIBRARY}"
+  "${CMAKE_BINARY_DIR}/nki-fixtures" "${CMAKE_BINARY_DIR}/nki-output")
+ set_tests_properties(nki_binary_mapping PROPERTIES FIXTURES_REQUIRED nki_spec)
+ add_executable(lp_format_policy_test tests/format_policy_test.cpp)
+ target_link_libraries(lp_format_policy_test PRIVATE lp_timbre_import)
+ add_test(NAME shared_format_policy COMMAND lp_format_policy_test "${LP_IMPORT_FIXTURE_ROOT}/npno" "${CMAKE_BINARY_DIR}/policy-output")
+ if(UNIX AND LP_REAL_SFIZZ_LIBRARY)
+  add_executable(lp_format_render_test tests/format_render_test.cpp)
+  target_link_libraries(lp_format_render_test PRIVATE lp_timbre_import)
+  add_test(NAME shared_format_real_render COMMAND lp_format_render_test "${LP_REAL_SFIZZ_LIBRARY}"
+   "${LP_SNDFILE_LIBRARY}" "${CMAKE_BINARY_DIR}" "${CMAKE_BINARY_DIR}/render-output")
+  set_tests_properties(shared_format_real_render PROPERTIES FIXTURES_REQUIRED "nki_spec;pitch_spec")
+ endif()
 endif()

@@ -1,0 +1,32 @@
+Checking workshop-og.nsmp
+Checking workshop-v2.nsmp
+Checking workshop-v3.nsmp3
+Checking workshop-v4.nsmp4
+Checking workshop-v3-format0.nsmp3
+Checking workshop-v3-map12.nsmp3
+PASS: six OpenNord differential fixtures (raw PCM, channels, zones, loops), SFZ/WAV export, real sndfile, NKI companion map, original/sidecar hashes, catalog and rollback
+Rejecting short
+Rejecting truncated
+Rejecting unknown-version
+Rejecting unknown-stream
+Rejecting bad-signature
+Rejecting bad-loop
+Rejecting bad-block
+Rejecting bad-count
+Rejecting bad-offset
+Rejecting bad-pcm
+PASS: public demo and independent v5/v6 multilayer PCM goldens; mono/stereo PCM16 WAV; loops/tuning/pedal/release; 1..127 velocity coverage; audit, aliases, preserved original/catalog, malformed-file rollback
+PASS: catalog categories, UTF-8, portable favorites, legacy paths, invalid bank rejection
+Generated 18 spec NKI fixtures
+PASS: NKI binary zlib/gzip offsets, programs, defaults/discards, linear gain, loops, overlap partition, Unicode/stereo, embedded RIFF, explicit fallback, preserved XML, RR/crossfade, errors/rollback and project rejection
+PASS: 8 outer revisions (synthetic mutations, 2 internal PCM16 families), unknown version diagnostic, checksum warning, shared RR exclusivity/stable count, velocity gaps/overlaps and opt-in crossfade voice cost 1->2
+NKI pitch_cents=-0.202652 sounded=768 unmapped_source_keys=0
+NSMP pitch_cents=-0.159306 sounded=768 unmapped_source_keys=0
+NPNO pitch_cents=-0.159306 sounded=768 unmapped_source_keys=0
+crossfade=0 peak_voices=128 first_limit_chord=16 simulated_seconds=1.6 cpu_ms=173.043
+crossfade=1 peak_voices=128 first_limit_chord=8 simulated_seconds=0.8 cpu_ms=231.789
+PASS: real sfizz pitch <3 cents, mapped MIDI scale dynamics, CC64 loops, RR voices and sustained 88-key/6-layer/2-RR load
+PASS: 5 original + 2 new import/policy regression groups
+
+CMake local build completed. See integration report for CTest aggregate, skipped and excluded cases.
+Final CMake/CTest: exit code 0; 34 passed, 2 skipped, 2 documented exclusions.

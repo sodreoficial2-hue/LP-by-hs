@@ -126,7 +126,7 @@ Audio decodeStroke(const Module& m,const Stroke& s){
  for(std::size_t block=0;block<s.blocks;++block){
   auto blockBytes=std::size_t(1022*m.channels),at=s.audioOffset+block*blockBytes;v.require(at,blockBytes);
   auto header=v.be(at,2);unsigned width=header&31,order=(header>>5)&7;
-  if(width<1||width>16||order>4)throw std::runtime_error("Módulo de piano: cabeçalho de áudio corrompido no registro "+std::to_string(s.index)+", bloco "+std::to_string(block));
+  if(width<1||width>16||order>4)throw std::runtime_error("Módulo de piano: cabeçalho de áudio corrompido; versão interna="+std::to_string(m.streamVersion)+", PCM aceito=16 bits, largura residual detectada="+std::to_string(width)+", ordem="+std::to_string(order)+", registro="+std::to_string(s.index)+", bloco="+std::to_string(block));
   std::size_t frames=(blockBytes-2)*8/(width*m.channels),own=frames-overlap;
   if(own<overlap||emitted>s.frames||own>s.frames-emitted)throw std::runtime_error("Módulo de piano: frames decodificados excedem declaração");
   auto nextHistory=history;std::size_t bit=0;std::vector<std::vector<std::int16_t>> pcm(m.channels);for(auto& lane:pcm)lane.reserve(frames);

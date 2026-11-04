@@ -34,6 +34,16 @@ struct ConvertedZone {
  bool hasPan=false,releaseTrigger=false;
  double pan=0,releaseSeconds=-1;
  int cc64Low=-1,cc64High=-1,sequenceLength=0,sequencePosition=0;
+ std::uintmax_t sampleStart=0,sampleEnd=0; // end exclusive; 0 means frames
+ int sourceLoopMode=-1; // -1 = existing format flags, 0/1/2 = XML modes
+ bool muted=false;
+ int xfinLowVel=-1,xfinHighVel=-1,xfoutLowVel=-1,xfoutHighVel=-1;
+ int program=0;
+};
+struct ConversionOptions {
+ bool velocityCrossfade=false;
+ int crossfadeWidth=4; // MIDI velocity steps; additional voices are opt-in
+
 };
 struct MetaSidecar {
  std::string name,format,version,originalSha256,signatureHex,status;
@@ -50,10 +60,10 @@ struct MetaSidecar {
 struct MissingNkiSamples:std::runtime_error {using std::runtime_error::runtime_error;};
 using ConversionProgress=std::function<void(const std::string&)>;
 std::filesystem::path npnoParaSFZ(const std::filesystem::path& entrada,const std::filesystem::path& dirSaida,MetaSidecar& out,
- const std::filesystem::path& sndfileLibrary,const ConversionProgress& progress={});
-std::filesystem::path nsmpParaSFZ(const std::filesystem::path& entrada,const std::filesystem::path& dirSaida,MetaSidecar& out,const std::filesystem::path& sndfileLibrary);
+ const std::filesystem::path& sndfileLibrary,const ConversionProgress& progress={},const ConversionOptions& options={});
+std::filesystem::path nsmpParaSFZ(const std::filesystem::path& entrada,const std::filesystem::path& dirSaida,MetaSidecar& out,const std::filesystem::path& sndfileLibrary,const ConversionOptions& options={});
 std::filesystem::path nkiParaSFZ(const std::filesystem::path& entrada,const std::filesystem::path& dirSaida,MetaSidecar& out,
- const std::filesystem::path& sndfileLibrary,const std::filesystem::path& sampleRoot={});
+ const std::filesystem::path& sndfileLibrary,const std::filesystem::path& sampleRoot={},const ConversionOptions& options={});
 // Private staging directory, published by rename only after original, SFZ, samples and sidecar succeed.
 std::filesystem::path importarTimbreConvertido(const std::filesystem::path& original,const std::filesystem::path& destination,
  const std::filesystem::path& sndfileLibrary,const std::filesystem::path& sampleRoot={},const ConversionProgress& progress={});

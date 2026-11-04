@@ -39,27 +39,47 @@ void WavWriter::writePcm16(const std::filesystem::path& path,int rate,const std:
  catch(...){if(!closed)closeFile(file);std::error_code ignored;std::filesystem::remove(path,ignored);throw;}
 }
 void writeSfzGroup(std::ostream& out){out<<"<group>\n";}
-void writeSfzRegion(std::ostream& s,const ConvertedZone& z){
+double linearGainDb(double gain){return std::isfinite(gain)&&gain>0?std::max(-144.0,20*std::log10(gain)):-144.0;}
+bool writeSfzRegion(std::ostream& s,const ConvertedZone& z,std::vector<std::string>* warnings){
+ if(z.muted||!std::isfinite(z.volumeDb)){
+  if(warnings)warnings->push_back("Região omitida: ganho nulo, negativo ou não finito: "+z.sample);
+  return false;
+ }
+ if(!std::isfinite(z.tuneCents)||!std::isfinite(z.pan)||!std::isfinite(z.releaseSeconds))throw std::runtime_error("SFZ: afinação/pan/envelope não finito");
+ if(z.root<0||z.root>127||z.keyLow<0||z.keyHigh>127||z.keyLow>z.keyHigh||z.velLow<0||z.velHigh>127||z.velLow>z.velHigh)throw std::runtime_error("SFZ: faixa MIDI inválida");
+ auto path=z.sample;std::replace(path.begin(),path.end(),'\\','/');
+ auto component=std::filesystem::u8path(path);
+ if(path.empty()||path[0]=='/'||path.find(':')!=std::string::npos||path.find('\n')!=std::string::npos||path.find('\r')!=std::string::npos||path.find('=')!=std::string::npos||path.find('<')!=std::string::npos||path.find('>')!=std::string::npos)throw std::runtime_error("SFZ: caminho de amostra inválido");
+ for(const auto& part:component)if(part=="..")throw std::runtime_error("SFZ: caminho de amostra sai da pasta");
+ auto end=z.sampleEnd?z.sampleEnd:z.frames;
+ if(!z.frames||z.sampleStart>=end||end>z.frames)throw std::runtime_error("SFZ: limites da amostra inválidos");
+ if((z.loop||z.sourceLoopMode>0)&&(z.loopStart<z.sampleStart||z.loopStart>=z.loopEnd||z.loopEnd>end))throw std::runtime_error("SFZ: loop fora dos limites da amostra");
+ if((!z.sequenceLength&&z.sequencePosition)||z.sequenceLength<0||z.sequenceLength>100||z.sequencePosition<0||(z.sequenceLength&&(!z.sequencePosition||z.sequencePosition>z.sequenceLength)))throw std::runtime_error("SFZ: sequência RR inválida");
  // All generated names are ASCII, relative, and controlled by the converter.
- s<<"<region> sample="<<z.sample<<" lokey="<<z.keyLow<<" hikey="<<z.keyHigh<<" pitch_keycenter="<<z.root<<" lovel="<<z.velLow<<" hivel="<<z.velHigh<<" offset=0 end="<<z.frames-1;
+ s<<"<region> sample="<<path<<" lokey="<<z.keyLow<<" hikey="<<z.keyHigh<<" pitch_keycenter="<<z.root<<" lovel="<<z.velLow<<" hivel="<<z.velHigh<<" offset="<<z.sampleStart<<" end="<<end-1;
  if(z.zoneMode==1)s<<" pitch_keytrack=0";
  int transpose=static_cast<int>(std::trunc(z.tuneCents/100));if(transpose<-127||transpose>127)throw std::runtime_error("Afinação excede limites SFZ; original preservado");
- s<<" volume="<<z.volumeDb<<" transpose="<<transpose<<" tune="<<z.tuneCents-transpose*100;
+ s<<" volume="<<std::max(-144.0,z.volumeDb)<<" transpose="<<transpose<<" tune="<<z.tuneCents-transpose*100;
  if(z.hasPan)s<<" pan="<<z.pan;
  if(z.releaseTrigger)s<<" trigger=release_key";
  if(z.releaseSeconds>=0)s<<" ampeg_release="<<z.releaseSeconds;
  if(z.cc64Low>=0)s<<" locc64="<<z.cc64Low;
  if(z.cc64High>=0)s<<" hicc64="<<z.cc64High;
  if(z.sequenceLength>0)s<<" seq_length="<<z.sequenceLength<<" seq_position="<<z.sequencePosition;
- if(z.zoneOneShot)s<<" loop_mode=one_shot";
+ if(z.xfinLowVel>=0)s<<" xfin_lovel="<<z.xfinLowVel<<" xfin_hivel="<<z.xfinHighVel;
+ if(z.xfoutLowVel>=0)s<<" xfout_lovel="<<z.xfoutLowVel<<" xfout_hivel="<<z.xfoutHighVel;
+ if(z.sourceLoopMode==0)s<<" loop_mode=no_loop";
+ else if(z.sourceLoopMode==1)s<<" loop_mode=loop_sustain loop_start="<<z.loopStart<<" loop_end="<<z.loopEnd-1;
+ else if(z.sourceLoopMode==2)s<<" loop_mode=loop_continuous loop_start="<<z.loopStart<<" loop_end="<<z.loopEnd-1;
+ else if(z.zoneOneShot)s<<" loop_mode=one_shot";
  else if(z.loop)s<<" loop_mode=loop_continuous loop_start="<<z.loopStart<<" loop_end="<<z.loopEnd-1; // sfizz uses inclusive ends; Nord frames are exclusive.
  else s<<" loop_mode=no_loop";
- s<<'\n';
+ s<<'\n';return true;
 }
 std::string bytesHex(const std::uint8_t* data,std::size_t size){static const char hex[]="0123456789abcdef";std::string s;s.reserve(size*2);for(std::size_t i=0;i<size;++i){s+=hex[data[i]>>4];s+=hex[data[i]&15];}return s;}
 }
 namespace lp {
-ConversionOutput::ConversionOutput(const std::filesystem::path& directory):dir(directory){if(dir.empty()||std::filesystem::exists(dir))throw std::runtime_error("Use uma pasta nova para converter; saída existente preservada");if(!dir.parent_path().empty())std::filesystem::create_directories(dir.parent_path());if(!std::filesystem::create_directory(dir))throw std::runtime_error("Não foi possível criar pasta de conversão");}
+ConversionOutput::ConversionOutput(const std::filesystem::path& directory):dir(directory){if(dir.empty()||std::filesystem::exists(dir))throw std::runtime_error("Use uma pasta nova para converter; saída existente preservada: "+dir.u8string());if(!dir.parent_path().empty())std::filesystem::create_directories(dir.parent_path());if(!std::filesystem::create_directory(dir))throw std::runtime_error("Não foi possível criar pasta de conversão");}
 std::filesystem::path ConversionOutput::finish(const std::filesystem::path& original,MetaSidecar& meta,const std::string& sfz){
  auto copy=dir/original.filename();std::filesystem::copy_file(original,copy);if(sha256File(copy)!=meta.originalSha256)throw std::runtime_error("Original mudou durante a conversão");auto output=derivedSfz(copy);atomicWrite(output,sfz);auto sidecar=copy;sidecar+=".meta.json";atomicWrite(sidecar,meta.json());done=true;return output;
 }

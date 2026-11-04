@@ -1,0 +1,4 @@
+// Live Performance offline conversion; see original .meta.json
+<group>
+<region> sample=Samples/npno-pitch-v5-5b1fbcacd13c-0.wav lokey=0 hikey=0 pitch_keycenter=69 lovel=1 hivel=127 offset=0 end=35504 volume=0 transpose=0 tune=0 ampeg_release=0.2 loop_mode=no_loop
+<region> sample=Samples/npno-pitch-v5-5b1fbcacd13c-0.wav lokey=1 hikey=127 pitch_keycenter=69 lovel=1 hivel=127 offset=0 end=35504 volume=0 transpose=0 tune=0 ampeg_release=2 loop_mode=no_loop

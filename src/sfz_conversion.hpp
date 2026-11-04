@@ -24,7 +24,13 @@ public:
 };
 std::ostringstream sfzStream();
 void writeSfzGroup(std::ostream& out);
-void writeSfzRegion(std::ostream& out,const ConvertedZone& zone);
+bool writeSfzRegion(std::ostream& out,const ConvertedZone& zone,std::vector<std::string>* warnings=nullptr);
+double linearGainDb(double gain);
+// Audit disjoint velocity layers per key, trigger, pedal condition, stereo lane and RR position.
+// Excludes note-on velocity 0. Missing/duplicate layers are an error, never filled silently.
+void auditVelocityCoverage(const std::vector<ConvertedZone>& zones);
+void prepareSfzZones(std::vector<ConvertedZone>& zones,MetaSidecar& meta,const ConversionOptions& options={});
+std::string writeSfzInstrument(const std::vector<ConvertedZone>& zones);
 std::string bytesHex(const std::uint8_t* data,std::size_t size);
 }
 namespace lp {

@@ -1,0 +1,3 @@
+// Live Performance offline conversion; see original .meta.json
+<group>
+<region> sample=Samples/stroke-0000-1.wav lokey=0 hikey=127 pitch_keycenter=69 lovel=1 hivel=127 offset=0 end=35001 volume=6.55317972253 transpose=0 tune=0 loop_mode=no_loop
