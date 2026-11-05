@@ -23,6 +23,7 @@ CbinHeader lerHeaderCbin(const std::filesystem::path& path);
 TimbreFormat detectarVersaoNsmp(const std::filesystem::path& path);
 TimbreFormat detectarTimbreFormat(const std::filesystem::path& path);
 std::string sha256File(const std::filesystem::path& path);
+std::string sha256Bytes(const std::vector<std::uint8_t>& bytes);
 struct ConvertedZone {
  std::string sample,rootSource;
  int root=60,keyLow=0,keyHigh=127,velLow=1,velHigh=127,rate=0,channels=0;
@@ -45,21 +46,32 @@ struct ConvertedZone {
  bool calibrated=false;
  int canonicalBand=-1,pedalClass=-1,sourceStroke=-1;bool bandInherited=false,npnoResonance=false;
  double pedalOffsetDb=0,pedalResidualDb=0,moduleGainDb=0;
+ double releaseKeyBaseVolumeDb=0;bool releaseKeyPedalPassthrough=false;
  int softVelocityCeiling=0; // NPNO: linear amplitude up to the canonical soft-layer top, then unity.
  std::uint32_t sourceLoopDecay=0;
  double decaySeconds=-1,sustainPercent=-1;
 };
+struct ConversionCancelled:std::runtime_error {ConversionCancelled():std::runtime_error("Importação cancelada."){}};
 struct ConversionOptions {
+ std::string originalSha256; // Import transaction cache; copied original is still verified independently.
+ std::function<bool()> cancelled;
+ std::function<void(const std::string&)> progress;
+
  bool velocityCrossfade=false;
  int crossfadeWidth=8; // Half window in MIDI steps, capped by neighboring layer widths.
  bool velocityCrossfadeExplicit=false; // NPNO defaults on, others retain opt-in behavior.
  bool stereoMonoFallback=false;
  bool npnoPedalResonance=true;
+ double releaseKeyGainDb=-8.0;
+ bool releaseKeyEnabled=true;
  std::filesystem::path sustainSfizzLibrary;
  std::filesystem::path calibrationSfizzLibrary; // Explicit offline renderer; empty = measured calibration N/A.
 
 };
+inline void conversionCheckpoint(const ConversionOptions& options){if(options.cancelled&&options.cancelled())throw ConversionCancelled();}
+inline void conversionStatus(const ConversionOptions& options,const std::string& text){conversionCheckpoint(options);if(options.progress)options.progress(text);}
 struct MetaSidecar {
+ double releaseKeyGainDb=-8.0;bool releaseKeyEnabled=true;
  std::string name,format,version,originalSha256,signatureHex,status;
  bool signatureConfirmed=false;
  int codec=0;bool checksumValid=false;
@@ -80,5 +92,5 @@ std::filesystem::path nkiParaSFZ(const std::filesystem::path& entrada,const std:
  const std::filesystem::path& sndfileLibrary,const std::filesystem::path& sampleRoot={},const ConversionOptions& options={});
 // Private staging directory, published by rename only after original, SFZ, samples and sidecar succeed.
 std::filesystem::path importarTimbreConvertido(const std::filesystem::path& original,const std::filesystem::path& destination,
- const std::filesystem::path& sndfileLibrary,const std::filesystem::path& sampleRoot={},const ConversionProgress& progress={});
+ const std::filesystem::path& sndfileLibrary,const std::filesystem::path& sampleRoot={},const ConversionProgress& progress={},const ConversionOptions& options={});
 }

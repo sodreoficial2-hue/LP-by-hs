@@ -15,12 +15,14 @@ class WavWriter {
  void* (*open)(const char*,int,Info*){};
 #endif
  std::int64_t (*writeFrames)(void*,const float*,std::int64_t){};int (*closeFile)(void*){};
+ std::filesystem::path libraryPath;void load();
  void unload();
 public:
  explicit WavWriter(const std::filesystem::path& library);
  ~WavWriter(){unload();}WavWriter(const WavWriter&)=delete;WavWriter& operator=(const WavWriter&)=delete;
  void write(const std::filesystem::path& path,int rate,int channels,const std::vector<float>& interleaved);
  void writePcm16(const std::filesystem::path& path,int rate,const std::vector<std::int16_t>& interleaved,int channels=1);
+ void writePcm16Hashed(const std::filesystem::path& path,int rate,const std::vector<std::int16_t>& interleaved,int channels,std::string* hash);
 };
 std::ostringstream sfzStream();
 void writeSfzGroup(std::ostream& out);

@@ -1,0 +1,132 @@
+name: NPNO equivalence and release validation
+on:
+  push:
+    branches: [work/npno-performance-release-20261105]
+    paths: ['.github/workflows/npno-validation.yml', 'validation/npno-request.json']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: candidate
+      - uses: actions/checkout@v4
+        with:
+          ref: 26382628896d6e53baa54908e8b928000692ad7f
+          path: baseline
+      - uses: actions/checkout@v4
+        with:
+          ref: 6969d11ba526d5d3c3b943b3c00501a08052816b
+          path: optimization
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libsndfile1-dev libexpat1-dev zlib1g-dev libglib2.0-dev
+      - uses: actions/cache@v4
+        id: sfizz-cache
+        with:
+          path: sfizz-install
+          key: sfizz-1.2.3-ubuntu24-npno-v1
+      - name: Build pinned real sfizz
+        if: steps.sfizz-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --recursive --depth 1 --branch 1.2.3 https://github.com/sfztools/sfizz.git sfizz-source
+          test "$(git -C sfizz-source rev-parse HEAD)" = 4e70dc0bef53b41f2853ed46e26f5911114c92d0
+          cmake -S sfizz-source -B sfizz-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_LTO=OFF -DSFIZZ_SHARED=ON -DSFIZZ_JACK=OFF -DSFIZZ_RENDER=OFF -DSFIZZ_TESTS=OFF -DSFIZZ_BENCHMARKS=OFF -DSFIZZ_USE_SNDFILE=OFF -DCMAKE_INSTALL_PREFIX="$PWD/sfizz-install"
+          cmake --build sfizz-build --parallel 2
+          cmake --install sfizz-build
+      - name: Configure and compile baseline and candidate
+        run: |
+          sfizz_path="$(find "$PWD/sfizz-install" -name 'libsfizz.so' -print -quit)"
+          test -n "$sfizz_path"
+          echo "LP_REAL_SFIZZ_LIBRARY=$sfizz_path" >> "$GITHUB_ENV"
+          for version in baseline optimization candidate; do
+            cmake -S "$version" -B "$version/build" -G Ninja -DLP_TEST_ONLY=ON -DCMAKE_BUILD_TYPE=Debug -DLP_SNDFILE_LIBRARY=/usr/lib/x86_64-linux-gnu/libsndfile.so.1 -DLP_REAL_SFIZZ_LIBRARY="$sfizz_path"
+            cmake --build "$version/build" --parallel 2
+          done
+      - uses: actions/cache/save@v4
+        if: steps.sfizz-cache.outputs.cache-hit != 'true'
+        with:
+          path: sfizz-install
+          key: sfizz-1.2.3-ubuntu24-npno-v1
+      - name: Check grouped versus isolated measurements first
+        continue-on-error: true
+        run: optimization/build/lp_offline_probe_test "$LP_REAL_SFIZZ_LIBRARY" /usr/lib/x86_64-linux-gnu/libsndfile.so.1 "$PWD/grouped-probe-results" "$PWD/optimization/build/import-fixtures/tests/fixtures/npno"
+      - name: Baseline CTest (unmodified reference)
+        id: baseline-tests
+        continue-on-error: true
+        run: env LP_REAL_SFIZZ_LIBRARY= ctest --test-dir baseline/build --output-on-failure --timeout 600 --output-log baseline-ctest.txt
+      - name: Part A CTest (all registered tests)
+        id: optimization-tests
+        continue-on-error: true
+        run: env LP_REAL_SFIZZ_LIBRARY= ctest --test-dir optimization/build --output-on-failure --timeout 600 --output-log optimization-ctest.txt
+      - name: Candidate CTest (all registered tests)
+        id: candidate-tests
+        continue-on-error: true
+        run: env LP_REAL_SFIZZ_LIBRARY= ctest --test-dir candidate/build --output-on-failure --timeout 600 --output-log candidate-ctest.txt
+      - name: Verify import script
+        id: import-tests
+        continue-on-error: true
+        env:
+          LP_IMPORT_TEST_OUTPUT: ${{ github.workspace }}/import-script-results
+        run: bash optimization/scripts/verify_timbre_import.sh /usr/lib/x86_64-linux-gnu/libsndfile.so.1 > import-script.txt 2>&1 || { tail -n 40 import-script.txt; exit 1; }
+      - name: Compare conversion outputs
+        id: comparison
+        continue-on-error: true
+        run: python3 candidate/scripts/compare_npno_baseline.py baseline optimization comparison-results
+      - name: Print measured release acceptance
+        if: always()
+        run: cat candidate/build/release-acceptance/release-acceptance.json || true
+      - name: Part B preserves all source WAV bytes
+        id: pcm-tests
+        continue-on-error: true
+        run: python3 candidate/scripts/compare_npno_baseline.py baseline candidate pcm-comparison-results --pcm-only
+      - name: Summarize honest test outcomes
+        if: always()
+        env:
+          BASELINE_RESULT: ${{ steps.baseline-tests.outcome }}
+          OPTIMIZATION_RESULT: ${{ steps.optimization-tests.outcome }}
+          PCM_RESULT: ${{ steps.pcm-tests.outcome }}
+          CANDIDATE_RESULT: ${{ steps.candidate-tests.outcome }}
+          IMPORT_RESULT: ${{ steps.import-tests.outcome }}
+          COMPARISON_RESULT: ${{ steps.comparison.outcome }}
+        run: |
+          printf 'Baseline CTest: %s\nCandidate CTest: %s\nImport script: %s\nByte comparison: %s\n' "$BASELINE_RESULT" "$CANDIDATE_RESULT" "$IMPORT_RESULT" "$COMPARISON_RESULT" >> "$GITHUB_STEP_SUMMARY"
+          test "$OPTIMIZATION_RESULT" = success
+          test "$PCM_RESULT" = success
+          test "$CANDIDATE_RESULT" = success
+          test "$IMPORT_RESULT" = success
+          test "$COMPARISON_RESULT" = success
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npno-validation-${{ github.sha }}
+          path: |
+            *-ctest.txt
+            import-script.txt
+            comparison-results/
+            pcm-comparison-results/
+            candidate/build/release-acceptance/
+            candidate/build/release-runtime/
+            grouped-probe-results/
+            optimization/build/Testing/Temporary/
+            candidate/build/Testing/Temporary/
+            baseline/build/Testing/Temporary/
+          retention-days: 7
+  windows-compile:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-expat mingw-w64-x86_64-zlib
+      - name: Compile native and Vision Windows harnesses
+        shell: msys2 {0}
+        run: |
+          cmake -S . -B build -G Ninja -DLP_TEST_ONLY=ON -DLP_ENABLE_VISION_UI=ON -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build --parallel 2 --target lp_win32_layout_test lp_win32_vision_test lp_win32_parameter_memory_test

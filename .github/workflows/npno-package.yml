@@ -1,0 +1,99 @@
+name: NPNO Windows final release gate
+# Natural note-off acceptance: isolate key noise while preserving the string tail.
+on:
+  push:
+    branches: [work/npno-performance-release-20261105]
+    paths: ['.github/workflows/npno-package.yml']
+permissions:
+  contents: read
+jobs:
+  validate-and-package:
+    runs-on: windows-2022
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: PortAudio/portaudio
+          ref: 147dd722548358763a8b649b3e4b41dfffbcfbb6
+          path: deps/portaudio
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-expat mingw-w64-x86_64-zlib
+      - name: Obtain the same ASIO SDK revision used by the approved build
+        shell: pwsh
+        run: |
+          Invoke-WebRequest 'https://download.steinberg.net/sdk_downloads/asiosdk_2.3.3_2019-06-14.zip' -OutFile deps/asio.zip
+          $expected='d74c0bc09162640a377aaab2f2ce716f9ee7a6ef8d1aa1aa6bc223a4748c60fa900cc77b1cf6db66f8a4064a074b31a71d75cccc7de3634347865238d9c039af'
+          if ((Get-FileHash deps/asio.zip -Algorithm SHA512).Hash.ToLower() -ne $expected) { throw 'ASIO SDK checksum mismatch' }
+          Expand-Archive deps/asio.zip deps/asio
+          $header=Get-ChildItem deps/asio -Recurse -Filter asio.h | Where-Object { $_.Directory.Name -eq 'common' } | Select-Object -First 1
+          if (-not $header) { throw 'ASIO SDK layout missing common/asio.h' }
+          "LP_ASIO_ROOT=$($header.Directory.Parent.FullName)" >> $env:GITHUB_ENV
+          New-Item test-deps -ItemType Directory
+          Copy-Item recovery/extracted/live/sndfile.dll test-deps/sndfile.dll
+      - name: Build production ASIO applications and all registered Windows regressions
+        shell: msys2 {0}
+        run: |
+          echo "LP_MINGW_BIN=$(cygpath -m /mingw64/bin)" >> "$GITHUB_ENV"
+          lp_sndfile="$(cygpath -m "$PWD/test-deps/sndfile.dll")"
+          lp_renderer="$(cygpath -m "$PWD/recovery/extracted/live/sfizz.dll")"
+          lp_portaudio="$(cygpath -m "$PWD/deps/portaudio")"
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_CXX_FLAGS_RELEASE=-O2 -UNDEBUG" -DZLIB_USE_STATIC_LIBS=ON -DEXPAT_USE_STATIC_LIBS=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DLP_TEST_ONLY=OFF -DLP_ENABLE_VISION_UI=ON "-DLP_PORTAUDIO_SOURCE=$lp_portaudio" "-DASIOSDK_ROOT_DIR=$LP_ASIO_ROOT" "-DLP_SNDFILE_LIBRARY=$lp_sndfile" "-DLP_REAL_SFIZZ_LIBRARY=$lp_renderer"
+          cmake --build build --parallel 2
+          for lp_executable in build/LivePerformance.exe build/LivePerformanceVision.exe; do
+            objdump -p "$lp_executable" | sed -n 's/.*DLL Name: /DLL: /p' >> production-dependencies.txt
+          done
+          if grep -Ei 'DLL: (libgcc|libstdc|libwinpthread|libexpat|zlib|libz)' production-dependencies.txt; then
+            echo "Unexpected compiler/codec runtime dependency; do not package"
+            exit 1
+          fi
+      - name: Full Windows CTest with strict release acceptance
+        id: tests
+        continue-on-error: true
+        shell: msys2 {0}
+        run: LP_REAL_SFIZZ_LIBRARY= ctest --test-dir build --output-on-failure --timeout 600 --output-log windows-ctest.txt
+      - name: Assemble update ZIP only after every registered regression passes
+        if: steps.tests.outcome == 'success'
+        shell: pwsh
+        run: |
+          New-Item update -ItemType Directory
+          Copy-Item build/LivePerformance.exe,build/LivePerformanceVision.exe,build/WebView2Loader.dll update/
+          Copy-Item vision-ui update/vision-ui -Recurse
+          @'
+          Live Performance — atualização NPNO/NPMO
+          Feche o aplicativo. Extraia o conteúdo deste ZIP na pasta atual do Live Performance e substitua os arquivos com o mesmo nome.
+          Mantenha os timbres, perfis e DLLs de áudio que já existem na instalação.
+          Esta atualização preserva o PCM dos WAVs; controles de soltura sem pedal ficam no menu do timbre.
+          Testes automatizados Windows passaram; não substituem teste com seu driver ASIO e controlador.
+          '@ | Set-Content update/LEIA-ME.txt -Encoding utf8
+          $files=Get-ChildItem update -File -Recurse | Sort-Object FullName
+          $manifest=$files | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.FullName.Substring((Resolve-Path update).Path.Length+1))" }
+          $manifest | Set-Content update/SHA256SUMS.txt -Encoding utf8
+          Compress-Archive update/* LivePerformance-Atualizacao-NPNO-Soltura-Windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        if: steps.tests.outcome == 'success'
+        with:
+          name: LivePerformance-Atualizacao-NPNO-Soltura-Windows-x64
+          path: LivePerformance-Atualizacao-NPNO-Soltura-Windows-x64.zip
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npno-windows-release-diagnostics
+          path: |
+            windows-ctest.txt
+            production-dependencies.txt
+            build/release-acceptance/
+            build/Testing/Temporary/
+          retention-days: 14
+      - name: Preserve failed status when an acceptance criterion fails
+        if: always()
+        shell: pwsh
+        env:
+          LP_TEST_RESULT: ${{ steps.tests.outcome }}
+        run: |
+          if ($env:LP_TEST_RESULT -ne 'success') { throw 'Update withheld because the Windows acceptance gate failed; inspect diagnostics' }
+

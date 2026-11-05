@@ -45,6 +45,7 @@ struct Session {
  std::array<std::optional<Patch>,20> favorites;
  std::optional<std::size_t> current;
  float master=1.f;int masterCC=-1;
+ double releaseKeyGainDb=-8.0;bool releaseKeyEnabled=true;
  // MIDI wire values 0..19 correspond to controller labels 1..20.
  bool programChange(unsigned wireValue) {
   if(wireValue>=favorites.size() || !favorites[wireValue]) return false;
@@ -60,8 +61,10 @@ struct Session {
  std::string serialize() const {
   // Caller chooses path; does not auto-save shows.
   std::ostringstream f;
-  f << "LPHS_PROFILE 10\n" << std::setprecision(9);
+  f << "LPHS_PROFILE 11\n" << std::setprecision(9);
   if(!std::isfinite(master)||master<0||master>1||masterCC< -1||masterCC>119||masterCC==64)throw std::runtime_error("Invalid Master");
+  if(!std::isfinite(releaseKeyGainDb)||releaseKeyGainDb< -24||releaseKeyGainDb>0)throw std::runtime_error("Invalid NPNO release gain");
+  f<<"NPNO_RELEASE "<<releaseKeyGainDb<<' '<<(releaseKeyEnabled?1:0)<<'\n';
   f<<"MASTER "<<master<<' '<<masterCC<<'\n';
   for(std::size_t i=0;i<favorites.size();++i) if(favorites[i]) {
    auto& p=*favorites[i];
@@ -111,7 +114,7 @@ struct Session {
  }
  void read(std::istream& f){
   std::string magic; int version=0;
-  if(!(f>>magic>>version) || magic!="LPHS_PROFILE" || (version<1||version>10))
+  if(!(f>>magic>>version) || magic!="LPHS_PROFILE" || (version<1||version>11))
    throw std::runtime_error("Invalid profile header");
   Session candidate; unsigned slot;
   for(;;) {
@@ -120,6 +123,10 @@ struct Session {
     std::string line;std::getline(f,line);
     std::istringstream record(line);
     std::string tag;record>>tag;
+    if(tag=="NPNO_RELEASE"&&version>=11){
+     int enabled=-1;std::string extra;if(!(record>>candidate.releaseKeyGainDb>>enabled)||!std::isfinite(candidate.releaseKeyGainDb)||candidate.releaseKeyGainDb< -24||candidate.releaseKeyGainDb>0||(enabled!=0&&enabled!=1)||(record>>extra))throw std::runtime_error("Invalid NPNO release settings");
+     candidate.releaseKeyEnabled=enabled!=0;continue;
+    }
     if(tag=="MIX"&&version>=8){
      if(!(record>>slot)||slot>=20||!candidate.favorites[slot]||candidate.favorites[slot]->performanceMix||candidate.favorites[slot]->sfz.rfind("performance://",0)!=0)throw std::runtime_error("Invalid mix favorite");
      PerformanceMix mix;

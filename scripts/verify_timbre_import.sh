@@ -18,11 +18,11 @@ lp_sources=(src/nki_reader.cpp src/sfz_calibration.cpp src/npno_sustain.cpp src/
 lp_objects=()
 for lp_source in "${lp_sources[@]}"; do
  lp_object="$lp_test_dir/$(basename "$lp_source").o"
- g++ -std=c++17 -g -Isrc -c "$lp_source" -o "$lp_object"
+ g++ -pthread -std=c++17 -g -Isrc -c "$lp_source" -o "$lp_object"
  lp_objects+=("$lp_object")
 done
 for lp_test in timbre_import_test npno_import_test instrument_catalog_test catalog_edits_test sample_builder_test nki_binary_test format_policy_test; do
- g++ -std=c++17 -g -Isrc "tests/$lp_test.cpp" "${lp_objects[@]}" -ldl -lz -lexpat -o "$lp_test_dir/$lp_test"
+ g++ -pthread -std=c++17 -g -Isrc "tests/$lp_test.cpp" "${lp_objects[@]}" -ldl -lz -lexpat -o "$lp_test_dir/$lp_test"
 done
 lp_run "$lp_test_dir/timbre_import_test" "$lp_sndfile" "$lp_test_dir/nsmp-output" "$lp_test_dir/tests/fixtures/nord"
 # PCM oracle deliberately exercises the no-renderer fallback. Actual sustain,
@@ -36,14 +36,14 @@ python3 tests/fixtures/pitch/unpack.py "$lp_test_dir/pitch-fixtures"
 lp_run "$lp_test_dir/nki_binary_test" "$lp_sndfile" "$lp_test_dir/nki-fixtures" "$lp_test_dir/nki-output"
 lp_run "$lp_test_dir/format_policy_test" "$lp_test_dir/tests/fixtures/npno" "$lp_test_dir/policy-output"
 if [[ -n "${LP_REAL_SFIZZ_LIBRARY:-}" ]]; then
- g++ -std=c++17 -O2 -g -Isrc tests/npno_sustain_render_test.cpp "${lp_objects[@]}" -ldl -lz -lexpat -o "$lp_test_dir/npno_sustain_render_test"
+ g++ -pthread -std=c++17 -O2 -g -Isrc tests/npno_sustain_render_test.cpp "${lp_objects[@]}" -ldl -lz -lexpat -o "$lp_test_dir/npno_sustain_render_test"
  lp_run "$lp_test_dir/npno_sustain_render_test" "$LP_REAL_SFIZZ_LIBRARY" "$lp_sndfile" "$lp_test_dir/sustain-matrix" "$lp_test_dir/tests/fixtures/npno"
- g++ -std=c++17 -O2 -g -Isrc tests/format_render_test.cpp "${lp_objects[@]}" -ldl -lz -lexpat -o "$lp_test_dir/format_render_test"
+ g++ -pthread -std=c++17 -O2 -g -Isrc tests/format_render_test.cpp "${lp_objects[@]}" -ldl -lz -lexpat -o "$lp_test_dir/format_render_test"
  lp_run "$lp_test_dir/format_render_test" "$LP_REAL_SFIZZ_LIBRARY" "$lp_sndfile" "$lp_test_dir" "$lp_test_dir/render-output"
 else
  echo 'N/A: real sfizz rendering; set LP_REAL_SFIZZ_LIBRARY to run measured pitch/voices/pedal gates'
 fi
-g++ -std=c++17 -g -Isrc src/timbre_convert_main.cpp "${lp_objects[@]}" -ldl -lz -lexpat -o "$lp_test_dir/lp_convert_timbre"
+g++ -pthread -std=c++17 -g -Isrc src/timbre_convert_main.cpp "${lp_objects[@]}" -ldl -lz -lexpat -o "$lp_test_dir/lp_convert_timbre"
 chmod u+x "$lp_test_dir/lp_convert_timbre"
 python3 tests/convert_cli_test.py "$lp_test_dir/lp_convert_timbre" "$lp_sndfile" "$lp_test_dir/tests/fixtures" "$lp_test_dir/nki-fixtures" "$lp_test_dir/cli-output" "${LP_REAL_SFIZZ_LIBRARY:-}"
 echo 'PASS: 5 original + 2 import/policy + CLI groups; real render when explicitly configured'

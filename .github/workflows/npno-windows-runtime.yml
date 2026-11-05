@@ -1,0 +1,61 @@
+name: Windows shipped-renderer fidelity
+on:
+  push:
+    branches: [work/npno-performance-release-20261105]
+    paths: ['.github/workflows/npno-windows-runtime.yml']
+permissions:
+  contents: read
+jobs:
+  runtime:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: candidate
+      - uses: actions/checkout@v4
+        with:
+          ref: 26382628896d6e53baa54908e8b928000692ad7f
+          path: baseline
+      - uses: actions/checkout@v4
+        with:
+          ref: b9bec18e994f19a1097581b098687f0382ebb6f1
+          path: optimization
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-expat mingw-w64-x86_64-zlib
+      - name: Build converters against the actual shipped Windows DLLs
+        shell: msys2 {0}
+        run: |
+          echo "LP_MINGW_BIN=$(cygpath -m /mingw64/bin)" >> "$GITHUB_ENV"
+          lp_renderer="$(cygpath -m "$PWD/candidate/recovery/extracted/live/sfizz.dll")"
+          lp_sndfile="$(cygpath -m "$PWD/candidate/recovery/extracted/live/sndfile.dll")"
+          for revision in baseline optimization candidate; do
+            lp_vision=OFF
+            if [ "$revision" = candidate ]; then lp_vision=ON; fi
+            cmake -S "$revision" -B "$revision/build" -G Ninja -DLP_TEST_ONLY=ON "-DLP_ENABLE_VISION_UI=$lp_vision" -DCMAKE_BUILD_TYPE=Debug "-DLP_SNDFILE_LIBRARY=$lp_sndfile" "-DLP_REAL_SFIZZ_LIBRARY=$lp_renderer"
+            cmake --build "$revision/build" --parallel 2 --target lp_convert_timbre
+          done
+          cmake --build candidate/build --parallel 2 --target lp_real_sfizz_envelope_test lp_win32_layout_test lp_win32_vision_test lp_win32_parameter_memory_test
+      - name: Classify native ADSR capability of the shipped renderer
+        continue-on-error: true
+        shell: msys2 {0}
+        run: ctest --test-dir candidate/build -R '^real_sfizz_envelope$' --output-on-failure --timeout 90 --output-log shipped-adsr-test.txt
+      - name: Compare Part A with the actual Windows sfizz and libsndfile
+        shell: pwsh
+        run: |
+          $env:LP_REAL_SFIZZ_LIBRARY=(Resolve-Path 'candidate/recovery/extracted/live/sfizz.dll').Path
+          $env:LP_BENCH_SNDFILE=(Resolve-Path 'candidate/recovery/extracted/live/sndfile.dll').Path
+          $env:PATH="$env:LP_MINGW_BIN;$env:PATH"
+          python candidate/scripts/compare_npno_baseline.py baseline optimization windows-comparison-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shipped-windows-renderer-validation
+          path: |
+            shipped-adsr-test.txt
+            windows-comparison-results/
+            candidate/build/Testing/Temporary/
+          retention-days: 7

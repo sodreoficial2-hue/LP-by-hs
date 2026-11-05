@@ -35,6 +35,7 @@ public:
  // Owner thread, before loading/starting playback. Graphs snapshot fixed gains.
  void setLevelCompensations(const std::map<std::string,float>& gains);
  void unload();
+ void invalidateSound(const std::string& reference); // Drop preparation cache; active audio remains owned by its graph.
  void releaseResources(); // Explicit destructive-file operation: join loader after stopping audio.
  void loadPerformance(const Performance& performance);
  void requestPerformance(const Performance& performance);

@@ -14,7 +14,7 @@ add_library(lp_timbre_import src/nki_reader.cpp src/sfz_calibration.cpp src/npno
  src/nsmp/cbin.cpp src/nsmp/nsmp_sections.cpp src/nsmp/nsmp_codek.cpp
  src/nsmp/nw1_dsp.cpp src/nsmp/bitstream.cpp src/nsmp/checksum.cpp)
 target_include_directories(lp_timbre_import PUBLIC src)
-target_link_libraries(lp_timbre_import PRIVATE ${CMAKE_DL_LIBS} ZLIB::ZLIB EXPAT::EXPAT)
+target_link_libraries(lp_timbre_import PRIVATE ${CMAKE_DL_LIBS} ZLIB::ZLIB EXPAT::EXPAT Threads::Threads)
 add_executable(lp_catalog src/main.cpp)
 add_executable(lp_session_test tests/session_test.cpp)
 target_include_directories(lp_session_test PRIVATE src)
@@ -412,3 +412,28 @@ if(UNIX AND LP_REAL_SFIZZ_LIBRARY AND LP_SNDFILE_LIBRARY)
  add_test(NAME npno_sustain_personal_lxl COMMAND lp_npno_sustain_render_test "${LP_REAL_SFIZZ_LIBRARY}" "${LP_SNDFILE_LIBRARY}" "${CMAKE_BINARY_DIR}/sustain-personal" "${LP_IMPORT_FIXTURE_ROOT}/npno" "${LP_NPNO_LXL_REAL_FIXTURE}")
  set_tests_properties(npno_sustain_personal_lxl PROPERTIES SKIP_RETURN_CODE 77)
 endif()
+
+if(UNIX AND LP_REAL_SFIZZ_LIBRARY AND LP_SNDFILE_LIBRARY)
+ add_executable(lp_offline_probe_test tests/offline_probe_test.cpp)
+ target_link_libraries(lp_offline_probe_test PRIVATE lp_timbre_import)
+ add_test(NAME offline_grouped_probe_equivalence COMMAND lp_offline_probe_test "${LP_REAL_SFIZZ_LIBRARY}" "${LP_SNDFILE_LIBRARY}" "${CMAKE_BINARY_DIR}/grouped-probe-validation" "${LP_IMPORT_FIXTURE_ROOT}/npno")
+endif()
+
+if(LP_SNDFILE_LIBRARY)
+ add_executable(lp_npno_release_runtime_test tests/npno_release_runtime_test.cpp)
+ target_link_libraries(lp_npno_release_runtime_test PRIVATE lp_timbre_import)
+ add_test(NAME npno_release_runtime_and_profiles COMMAND lp_npno_release_runtime_test "${LP_IMPORT_FIXTURE_ROOT}/npno/layers-v6.npno" "${LP_SNDFILE_LIBRARY}" "${CMAKE_BINARY_DIR}/release-runtime")
+endif()
+
+if(LP_SNDFILE_LIBRARY)
+ add_executable(lp_npno_transaction_test tests/npno_transaction_test.cpp)
+ target_link_libraries(lp_npno_transaction_test PRIVATE lp_timbre_import)
+ add_test(NAME npno_hashes_and_cancel_rollback COMMAND lp_npno_transaction_test "${LP_IMPORT_FIXTURE_ROOT}/npno/layers-v6.npno" "${LP_SNDFILE_LIBRARY}" "${CMAKE_BINARY_DIR}/npno-transaction")
+endif()
+
+if(LP_REAL_SFIZZ_LIBRARY AND LP_SNDFILE_LIBRARY)
+ add_executable(lp_npno_release_acceptance_test tests/npno_release_acceptance_test.cpp)
+ target_link_libraries(lp_npno_release_acceptance_test PRIVATE lp_timbre_import)
+ add_test(NAME npno_release_audio_acceptance COMMAND lp_npno_release_acceptance_test "${LP_REAL_SFIZZ_LIBRARY}" "${LP_SNDFILE_LIBRARY}" "${LP_IMPORT_FIXTURE_ROOT}/npno/layers-v6.npno" "${CMAKE_BINARY_DIR}/release-acceptance")
+endif()
+

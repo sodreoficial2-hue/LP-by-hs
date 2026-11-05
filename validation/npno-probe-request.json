@@ -1,0 +1,1 @@
+{"revision":"preserve-pedal-release","purpose":"New key-release controls apply only with CC64 below 64; compare pedal output byte for byte."}

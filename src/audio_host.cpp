@@ -198,6 +198,11 @@ void AudioHost::requestGraph(const Performance& selected,bool layered){
  {std::lock_guard<std::mutex> lock(loadMutex);loadJob=std::move(job);if(loadResult)garbage.push_back(std::move(loadResult));loadError.clear();asyncLoading=true;}loadWake.notify_one();
 }
 void AudioHost::requestPerformance(const Performance& selected){requestGraph(selected,true);}
+void AudioHost::invalidateSound(const std::string& reference){
+ cancelPerformanceLoad();
+ for(auto& part:preparedParts)if(part&&part->reference==reference)part.reset();
+ warmParts.erase(std::remove_if(warmParts.begin(),warmParts.end(),[&](const auto& entry){return entry.second->reference==reference;}),warmParts.end());
+}
 void AudioHost::requestSound(const std::string& reference,const std::array<float,16>& params,bool adsr){
  Performance sound;sound.name="Timbre";sound.parts[0].enabled=true;sound.parts[0].instrument=reference;sound.parts[0].patch.parameters=params;sound.parts[0].patch.adsrEnabled=adsr;requestGraph(sound,false);
 }

@@ -1,0 +1,7 @@
+{
+"fixture_kind":"synthetic_interoperability_vector",
+"cases":[{"velocity":40,"monotone":true,"window_step_within_3db":true,"silence_seconds":0.1,"total_peak_reduction_db_diagnostic":1.57471640402,"release_only_peak_reduction_db":169.779638306,"release_only_reduction_at_least_15db":true,"attack_bytes_unchanged":true,"normal_tail_preserved":true,"decomposition_max_error":1.16415321827e-10},{"velocity":80,"monotone":true,"window_step_within_3db":true,"silence_seconds":0.1,"total_peak_reduction_db_diagnostic":1.58711172567,"release_only_peak_reduction_db":171.502437284,"release_only_reduction_at_least_15db":true,"attack_bytes_unchanged":true,"normal_tail_preserved":true,"decomposition_max_error":1.30967237055e-10},{"velocity":110,"monotone":true,"window_step_within_3db":true,"silence_seconds":0.1,"total_peak_reduction_db_diagnostic":1.53822295947,"release_only_peak_reduction_db":169.071354733,"release_only_reduction_at_least_15db":true,"attack_bytes_unchanged":true,"normal_tail_preserved":true,"decomposition_max_error":8.73114913702e-11}],
+"pedal_held_bytes_unchanged":true,
+"pedal_noteoff_bytes_unchanged":true,
+"accepted":true
+}

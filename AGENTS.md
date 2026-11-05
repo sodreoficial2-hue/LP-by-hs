@@ -218,3 +218,15 @@ flush-on-close. No file IO on audio/MIDI callbacks. See
 `docs/PERMANENT-SOUND-PARAMETERS.md` for recovery, test scope and limitations.
 No new ZIP or Drive delivery was requested. Validate locally; no Actions or hosted
 compute. Authenticated GitHub allowance remains unknown.
+
+## NPNO completion and natural note-off (5 November 2026)
+
+Hugo authorized GitHub Actions compilation/tests at 16:41 UTC in the preceding
+performance-diagnosis conversation. This authorization persists for completing
+the same NPNO/NPMO Windows update and its existing strict packaging workflow;
+remaining authenticated quota is unknown. Local testing remains preferred.
+Hugo subsequently requests natural instrument behavior as the decision criterion.
+Measure release_key mute contrast on its isolated component, preserve the normal
+string tail and unchanged pedal render, and keep the complete-signal decay,
+continuity and silence checks. Do not make the entire piano tail disappear to
+force a 15 dB total-output contrast. No claim of exact Nord DSP reproduction.

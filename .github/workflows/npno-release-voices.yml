@@ -1,0 +1,36 @@
+name: NPNO release voice-count regression
+# Revision: calibrated release reference includes the explicit no-pedal gain.
+on:
+  push:
+    branches: [work/npno-performance-release-20261105]
+    paths: ['.github/workflows/npno-release-voices.yml']
+permissions:
+  contents: read
+jobs:
+  voices:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libsndfile1-dev libexpat1-dev zlib1g-dev
+      - uses: actions/cache/restore@v4
+        with:
+          path: sfizz-install
+          key: sfizz-1.2.3-ubuntu24-npno-v1
+          fail-on-cache-miss: true
+      - name: Compile real renderer regression
+        run: |
+          cmake -S . -B build -G Ninja -DLP_TEST_ONLY=ON -DCMAKE_BUILD_TYPE=Debug -DLP_SNDFILE_LIBRARY=/usr/lib/x86_64-linux-gnu/libsndfile.so.1 -DLP_REAL_SFIZZ_LIBRARY="$PWD/sfizz-install/lib/libsfizz.so"
+          cmake --build build --parallel 2 --target lp_format_render_test
+      - name: Verify all note/pedal/velocity voice counts with disjoint release regions
+        run: env LP_REAL_SFIZZ_LIBRARY= ctest --test-dir build -R '^shared_format_real_render$' --output-on-failure --timeout 600 --output-log release-voice-regression.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-voice-count-regression
+          path: |
+            release-voice-regression.txt
+            build/Testing/Temporary/
+            build/render-output/
+          retention-days: 7

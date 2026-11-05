@@ -63,7 +63,7 @@ int main(int argc,char** argv){try{
    }
    check(expected>=1&&expected<=(pedal?4:2),"layer handoff not bounded to two");auto& note=handoff;note.silence(note.synth);note.cc(note.synth,0,64,pedal);note.on(note.synth,0,key,velocity);auto audio=note.render(512);check(energy(audio)>1e-15,"mapped NPNO note silent");
    check(note.voices(note.synth)==expected,"NPNO attack voices differ from crossfade envelope at "+std::to_string(velocity)+" got "+std::to_string(note.voices(note.synth))+" expected "+std::to_string(expected));
-   int releaseCount=0;for(const auto& z:m.zones)if(z.releaseTrigger&&key>=z.keyLow&&key<=z.keyHigh&&velocity>=z.velLow&&velocity<=z.velHigh)++releaseCount;
+   int releaseCount=0;for(const auto& z:m.zones)if(z.releaseTrigger&&!z.muted&&key>=z.keyLow&&key<=z.keyHigh&&velocity>=z.velLow&&velocity<=z.velHigh&&(z.cc64Low<0||pedal>=z.cc64Low)&&(z.cc64High<0||pedal<=z.cc64High))++releaseCount;
    note.off(note.synth,0,key,0);note.render(16);check(note.voices(note.synth)==expected+releaseCount,"note-off must add only the documented release layer(s)");++boundaryProbes;
   }
   // A light touch must change level within the SAME soft sample, including
@@ -79,7 +79,7 @@ int main(int argc,char** argv){try{
    }
   }
   // Isolate a calibrated velocity band: on/off banks target their normal
-  // attack RMS at 0/-18 dB. The metric refers to this project reference.
+  // attack RMS at 0/-18 dB before the recorded unpedaled release gain.
   for(int bank:{0,1,2}){
    auto selected=std::find_if(m.zones.begin(),m.zones.end(),[&](const auto& z){return z.sourceBank==bank&&z.keyLow==48&&z.sourceVelHigh==127;});check(selected!=m.zones.end(),"missing calibrated bank");
    auto z=*selected;z.velLow=1;z.velHigh=127;z.xfinLowVel=z.xfoutLowVel=-1;auto isolated=sfz.parent_path()/("bank-"+std::to_string(bank)+".sfz");atomicWrite(isolated,writeSfzInstrument({z}));
@@ -92,7 +92,7 @@ int main(int argc,char** argv){try{
   // window as calibration (render-only, not its internal measurement function).
   std::array<double,3> bankDb{};
   for(int bank=0;bank<3;++bank){auto z=*std::find_if(m.zones.begin(),m.zones.end(),[&](const auto& r){return r.sourceBank==bank&&r.keyLow==48&&r.sourceVelHigh==127;});z.xfinLowVel=z.xfoutLowVel=-1;z.velLow=1;z.velHigh=127;auto isolated=sfz.parent_path()/("energy-"+std::to_string(bank)+".sfz");atomicWrite(isolated,writeSfzInstrument({z}));SfizzProbe note(lib);note.load(isolated);note.cc(note.synth,0,64,bank==1?127:0);note.on(note.synth,0,48,120);if(bank==2){note.render(256);note.off(note.synth,0,48,0);}bankDb[bank]=10*std::log10(energy(note.render(4096))/8192);}
-  check(std::abs(bankDb[1]-bankDb[0])<0.5,"pedal calibrated RMS tolerance");check(std::abs(bankDb[2]-bankDb[0]+18)<0.5,"release calibrated RMS tolerance");
+  check(std::abs(bankDb[1]-bankDb[0])<0.5,"pedal calibrated RMS tolerance");check(std::abs(bankDb[2]-bankDb[0]+18-m.releaseKeyGainDb)<0.5,"release calibrated RMS tolerance including recorded no-pedal gain");
   if(module.channels==2){
    // PCM exact interleaving is verified independently by import tests. Here
    // compare rendered L/R against the explicit legacy mono-lane output.
