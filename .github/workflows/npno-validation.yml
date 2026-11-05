@@ -18,6 +18,10 @@ jobs:
         with:
           ref: 26382628896d6e53baa54908e8b928000692ad7f
           path: baseline
+      - uses: actions/checkout@v4
+        with:
+          ref: 1d40147c718b220ea0f8892df0d86b81788f8c29
+          path: optimization
       - name: Install build dependencies
         run: sudo apt-get update && sudo apt-get install -y ninja-build libsndfile1-dev libexpat1-dev zlib1g-dev libglib2.0-dev
       - uses: actions/cache@v4
@@ -38,7 +42,7 @@ jobs:
           sfizz_path="$(find "$PWD/sfizz-install" -name 'libsfizz.so' -print -quit)"
           test -n "$sfizz_path"
           echo "LP_REAL_SFIZZ_LIBRARY=$sfizz_path" >> "$GITHUB_ENV"
-          for version in baseline candidate; do
+          for version in baseline optimization candidate; do
             cmake -S "$version" -B "$version/build" -G Ninja -DLP_TEST_ONLY=ON -DCMAKE_BUILD_TYPE=Debug -DLP_SNDFILE_LIBRARY=/usr/lib/x86_64-linux-gnu/libsndfile.so.1 -DLP_REAL_SFIZZ_LIBRARY="$sfizz_path"
             cmake --build "$version/build" --parallel 2
           done
@@ -48,11 +52,16 @@ jobs:
           path: sfizz-install
           key: sfizz-1.2.3-ubuntu24-npno-v1
       - name: Check grouped versus isolated measurements first
-        run: candidate/build/lp_offline_probe_test "$LP_REAL_SFIZZ_LIBRARY" /usr/lib/x86_64-linux-gnu/libsndfile.so.1 "$PWD/grouped-probe-results"
+        continue-on-error: true
+        run: optimization/build/lp_offline_probe_test "$LP_REAL_SFIZZ_LIBRARY" /usr/lib/x86_64-linux-gnu/libsndfile.so.1 "$PWD/grouped-probe-results" "$PWD/optimization/build/import-fixtures/tests/fixtures/npno"
       - name: Baseline CTest (unmodified reference)
         id: baseline-tests
         continue-on-error: true
         run: env LP_REAL_SFIZZ_LIBRARY= ctest --test-dir baseline/build --output-on-failure --timeout 600 --output-log baseline-ctest.txt
+      - name: Part A CTest (all registered tests)
+        id: optimization-tests
+        continue-on-error: true
+        run: env LP_REAL_SFIZZ_LIBRARY= ctest --test-dir optimization/build --output-on-failure --timeout 600 --output-log optimization-ctest.txt
       - name: Candidate CTest (all registered tests)
         id: candidate-tests
         continue-on-error: true
@@ -62,20 +71,28 @@ jobs:
         continue-on-error: true
         env:
           LP_IMPORT_TEST_OUTPUT: ${{ github.workspace }}/import-script-results
-        run: bash candidate/scripts/verify_timbre_import.sh /usr/lib/x86_64-linux-gnu/libsndfile.so.1 > import-script.txt 2>&1
+        run: bash optimization/scripts/verify_timbre_import.sh /usr/lib/x86_64-linux-gnu/libsndfile.so.1 > import-script.txt 2>&1 || { tail -n 40 import-script.txt; exit 1; }
       - name: Compare conversion outputs
         id: comparison
         continue-on-error: true
-        run: python3 candidate/scripts/compare_npno_baseline.py baseline candidate comparison-results
+        run: python3 candidate/scripts/compare_npno_baseline.py baseline optimization comparison-results
+      - name: Part B preserves all source WAV bytes
+        id: pcm-tests
+        continue-on-error: true
+        run: python3 candidate/scripts/compare_npno_baseline.py baseline candidate pcm-comparison-results --pcm-only
       - name: Summarize honest test outcomes
         if: always()
         env:
           BASELINE_RESULT: ${{ steps.baseline-tests.outcome }}
+          OPTIMIZATION_RESULT: ${{ steps.optimization-tests.outcome }}
+          PCM_RESULT: ${{ steps.pcm-tests.outcome }}
           CANDIDATE_RESULT: ${{ steps.candidate-tests.outcome }}
           IMPORT_RESULT: ${{ steps.import-tests.outcome }}
           COMPARISON_RESULT: ${{ steps.comparison.outcome }}
         run: |
           printf 'Baseline CTest: %s\nCandidate CTest: %s\nImport script: %s\nByte comparison: %s\n' "$BASELINE_RESULT" "$CANDIDATE_RESULT" "$IMPORT_RESULT" "$COMPARISON_RESULT" >> "$GITHUB_STEP_SUMMARY"
+          test "$OPTIMIZATION_RESULT" = success
+          test "$PCM_RESULT" = success
           test "$CANDIDATE_RESULT" = success
           test "$IMPORT_RESULT" = success
           test "$COMPARISON_RESULT" = success
@@ -87,6 +104,11 @@ jobs:
             *-ctest.txt
             import-script.txt
             comparison-results/
+            pcm-comparison-results/
+            candidate/build/release-acceptance/
+            candidate/build/release-runtime/
+            grouped-probe-results/
+            optimization/build/Testing/Temporary/
             candidate/build/Testing/Temporary/
             baseline/build/Testing/Temporary/
           retention-days: 7

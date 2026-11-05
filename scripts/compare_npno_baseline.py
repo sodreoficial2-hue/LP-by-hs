@@ -21,10 +21,13 @@ for fixture in ("tine-demo.npno", "layers-v5.npno", "layers-v6.npno"):
                 command.append("--calibrate-sfizz=" + renderer)
             start = time.perf_counter()
             with (destination.parent / (label + ".log")).open("w") as log:
-                subprocess.run(command, env=environment, stdout=log, stderr=log, check=True)
+                completed = subprocess.run(command, env=environment, stdout=log, stderr=log)
+            if completed.returncode:
+                print((destination.parent / (label + ".log")).read_text()[-4000:], flush=True)
+                raise RuntimeError(f"{label} conversion failed: {fixture}/{mode}")
             timings.append(time.perf_counter() - start)
             manifests.append({str(p.relative_to(destination)): hashlib.sha256(p.read_bytes()).hexdigest()
-                              for p in sorted(destination.rglob("*")) if p.is_file()})
+                              for p in sorted(destination.rglob("*")) if p.is_file() and ("--pcm-only" not in sys.argv or p.suffix == ".wav")})
         differing = sorted(p for p in manifests[0].keys() | manifests[1].keys()
                            if manifests[0].get(p) != manifests[1].get(p))
         results.append(dict(fixture=fixture, mode=mode, baseline_seconds=timings[0],
