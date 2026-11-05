@@ -1,0 +1,4 @@
+{
+  "revision": "program-batches",
+  "purpose": "Validate isolation without performance CC selectors; preserve baseline audio"
+}
