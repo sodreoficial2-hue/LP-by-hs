@@ -1,0 +1,85 @@
+name: NPNO equivalence and release validation
+on:
+  push:
+    branches: [work/npno-performance-release-20261105]
+    paths: ['.github/workflows/npno-validation.yml', 'validation/npno-request.json']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: candidate
+      - uses: actions/checkout@v4
+        with:
+          ref: 26382628896d6e53baa54908e8b928000692ad7f
+          path: baseline
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libsndfile1-dev libexpat1-dev zlib1g-dev libglib2.0-dev
+      - uses: actions/cache@v4
+        id: sfizz-cache
+        with:
+          path: sfizz-install
+          key: sfizz-1.2.3-ubuntu24-npno-v1
+      - name: Build pinned real sfizz
+        if: steps.sfizz-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --recursive --depth 1 --branch 1.2.3 https://github.com/sfztools/sfizz.git sfizz-source
+          test "$(git -C sfizz-source rev-parse HEAD)" = 4e70dc0bef53b41f2853ed46e26f5911114c92d0
+          cmake -S sfizz-source -B sfizz-build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_LTO=OFF -DSFIZZ_SHARED=ON -DSFIZZ_JACK=OFF -DSFIZZ_RENDER=OFF -DSFIZZ_TESTS=OFF -DSFIZZ_BENCHMARKS=OFF -DSFIZZ_USE_SNDFILE=OFF -DCMAKE_INSTALL_PREFIX="$PWD/sfizz-install"
+          cmake --build sfizz-build --parallel 2
+          cmake --install sfizz-build
+      - name: Configure and compile baseline and candidate
+        run: |
+          sfizz_path="$(find "$PWD/sfizz-install" -name 'libsfizz.so' -print -quit)"
+          test -n "$sfizz_path"
+          echo "LP_REAL_SFIZZ_LIBRARY=$sfizz_path" >> "$GITHUB_ENV"
+          for version in baseline candidate; do
+            cmake -S "$version" -B "$version/build" -G Ninja -DLP_TEST_ONLY=ON -DCMAKE_BUILD_TYPE=Debug -DLP_SNDFILE_LIBRARY=/usr/lib/x86_64-linux-gnu/libsndfile.so.1 -DLP_REAL_SFIZZ_LIBRARY="$sfizz_path"
+            cmake --build "$version/build" --parallel 2
+          done
+      - name: Baseline CTest (unmodified reference)
+        id: baseline-tests
+        continue-on-error: true
+        run: ctest --test-dir baseline/build --output-on-failure --output-log baseline-ctest.txt
+      - name: Candidate CTest (all registered tests)
+        id: candidate-tests
+        continue-on-error: true
+        run: ctest --test-dir candidate/build --output-on-failure --output-log candidate-ctest.txt
+      - name: Verify import script
+        id: import-tests
+        continue-on-error: true
+        env:
+          LP_IMPORT_TEST_OUTPUT: ${{ github.workspace }}/import-script-results
+        run: bash candidate/scripts/verify_timbre_import.sh /usr/lib/x86_64-linux-gnu/libsndfile.so.1 > import-script.txt 2>&1
+      - name: Compare conversion outputs
+        id: comparison
+        continue-on-error: true
+        run: python3 candidate/scripts/compare_npno_baseline.py baseline candidate comparison-results
+      - name: Summarize honest test outcomes
+        if: always()
+        env:
+          BASELINE_RESULT: ${{ steps.baseline-tests.outcome }}
+          CANDIDATE_RESULT: ${{ steps.candidate-tests.outcome }}
+          IMPORT_RESULT: ${{ steps.import-tests.outcome }}
+          COMPARISON_RESULT: ${{ steps.comparison.outcome }}
+        run: |
+          printf 'Baseline CTest: %s\nCandidate CTest: %s\nImport script: %s\nByte comparison: %s\n' "$BASELINE_RESULT" "$CANDIDATE_RESULT" "$IMPORT_RESULT" "$COMPARISON_RESULT" >> "$GITHUB_STEP_SUMMARY"
+          test "$CANDIDATE_RESULT" = success
+          test "$IMPORT_RESULT" = success
+          test "$COMPARISON_RESULT" = success
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npno-validation-${{ github.sha }}
+          path: |
+            *-ctest.txt
+            import-script.txt
+            comparison-results/
+            candidate/build/Testing/Temporary/
+            baseline/build/Testing/Temporary/
+          retention-days: 7
