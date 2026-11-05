@@ -15,6 +15,7 @@ constexpr double releaseBankInitialGainDb=-18.0;
 constexpr double monoFallbackPanGainDb=-3.01029995664; // equal-power stereo center vs hard-pan mono.
 }
 std::filesystem::path npnoParaSFZ(const std::filesystem::path& input,const std::filesystem::path& output,MetaSidecar& out,const std::filesystem::path& library,const ConversionProgress& progress,const ConversionOptions& options){
+ if(!std::isfinite(options.releaseKeyGainDb)||options.releaseKeyGainDb< -24||options.releaseKeyGainDb>0)throw std::runtime_error("Intensidade de soltura deve estar entre -24 e 0 dB");
  auto status=[&](const std::string& text){conversionCheckpoint(options);if(progress)progress(text);};status("lendo módulo...");
  out=MetaSidecar{};out.originalSha256=options.originalSha256.empty()?sha256File(input):options.originalSha256;auto module=npno::readModule(input);
  out.name=module.name;out.format="npno";out.version=std::to_string(module.header.version);out.codec=module.streamVersion;
@@ -119,6 +120,15 @@ std::filesystem::path npnoParaSFZ(const std::filesystem::path& input,const std::
  audit<<"],\n\"zones_expected\":"<<module.zones.size()<<",\"zones_generated\":"<<groups<<",\n\"sample_records_expected\":"<<module.strokes.size()<<",\"sample_records_extracted\":"<<recordsExtracted<<",\n\"wav_files_expected\":"<<expectedWavs<<",\"wav_files_generated\":"<<out.samples.size()<<",\n\"regions_expected\":"<<expectedRegions<<",\"regions_generated\":"<<emittedRegions<<",\n\"pcm_bytes_declared\":"<<declared<<",\"pcm_bytes_extracted\":"<<extracted<<",\n\"compressed_audio_bytes\":"<<compressed<<",\"overlap_values_checked\":"<<overlapChecked<<",\n\"divergences\":0,\"audio_fidelity_verified\":false\n}\n";
  auto report=output/input.filename();report+=".audit.json";
  out.preservedFeatures.insert(out.preservedFeatures.end(),{"Original binary with SHA-256; full body prefix and every sample record in source_metadata; per-channel WAV hashes; separate extraction and velocity audit.","All source sample records are decoded, including unmapped/unreachable layers; only reachable regions are played."});
- status("calibrando níveis e sustain offline...");calibrateSfzZones(out.zones,out,effective,output);prepareNpnoSustain(out.zones,out,effective,output,library);prepareSfzZones(out.zones,out,effective);auto auditText=audit.str();auto at=auditText.find("\"divergences\"");auditText.insert(at,"\"regions_after_calibration_policy\":"+std::to_string(out.zones.size())+",\n");atomicWrite(report,auditText);auto result=transaction.finish(input,out,writeSfzInstrument(out.zones));status("concluído");return result;
+ status("calibrando níveis e sustain offline...");calibrateSfzZones(out.zones,out,effective,output);prepareNpnoSustain(out.zones,out,effective,output,library);
+ out.releaseKeyGainDb=effective.releaseKeyGainDb;out.releaseKeyEnabled=effective.releaseKeyEnabled;
+ for(auto& z:out.zones)if(z.releaseTrigger){
+  z.releaseKeyBaseVolumeDb=z.volumeDb;z.volumeDb=std::clamp(z.volumeDb+effective.releaseKeyGainDb,-144.0,10.8);
+  auto seconds=npnoLoopDecaySeconds(z.sourceLoopDecay);z.releaseSeconds=seconds<0?.25:std::clamp(seconds,.12,.45);if(!effective.releaseKeyEnabled)z.muted=true;
+ }
+ prepareSfzZones(out.zones,out,effective);
+ auto releaseTemplate=out.zones;for(auto& zone:releaseTemplate)if(zone.releaseTrigger){zone.volumeDb=zone.releaseKeyBaseVolumeDb;zone.releaseSeconds=.2;zone.muted=false;}
+ auto templatePath=output/input.filename();templatePath+=".release-base.txt";atomicWrite(templatePath,writeSfzInstrument(releaseTemplate));
+ auto auditText=audit.str();auto at=auditText.find("\"divergences\"");auditText.insert(at,"\"release_key_gain_db\":"+std::to_string(out.releaseKeyGainDb)+",\n\"release_key_enabled\":"+(out.releaseKeyEnabled?"true":"false")+",\n\"regions_after_calibration_policy\":"+std::to_string(out.zones.size())+",\n");atomicWrite(report,auditText);auto result=transaction.finish(input,out,writeSfzInstrument(out.zones));status("concluído");return result;
 }
 }

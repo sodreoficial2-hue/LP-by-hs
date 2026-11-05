@@ -46,6 +46,7 @@ struct ConvertedZone {
  bool calibrated=false;
  int canonicalBand=-1,pedalClass=-1,sourceStroke=-1;bool bandInherited=false,npnoResonance=false;
  double pedalOffsetDb=0,pedalResidualDb=0,moduleGainDb=0;
+ double releaseKeyBaseVolumeDb=0;
  int softVelocityCeiling=0; // NPNO: linear amplitude up to the canonical soft-layer top, then unity.
  std::uint32_t sourceLoopDecay=0;
  double decaySeconds=-1,sustainPercent=-1;
@@ -61,6 +62,8 @@ struct ConversionOptions {
  bool velocityCrossfadeExplicit=false; // NPNO defaults on, others retain opt-in behavior.
  bool stereoMonoFallback=false;
  bool npnoPedalResonance=true;
+ double releaseKeyGainDb=-8.0;
+ bool releaseKeyEnabled=true;
  std::filesystem::path sustainSfizzLibrary;
  std::filesystem::path calibrationSfizzLibrary; // Explicit offline renderer; empty = measured calibration N/A.
 
@@ -68,6 +71,7 @@ struct ConversionOptions {
 inline void conversionCheckpoint(const ConversionOptions& options){if(options.cancelled&&options.cancelled())throw ConversionCancelled();}
 inline void conversionStatus(const ConversionOptions& options,const std::string& text){conversionCheckpoint(options);if(options.progress)options.progress(text);}
 struct MetaSidecar {
+ double releaseKeyGainDb=-8.0;bool releaseKeyEnabled=true;
  std::string name,format,version,originalSha256,signatureHex,status;
  bool signatureConfirmed=false;
  int codec=0;bool checksumValid=false;
