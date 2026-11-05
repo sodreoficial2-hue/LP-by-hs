@@ -28,19 +28,21 @@ void calibrateSfzZones(std::vector<ConvertedZone>& zones,MetaSidecar& meta,const
   for(const auto& z:zones)for(int key=z.keyLow;key<=z.keyHigh;++key){if(perKey.size()==65536)throw std::runtime_error("Calibração por tecla excede limite de 65536 regiões SFZ");auto r=z;r.keyLow=r.keyHigh=key;perKey.push_back(r);}
   zones=std::move(perKey);meta.preservedFeatures.push_back("calibration_subdivision=per_key_NPNO; shared_PCM_unchanged=true; three_keyboard_registers_measured_across_module=true");
  }
- OfflineSfizz synth(options.calibrationSfizzLibrary);
  auto probe=output/".lp-offline-calibration.sfz";
  struct Remove {std::filesystem::path p;~Remove(){std::error_code ec;std::filesystem::remove(p,ec);}} cleanup{probe};
  std::vector<Measurement> measured(zones.size());std::map<Stack,std::vector<std::size_t>> attacks;
+ for(auto& z:zones)if(!z.muted)z.ampVeltrack=0;
+ auto measurementZones=[&](){auto copy=zones;for(auto& single:copy){single.sequenceLength=single.sequencePosition=0;single.velLow=1;single.velHigh=127;single.xfinLowVel=single.xfoutLowVel=-1;}return copy;};
+ {OfflineRegionProbe initial(options.calibrationSfizzLibrary,probe,measurementZones());
  for(std::size_t i=0;i<zones.size();++i){auto& z=zones[i];if(z.muted)continue;
   z.ampVeltrack=0; // Explicit compensation: no hidden sfizz velocity->amplitude curve.
-  auto single=z;single.sequenceLength=single.sequencePosition=0;single.velLow=1;single.velHigh=127;single.xfinLowVel=single.xfoutLowVel=-1;
-  atomicWrite(probe,writeSfzInstrument({single}));auto& m=measured[i];
+  auto& m=measured[i];
   std::set<int> keys{z.keyLow,(z.keyLow+z.keyHigh)/2,z.keyHigh};
   std::set<int> velocities{z.velLow,(z.velLow+z.velHigh)/2,z.velHigh};
-  for(int key:keys)for(int velocity:velocities){m.notes.push_back({key,velocity});m.db.push_back(synth.rmsDb(probe,key,velocity,z.cc64Low>=64?127:0,z.releaseTrigger));}
+  for(int key:keys)for(int velocity:velocities){m.notes.push_back({key,velocity});m.db.push_back(initial.rmsDb(i,key,velocity,z.cc64Low>=64?127:0,z.releaseTrigger));}
   m.mean=std::accumulate(m.db.begin(),m.db.end(),0.0)/m.db.size();
   if(!z.releaseTrigger&&z.sourceBank!=1)attacks[stack(z)].push_back(i);
+ }
  }
  std::vector<double> targets(zones.size());for(std::size_t i=0;i<zones.size();++i)targets[i]=measured[i].mean;
  for(auto& entry:attacks){auto& ids=entry.second;std::stable_sort(ids.begin(),ids.end(),[&](auto a,auto b){return zones[a].velLow<zones[b].velLow;});
@@ -61,9 +63,12 @@ void calibrateSfzZones(std::vector<ConvertedZone>& zones,MetaSidecar& meta,const
  double maximum=0;int count=0;bool bounded=true;
  for(std::size_t i=0;i<zones.size();++i){auto& z=zones[i];if(z.muted)continue;double before=z.volumeDb;
   double requested=before+targets[i]-measured[i].mean;z.volumeDb=std::clamp(requested,-144.0,10.8);bounded=bounded&&std::abs(requested-z.volumeDb)<1e-8;z.calibrationOffsetDb=z.volumeDb-before;
-  auto single=z;single.sequenceLength=single.sequencePosition=0;single.velLow=1;single.velHigh=127;single.xfinLowVel=single.xfoutLowVel=-1;atomicWrite(probe,writeSfzInstrument({single}));
-  for(auto note:measured[i].notes){double db=synth.rmsDb(probe,note.first,note.second,z.cc64Low>=64?127:0,z.releaseTrigger);z.calibrationResidualDb=std::max(z.calibrationResidualDb,std::abs(db-targets[i]));}
+ }
+ {OfflineRegionProbe adjusted(options.calibrationSfizzLibrary,probe,measurementZones());
+ for(std::size_t i=0;i<zones.size();++i){auto& z=zones[i];if(z.muted)continue;
+  for(auto note:measured[i].notes){double db=adjusted.rmsDb(i,note.first,note.second,z.cc64Low>=64?127:0,z.releaseTrigger);z.calibrationResidualDb=std::max(z.calibrationResidualDb,std::abs(db-targets[i]));}
   z.calibrated=true;maximum=std::max(maximum,z.calibrationResidualDb);++count;
+ }
  }
  meta.preservedFeatures.push_back("calibration_reference=source_PCM_plus_trim_isotonic_layer_RMS; continuous_Nord_DSP_curve=unknown; amp_veltrack=0; RMS_window_frames=4096; rate=48000; keys=low/mid/high_unique; velocities=low/mid/high_unique; regions="+std::to_string(count)+"; residual_max_db="+std::to_string(maximum));
  meta.preservedFeatures.push_back("calibrated_bank_reference_db: pedal=0; release=-18; tolerance_synthetic_db=0.5; volume_bounds=[-144,10.8]");
