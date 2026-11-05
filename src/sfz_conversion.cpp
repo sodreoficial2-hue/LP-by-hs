@@ -61,7 +61,9 @@ bool writeSfzRegion(std::ostream& s,const ConvertedZone& z,std::vector<std::stri
  if(z.zoneMode==1)s<<" pitch_keytrack=0";
  int transpose=static_cast<int>(std::trunc(z.tuneCents/100));if(transpose<-127||transpose>127)throw std::runtime_error("Afinação excede limites SFZ; original preservado");
  s<<" volume="<<std::max(-144.0,z.volumeDb+z.moduleGainDb)<<" transpose="<<transpose<<" tune="<<z.tuneCents-transpose*100;
- if(z.ampVeltrack!=100)s<<" amp_veltrack="<<z.ampVeltrack;
+ if(z.softVelocityCeiling<0||z.softVelocityCeiling>127)throw std::runtime_error("SFZ: limite de dinâmica suave inválido");
+ if(z.softVelocityCeiling){s<<" amp_veltrack=100 amp_velcurve_0=0 amp_velcurve_"<<z.softVelocityCeiling<<"=1";if(z.softVelocityCeiling<127)s<<" amp_velcurve_127=1";}
+ else if(z.ampVeltrack!=100)s<<" amp_veltrack="<<z.ampVeltrack;
  if(z.hasPan)s<<" pan="<<z.pan;
  if(z.releaseTrigger)s<<" trigger=release_key";
  if(z.releaseSeconds>=0)s<<" ampeg_release="<<z.releaseSeconds;

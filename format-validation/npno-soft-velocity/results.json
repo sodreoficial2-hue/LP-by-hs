@@ -1,0 +1,43 @@
+{
+  "source_base": "ba91ac6df8981d0118101c35d3b84d62e9a7969e",
+  "scope": "NPNO/NPMO canonical soft layer only; other amplitudes unchanged above its endpoint",
+  "sfizz": "1.2.3, 4e70dc0bef53b41f2853ed46e26f5911114c92d0",
+  "soft_curve": "min(velocity/canonical_soft_layer_high,1), amplitude linear; custom curve replaces default squared law",
+  "ab_points": 64,
+  "max_step_error_db_from_csv": 2.0000000000131024e-05,
+  "v10_to_v40_before_db": 0,
+  "v10_to_v40_after_db": 12.041199,
+  "v61_v80_v127_max_change_db": 0.0,
+  "pedal_states": [
+    0,
+    127
+  ],
+  "ctest_full": {
+    "registered": 44,
+    "passed": 38,
+    "failed": 1,
+    "skipped": 5,
+    "exit": 8,
+    "legacy_failure": "real_sfizz_envelope / Real OSC ADSR readback"
+  },
+  "final_ab_ctest": {
+    "passed": 3,
+    "failed": 0,
+    "exit": 0,
+    "includes_fixture_setup": true
+  },
+  "script": {
+    "passed_groups": 10,
+    "failed": 0,
+    "exit": 0,
+    "original_five_preserved": true
+  },
+  "limitations": [
+    "No original Nord AB recording or personal L/XL fixture",
+    "Higher layers retain existing sample/trim behavior; not full Nord dynamic emulation",
+    "Previous absolute headroom cap limitations remain",
+    "No Windows execution or new EXE/ZIP"
+  ],
+  "actions_used": false,
+  "authenticated_quota": "unknown"
+}

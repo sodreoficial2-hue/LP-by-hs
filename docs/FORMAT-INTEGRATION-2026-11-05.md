@@ -1,3 +1,5 @@
+> **Toques suaves:** [correção da dinâmica dentro da camada pianissimo](NPNO-SOFT-VELOCITY-2026-11-05.md). A curva local nova substitui o tracking plano na saída final; medições abaixo descrevem a etapa de sustain anterior.
+
 # NPNO/NPMO: sustain — 5 de novembro de 2026
 
 Estado aditivo sobre `38c24d3b7736a9dcfff41523693b9473bc3c9e7f`, que já

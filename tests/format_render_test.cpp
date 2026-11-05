@@ -44,6 +44,7 @@ int main(int argc,char** argv){try{
  {auto dir=output/"unicode";std::filesystem::remove_all(dir);std::filesystem::create_directories(dir/"Samples");auto relative=std::filesystem::u8path(u8"Samples/áudio com espaço.wav");std::filesystem::copy_file(output/"nki/Samples/sample-0.wav",dir/relative);ConvertedZone z;z.sample=relative.generic_u8string();z.frames=88200;z.root=69;auto sfz=dir/"unicode.sfz";atomicWrite(sfz,writeSfzInstrument({z}));SfizzProbe unicode(lib);unicode.load(sfz);unicode.on(unicode.synth,0,69,100);check(energy(unicode.render(2048))>1e-10,"SFZ UTF8/space path must actually load");}
  // NPNO actual v5/v6 multi-layer conversion: crossfade, banks and stereo voices.
  double calibrationMax=0;int boundaryProbes=0,stereoVoices=0,monoVoices=0;
+ std::ofstream softReport(output/"soft-velocity.csv");softReport<<"mode,fixture,pedal,velocity,rms_dbfs,delta_previous_db,expected_delta_db\n";
  for(const char* name:{"layers-v5.npno","layers-v6.npno"}){
   MetaSidecar m;ConversionOptions opts;opts.calibrationSfizzLibrary=lib;
   auto sfz=npnoParaSFZ(fixtures/"npno"/name,output/(std::string("handoff-")+name),m,sndfile,{},opts);
@@ -64,6 +65,18 @@ int main(int argc,char** argv){try{
    check(note.voices(note.synth)==expected,"NPNO attack voices differ from crossfade envelope at "+std::to_string(velocity)+" got "+std::to_string(note.voices(note.synth))+" expected "+std::to_string(expected));
    int releaseCount=0;for(const auto& z:m.zones)if(z.releaseTrigger&&key>=z.keyLow&&key<=z.keyHigh&&velocity>=z.velLow&&velocity<=z.velHigh)++releaseCount;
    note.off(note.synth,0,key,0);note.render(16);check(note.voices(note.synth)==expected+releaseCount,"note-off must add only the documented release layer(s)");++boundaryProbes;
+  }
+  // A light touch must change level within the SAME soft sample, including
+  // after optional isotonic calibration. Previously every point was flat.
+  {int top=0;for(const auto& z:m.zones)if(z.sourceBank==0&&z.keyLow==48&&z.canonicalBand==0)top=z.softVelocityCeiling;
+   check(top>32,"soft curve endpoint missing from converted metadata");
+   auto flatZones=m.zones;for(auto& z:flatZones){z.softVelocityCeiling=0;z.ampVeltrack=0;}auto beforeFile=sfz.parent_path()/"soft-before.sfz";atomicWrite(beforeFile,writeSfzInstrument(flatZones));
+   for(bool corrected:{false,true})for(int pedal:{0,127}){SfizzProbe soft(lib);soft.load(corrected?sfz:beforeFile);double previous=0;int previousVelocity=0;
+    for(int v:{1,2,4,8,10,16,32,40}){soft.silence(soft.synth);soft.cc(soft.synth,0,64,pedal);soft.on(soft.synth,0,48,v);double e=energy(soft.render(4096));check(e>0,"pianissimo silent");softReport<<(corrected?"after":"before")<<','<<name<<','<<pedal<<','<<v<<','<<10*std::log10(e/8192)<<','<<(previousVelocity?10*std::log10(e/previous):0)<<','<<(corrected&&previousVelocity?20*std::log10(double(v)/previousVelocity):0)<<'\n';
+     if(previousVelocity){double delta=10*std::log10(e/previous),expected=corrected?20*std::log10(double(v)/previousVelocity):0;check(std::abs(delta-expected)<.02,"soft velocity amplitude slope was flattened by calibration");}
+     previous=e;previousVelocity=v;
+    }
+   }
   }
   // Isolate a calibrated velocity band: on/off banks target their normal
   // attack RMS at 0/-18 dB. The metric refers to this project reference.

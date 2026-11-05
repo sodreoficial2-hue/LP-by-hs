@@ -26,7 +26,7 @@ std::filesystem::path npnoParaSFZ(const std::filesystem::path& input,const std::
   "Loop bounds are mapped exactly (exclusive source end becomes inclusive SFZ end). loopDecay usa aproximação de projeto registrada; tabela de 14 entradas permanece crua, sem interpretação inventada.",
   "No confirmed pan, crossfade, round-robin or global-detune fields exist in the consulted schema. Take identifiers are retained, not treated as round robin. Entire prefix and each 118-byte record remain in source_metadata.",
   "WAV PCM16 mono/stereo sem normalização; estéreo intercalado por padrão, par mono hard-pan por opção. Ganho final limitado a [-144,+10.8] dB.",
-  "amp_veltrack=0 evita tracking SFZ duplicado. A curva dinâmica contínua do DSP Nord não é conhecida: equalização de pedal usa RMS; regressão isotônica por camada com PCM/trim é opcional; não comprova equivalência auditiva.",
+  "Curva local de amplitude progressiva até o topo da camada suave evita pianissimo plano; acima desse topo o ganho fica unitário, sem tracking SFZ global duplicado. A curva dinâmica contínua do DSP Nord não é conhecida: equalização de pedal usa RMS; regressão isotônica por camada com PCM/trim é opcional; não comprova equivalência auditiva.",
   "Banco 2 mantém -18 dB inicial; ressonância não reage retroativamente a notas antigas.",
   "damperTop confirma apenas o limite de amortecimento, não ausência de banco 2 acima dele: regiões release_key mantidas; sem confirmação independente para silenciá-las.",
   "Known outer revisions 500/520/530/540 and 600/610/620/630 are routed by validated internal 0x450/0x464 layouts. Corpus-wide compatibility is not established. Limits: 512 MiB input, 16 million frames per record, 256 million total PCM values."

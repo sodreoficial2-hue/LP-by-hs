@@ -1,0 +1,17 @@
+docs/FORMAT-INTEGRATION-2026-11-05.md
+docs/NPNO-SOFT-VELOCITY-2026-11-05.md
+format-validation/npno-soft-velocity/ab-rms.json
+format-validation/npno-soft-velocity/ctest-ab-final.txt
+format-validation/npno-soft-velocity/ctest-full.txt
+format-validation/npno-soft-velocity/files-changed.txt
+format-validation/npno-soft-velocity/protected-sha256.json
+format-validation/npno-soft-velocity/results.json
+format-validation/npno-soft-velocity/script-results.txt
+format-validation/npno-soft-velocity/soft-velocity.csv
+src/npno_sustain.cpp
+src/npno_to_sfz.cpp
+src/sfz_conversion.cpp
+src/timbre_format.cpp
+src/timbre_format.hpp
+tests/format_render_test.cpp
+tests/npno_sustain_render_test.cpp

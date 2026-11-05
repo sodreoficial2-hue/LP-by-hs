@@ -1,0 +1,450 @@
+[
+  {
+    "version": 5,
+    "mode": "before",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 1,
+    "rms_dbfs": -54.90797510813722
+  },
+  {
+    "version": 5,
+    "mode": "before",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 2,
+    "rms_dbfs": -54.90797510813722
+  },
+  {
+    "version": 5,
+    "mode": "before",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 10,
+    "rms_dbfs": -54.90797510813722
+  },
+  {
+    "version": 5,
+    "mode": "before",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 40,
+    "rms_dbfs": -54.90797510813722
+  },
+  {
+    "version": 5,
+    "mode": "before",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 61,
+    "rms_dbfs": -51.903301718152655
+  },
+  {
+    "version": 5,
+    "mode": "before",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 80,
+    "rms_dbfs": -54.90797531753706
+  },
+  {
+    "version": 5,
+    "mode": "before",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 127,
+    "rms_dbfs": -54.90797490637754
+  },
+  {
+    "version": 5,
+    "mode": "before",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 1,
+    "rms_dbfs": -53.089311024482974
+  },
+  {
+    "version": 5,
+    "mode": "before",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 2,
+    "rms_dbfs": -53.089311024482974
+  },
+  {
+    "version": 5,
+    "mode": "before",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 10,
+    "rms_dbfs": -53.089311024482974
+  },
+  {
+    "version": 5,
+    "mode": "before",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 40,
+    "rms_dbfs": -53.089311024482974
+  },
+  {
+    "version": 5,
+    "mode": "before",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 61,
+    "rms_dbfs": -50.08467450094092
+  },
+  {
+    "version": 5,
+    "mode": "before",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 80,
+    "rms_dbfs": -53.08929739017226
+  },
+  {
+    "version": 5,
+    "mode": "before",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 127,
+    "rms_dbfs": -53.08923096639613
+  },
+  {
+    "version": 5,
+    "mode": "after",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 1,
+    "rms_dbfs": -90.61458213471575
+  },
+  {
+    "version": 5,
+    "mode": "after",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 2,
+    "rms_dbfs": -84.59396641442419
+  },
+  {
+    "version": 5,
+    "mode": "after",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 10,
+    "rms_dbfs": -70.61457265475697
+  },
+  {
+    "version": 5,
+    "mode": "after",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 40,
+    "rms_dbfs": -58.573373627392584
+  },
+  {
+    "version": 5,
+    "mode": "after",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 61,
+    "rms_dbfs": -51.903301718152655
+  },
+  {
+    "version": 5,
+    "mode": "after",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 80,
+    "rms_dbfs": -54.90797531753706
+  },
+  {
+    "version": 5,
+    "mode": "after",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 127,
+    "rms_dbfs": -54.90797490637754
+  },
+  {
+    "version": 5,
+    "mode": "after",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 1,
+    "rms_dbfs": -88.79591805638668
+  },
+  {
+    "version": 5,
+    "mode": "after",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 2,
+    "rms_dbfs": -82.77530236194934
+  },
+  {
+    "version": 5,
+    "mode": "after",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 10,
+    "rms_dbfs": -68.79590857882987
+  },
+  {
+    "version": 5,
+    "mode": "after",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 40,
+    "rms_dbfs": -56.75470954268082
+  },
+  {
+    "version": 5,
+    "mode": "after",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 61,
+    "rms_dbfs": -50.08467450094092
+  },
+  {
+    "version": 5,
+    "mode": "after",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 80,
+    "rms_dbfs": -53.08929739017226
+  },
+  {
+    "version": 5,
+    "mode": "after",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 127,
+    "rms_dbfs": -53.08923096639613
+  },
+  {
+    "version": 6,
+    "mode": "before",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 1,
+    "rms_dbfs": -54.90864777521032
+  },
+  {
+    "version": 6,
+    "mode": "before",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 2,
+    "rms_dbfs": -54.90864777521032
+  },
+  {
+    "version": 6,
+    "mode": "before",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 10,
+    "rms_dbfs": -54.90864777521032
+  },
+  {
+    "version": 6,
+    "mode": "before",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 40,
+    "rms_dbfs": -54.90864777521032
+  },
+  {
+    "version": 6,
+    "mode": "before",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 61,
+    "rms_dbfs": -51.90396454868359
+  },
+  {
+    "version": 6,
+    "mode": "before",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 80,
+    "rms_dbfs": -54.908646977412765
+  },
+  {
+    "version": 6,
+    "mode": "before",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 127,
+    "rms_dbfs": -54.90864703605128
+  },
+  {
+    "version": 6,
+    "mode": "before",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 1,
+    "rms_dbfs": -53.08997474186483
+  },
+  {
+    "version": 6,
+    "mode": "before",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 2,
+    "rms_dbfs": -53.08997474186483
+  },
+  {
+    "version": 6,
+    "mode": "before",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 10,
+    "rms_dbfs": -53.08997474186483
+  },
+  {
+    "version": 6,
+    "mode": "before",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 40,
+    "rms_dbfs": -53.08997474186483
+  },
+  {
+    "version": 6,
+    "mode": "before",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 61,
+    "rms_dbfs": -50.08532597679047
+  },
+  {
+    "version": 6,
+    "mode": "before",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 80,
+    "rms_dbfs": -53.08998855926636
+  },
+  {
+    "version": 6,
+    "mode": "before",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 127,
+    "rms_dbfs": -53.08995163321505
+  },
+  {
+    "version": 6,
+    "mode": "after",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 1,
+    "rms_dbfs": -90.61525483314925
+  },
+  {
+    "version": 6,
+    "mode": "after",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 2,
+    "rms_dbfs": -84.5946391436785
+  },
+  {
+    "version": 6,
+    "mode": "after",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 10,
+    "rms_dbfs": -70.61524535615986
+  },
+  {
+    "version": 6,
+    "mode": "after",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 40,
+    "rms_dbfs": -58.57404632036466
+  },
+  {
+    "version": 6,
+    "mode": "after",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 61,
+    "rms_dbfs": -51.90396454868359
+  },
+  {
+    "version": 6,
+    "mode": "after",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 80,
+    "rms_dbfs": -54.908646977412765
+  },
+  {
+    "version": 6,
+    "mode": "after",
+    "key": 48,
+    "pedal": 0,
+    "velocity": 127,
+    "rms_dbfs": -54.90864703605128
+  },
+  {
+    "version": 6,
+    "mode": "after",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 1,
+    "rms_dbfs": -88.7965817770172
+  },
+  {
+    "version": 6,
+    "mode": "after",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 2,
+    "rms_dbfs": -82.77596606693123
+  },
+  {
+    "version": 6,
+    "mode": "after",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 10,
+    "rms_dbfs": -68.79657229129411
+  },
+  {
+    "version": 6,
+    "mode": "after",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 40,
+    "rms_dbfs": -56.75537325409217
+  },
+  {
+    "version": 6,
+    "mode": "after",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 61,
+    "rms_dbfs": -50.08532597679047
+  },
+  {
+    "version": 6,
+    "mode": "after",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 80,
+    "rms_dbfs": -53.08998855926636
+  },
+  {
+    "version": 6,
+    "mode": "after",
+    "key": 48,
+    "pedal": 127,
+    "velocity": 127,
+    "rms_dbfs": -53.08995163321505
+  }
+]

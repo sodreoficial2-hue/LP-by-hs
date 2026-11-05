@@ -13,6 +13,11 @@ double npnoLoopDecaySeconds(std::uint32_t value){
 }
 void prepareNpnoSustain(std::vector<ConvertedZone>& zones,MetaSidecar& meta,const ConversionOptions& options,const std::filesystem::path& output,const std::filesystem::path& sndfile){
  auditNpnoPedalBands(zones);
+ // Correct the flat pianissimo range left by amp_veltrack=0. This local curve
+ // is shared by attack, pedal, resonance and release, including crossfades.
+ // Above the canonical soft-layer top the original PCM/trim balance is unchanged.
+ for(auto& z:zones){int top=0;for(const auto& a:zones)if(a.sourceBank==0&&a.root==z.root&&a.velLow==1&&!a.releaseTrigger)top=a.velHigh;if(!top)throw std::runtime_error("Dinâmica NPNO sem camada suave canônica");z.softVelocityCeiling=top;z.ampVeltrack=100;}
+ meta.preservedFeatures.push_back("soft_velocity_model=canonical_soft_layer_linear_amplitude_then_unity; gain=min(velocity/soft_velocity_ceiling,1); applies=attack/pedal/resonance/release; original_Nord_curve=unconfirmed; applied_after_optional_isotonic=true; calibration_residual_refers_to_pre_curve_reference=true; region_boundary_and_PCM_unchanged=true");
  auto lib=options.sustainSfizzLibrary.empty()?options.calibrationSfizzLibrary:options.sustainSfizzLibrary;
  if(lib.empty()){if(const char* env=std::getenv("LP_REAL_SFIZZ_LIBRARY"))lib=env;}
  if(lib.empty()){
