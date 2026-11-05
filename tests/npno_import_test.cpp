@@ -35,7 +35,7 @@ int main(int argc,char** argv){try{
   auto report=output/input.filename();report+=".audit.json";auto audit=textFile(report);check(audit.find("\"divergences\":0")!=std::string::npos&&audit.find("\"gaps\":0,\"overlaps\":0")!=std::string::npos,"audit coverage/divergence");
   auto content=textFile(sfz);check(content.find("<group>")!=std::string::npos&&content.find("sample=Samples/npno-")!=std::string::npos,"common writer groups/relative samples");
   if(name!="tine-demo.npno"){
-   check(m.zones.size()==4,"per-key tuning separates adjacent zones");check(meta.zones.size()==std::size_t(4*9*m.channels),"all velocity/pedal/release regions");
+   check(m.zones.size()==4,"per-key tuning separates adjacent zones");check(meta.zones.size()==std::size_t(4*12*m.channels),"all velocity/pedal/release regions, with disjoint pedal release passthrough");
    check(content.find("loop_start=100 loop_end=899")!=std::string::npos,"loop inclusive end");check(content.find("tune=2.1")!=std::string::npos,"per-key tuning");check(content.find("trigger=release_key")!=std::string::npos,"bank function");
    for(int group=0;group<4;++group)for(int bank=0;bank<3;++bank)for(int channel=0;channel<m.channels;++channel){std::array<int,128> seen{};for(int layer=0;layer<3;++layer){auto& z=meta.zones[(group*9+bank*3+layer)*m.channels+channel];check(z.velLow==(layer==0?100:layer==1?62:1)&&z.velHigh==(layer==0?127:layer==1?99:61),"independent measured-curve velocity thresholds");for(int v=z.velLow;v<=z.velHigh;++v)++seen[v];}for(int v=1;v<=127;++v)check(seen[v]==1,"complete exclusive velocity coverage");}
    if(m.channels==2)check(content.find("pan=-100")!=std::string::npos&&content.find("pan=100")!=std::string::npos,"stereo kept as two mono lanes");

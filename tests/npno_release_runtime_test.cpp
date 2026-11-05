@@ -26,6 +26,18 @@ int main(int argc,char** argv){try{
  require(release_detail::field(json,"release_key_enabled")==std::optional<std::string>("true"),"enabled state absent");
  auto before=release_detail::read(sfz);bool rejected=false;try{updateNpnoRelease(original,1,true);}catch(const std::exception&){rejected=true;}
  require(rejected&&release_detail::read(sfz)==before,"invalid setting modified bank");
+
+ // Migrate the old generated schema, whose single release bank also served pedal.
+ auto legacyMeta=meta;legacyMeta.zones.erase(std::remove_if(legacyMeta.zones.begin(),legacyMeta.zones.end(),[](const auto& z){return z.releaseKeyPedalPassthrough;}),legacyMeta.zones.end());
+ for(auto& z:legacyMeta.zones)if(z.releaseTrigger){z.cc64Low=z.cc64High=-1;z.volumeDb=z.releaseKeyBaseVolumeDb;z.releaseSeconds=.2;}
+ auto legacyJson=legacyMeta.json();
+ for(const std::string& field:{"release_key_gain_db","release_key_enabled","release_key_base_volume_db","release_key_pedal_passthrough"})legacyJson=std::regex_replace(legacyJson,std::regex(",\\s*\""+field+"\"\\s*:\\s*([-+0-9.eE]+|true|false)"),"");
+ atomicWrite(std::filesystem::path(original.u8string()+".meta.json"),legacyJson);
+ atomicWrite(sfz,writeSfzInstrument(legacyMeta.zones));std::filesystem::remove(std::filesystem::path(original.u8string()+".release-base.txt"));
+ require(updateNpnoRelease(original,-8,true),"old bank must migrate without reimporting");
+ auto migrated=release_detail::read(sfz);require(migrated.find("locc64=64")!=std::string::npos&&migrated.find("hicc64=63")!=std::string::npos,"old bank did not retain pedal-specific release");
+ require(updateNpnoRelease(original,-12,true)&&updateNpnoRelease(original,-8,true),"old bank controls not reusable");
+ require(release_detail::read(sfz)==migrated,"old bank migration duplicated or compounded release");
  Session show;show.releaseKeyGainDb=-13;show.releaseKeyEnabled=false;std::istringstream profile(show.serialize());Session restored;restored.read(profile);
  require(restored.releaseKeyGainDb==-13&&!restored.releaseKeyEnabled,"profile did not preserve release settings");
  std::istringstream legacy("LPHS_PROFILE 10\nMASTER 1 -1\n");restored.read(legacy);

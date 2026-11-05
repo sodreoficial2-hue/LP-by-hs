@@ -72,11 +72,12 @@ inline bool updateNpnoRelease(std::filesystem::path original,double gain,bool en
    release_detail::set(line,"release_seconds",release_detail::numeric(seconds));release_detail::set(line,"muted",enabled?"false":"true");
    auto& region=releaseLines[zone++];
    if(legacy){
-    auto passthrough=region+" locc64=64";migratedPedalLines.push_back(passthrough);region+=" hicc64=63";
+    auto passthrough=region+" locc64=64";migratedPedalLines.push_back(passthrough);
     release_detail::set(pedalLine,"release_key_pedal_passthrough","true");release_detail::set(pedalLine,"release_key_base_volume_db",release_detail::numeric(base));release_detail::set(pedalLine,"volume_db",release_detail::numeric(base));release_detail::set(pedalLine,"cc64_low","64");release_detail::set(pedalLine,"cc64_high","-1");release_detail::set(pedalLine,"release_seconds","0.2");release_detail::set(pedalLine,"muted","false");
     auto comma=line.find_last_not_of(" \t");bool hadComma=comma!=line.npos&&line[comma]==',';if(hadComma)line.erase(comma,1);auto pedalComma=pedalLine.find_last_not_of(" \t");if(pedalComma!=pedalLine.npos&&pedalLine[pedalComma]==',')pedalLine.erase(pedalComma,1);
     updatedMeta+=line+",\n";appendAudit(line,zoneIndex);line=pedalLine+(hadComma?",":"");++zoneIndex;
    }
+   if(region.find("hicc64=63")==std::string::npos)region+=" hicc64=63";
    release_detail::opcode(region,"volume",std::clamp(release_detail::opcodeValue(region,"volume")+gain,-144.0,10.8));release_detail::opcode(region,"ampeg_release",seconds);
   }
   if(line.find("{\"sample\":")!=std::string::npos){appendAudit(line,zoneIndex);++zoneIndex;}
