@@ -15,8 +15,20 @@ int main(int argc,char** argv){try{
  }
  auto b=nsmp::readFile(fixtures/"layers-v6.npno");put(b,20,700,4);seal(b);auto bad=output/"bad.npno";atomicWrite(bad,std::string(b.begin(),b.end()));try{npno::readModule(bad);throw std::logic_error("missing failure");}catch(const std::runtime_error& e){check(std::string(e.what()).find("7.0")!=std::string::npos,"version in diagnostic");}
  b=nsmp::readFile(fixtures/"layers-v6.npno");b[24]^=1;atomicWrite(bad,std::string(b.begin(),b.end()));auto module=npno::readModule(bad);check(!module.checksumValid&&!module.warnings.empty(),"checksum warns and continues");
+ // Unequal bank counts from independently encoded v6: collapse one reachable
+ // pedal layer per root, retain its complete source record/audio in the fixture.
+ auto unequal=nsmp::readFile(fixtures/"layers-v6.npno");auto original=npno::readModule(fixtures/"layers-v6.npno");
+ for(const auto& stroke:original.strokes)if(stroke.bank==1&&stroke.layer==60)unequal[stroke.recordOffset+0x74]=0;
+ seal(unequal);auto unevenPath=output/"unequal.npno";atomicWrite(unevenPath,std::string(unequal.begin(),unequal.end()));auto uneven=npno::readModule(unevenPath);bool inherited=false;
+ for(const auto& band:uneven.velocityBands){inherited=inherited||band.inherited;check(band.attackStroke>=0&&band.pedalStroke>=0,"canonical source identity");check(band.pedalClass==(band.index==0?0:1),"independent expected 3-to-2 mapping");for(int v=band.low;v<=band.high;++v){int count=0;for(const auto& other:uneven.velocityBands)if(other.root==band.root&&v>=other.low&&v<=other.high)++count;check(count==1,"canonical class invariant over 1..127");}}
+ check(inherited&&uneven.metadataJson().find("\"inherited\":true")!=std::string::npos,"pedal inheritance trace");
  ConvertedZone z;z.sample="Samples/test.wav";z.frames=44100;z.root=69;z.keyLow=21;z.keyHigh=108;z.rate=44100;std::vector<ConvertedZone> regions;
  for(int rr=1;rr<=2;++rr)for(int layer=0;layer<4;++layer){auto r=z;r.velLow=layer*32+1;r.velHigh=layer==3?127:(layer+1)*32;r.sequenceLength=2;r.sequencePosition=rr;regions.push_back(r);}
+ // Explicit cross-bank semantic audit is opt-in via canonicalBand; other
+ // importers retain only the shared coverage/RR/key-overlap rules.
+ std::vector<ConvertedZone> banks;for(int band=0;band<8;++band)for(int bank=0;bank<2;++bank){auto r=z;r.sourceBank=bank;r.canonicalBand=band;r.velLow=band*16+1;r.velHigh=band==7?127:(band+1)*16;r.pedalClass=std::min(3,int(std::lround(band*.5)));r.sourceStroke=bank?100+r.pedalClass:band;r.bandInherited=band>0&&r.pedalClass==std::min(3,int(std::lround((band-1)*.5)));banks.push_back(r);}auditNpnoPedalBands(banks);
+ auto wrongClass=banks;wrongClass[1].canonicalBand=3;fails([&]{auditNpnoPedalBands(wrongClass);});auto wrongPhysical=banks;wrongPhysical[1].pedalClass=3;fails([&]{auditNpnoPedalBands(wrongPhysical);});auto lostTrace=banks;lostTrace[5].bandInherited=false;fails([&]{auditNpnoPedalBands(lostTrace);});
+ check(npnoLoopDecaySeconds(0x800000)==4&&npnoLoopDecaySeconds(0xffffffff)<0,"unconfirmed decay fallback");check(npnoLoopDecaySeconds(0)>=.15&&npnoLoopDecaySeconds(8388607)<=4,"bounded project decay");
  MetaSidecar meta;auto off=regions;prepareSfzZones(off,meta);check(off.size()==8,"no expansion per MIDI note/stroke");
  for(int velocity=1;velocity<=127;++velocity)for(int seq=1;seq<=2;++seq){int active=0;for(auto& r:off)if(r.sequencePosition==seq&&velocity>=r.velLow&&velocity<=r.velHigh)++active;check(active==1,"exact one layer/alternative per note");}
  auto gap=regions;gap[1].velLow++;fails([&]{auditVelocityCoverage(gap);});auto overlap=regions;overlap[1].velLow--;fails([&]{auditVelocityCoverage(overlap);});

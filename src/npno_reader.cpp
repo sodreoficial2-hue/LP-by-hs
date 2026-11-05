@@ -115,7 +115,25 @@ Module readModule(const std::filesystem::path& path){
   else m.zones.push_back({root,key,key,m.fineTune[key],undamped});
  }
  if(m.zones.empty())throw std::runtime_error("Módulo de piano: mapa de teclado sem zonas tocáveis");
- assignVelocity(m);return m;
+ assignVelocity(m);
+ // Bank 0 is the sole owner of the Touch partition. Physical pedal samples may
+ // cover several bands, but their merged source spans and every inheritance
+ // remain explicit. SFZ may split those spans again for per-band level offsets.
+ for(int root=0;root<128;++root){
+  std::vector<Stroke*> attack,pedal;
+  for(auto& stroke:m.strokes)if(stroke.root==root&&stroke.velHigh){if(stroke.bank==0)attack.push_back(&stroke);else if(stroke.bank==1)pedal.push_back(&stroke);}
+  auto byVelocity=[](auto a,auto b){return a->velLow<b->velLow;};std::sort(attack.begin(),attack.end(),byVelocity);std::sort(pedal.begin(),pedal.end(),byVelocity);
+  if(attack.empty()&&!pedal.empty())throw std::runtime_error("Banco de pedal sem ataque normal na raiz "+std::to_string(root));
+  for(auto* stroke:pedal){stroke->velLow=1;stroke->velHigh=0;}
+  int previous=-1;
+  for(std::size_t k=0;k<attack.size();++k){auto* a=attack[k];VelocityBand band;band.root=root;band.index=int(k);band.low=a->velLow;band.high=a->velHigh;band.attackStroke=int(a->index);
+   if(!pedal.empty()){int j=std::min(int(pedal.size())-1,int(std::lround(double(k)*pedal.size()/attack.size())));auto* b=pedal[j];band.pedalStroke=int(b->index);band.pedalClass=j;band.inherited=j==previous;
+    if(!b->velHigh)b->velLow=band.low;else if(b->velHigh+1!=band.low)throw std::runtime_error("Herança de velocity não contígua no banco de pedal");b->velHigh=band.high;
+    if(band.inherited)m.warnings.push_back("Herança pedal: root="+std::to_string(root)+", banda="+std::to_string(k)+", velocity="+std::to_string(band.low)+".."+std::to_string(band.high)+", classe="+std::to_string(j)+", registro="+std::to_string(b->index));previous=j;
+   }m.velocityBands.push_back(band);
+  }
+ }
+ return m;
 }
 Audio decodeStroke(const Module& m,const Stroke& s){
  View v{m.bytes,m.end};Audio audio;audio.lanes.resize(m.channels);for(auto& lane:audio.lanes)lane.reserve(s.frames);
@@ -151,6 +169,6 @@ Audio decodeStroke(const Module& m,const Stroke& s){
 std::string Module::metadataJson()const{
  auto o=sfzStream();o.str("");o<<"{\"body_offset\":"<<base<<",\"stream_version\":"<<streamVersion<<",\"sample_rate\":"<<sampleRate<<",\"channels\":"<<channels<<",\"gain_tenths_db\":"<<gain<<",\"damper_top\":"<<damperTop<<",\"velocity_profile\":\"reference_touch_0_approximate\",\"velocity_curve\":{\"name\":\"reference_touch_0_legacy_empirical\",\"threshold_samples\":[0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200],\"midi_samples\":[127,107,105,99,93,85,79,73,67,61,57,53,51,45,43,39,33,31,27,23,21],\"interpolation\":\"linear_with_ceiling_attenuation\",\"uncertainty_midi_steps_estimated\":2,\"uncertainty_independently_confirmed\":false,\"threshold_rule\":\"v5 midpoint rounded up in layer*5 units; v6 byte +0x74 direct\",\"reference_conflict\":\"nord-format 0.8.0 layer floor((127-v)*31/127); OpenNord 40log10(v/127) midpoint attenuation; legacy retained until hardware/profile corpus resolves divergence\"},\"trim_rule\":\"v5 unsigned u16 dB per nord-format 0.8.0; v6 legacy signed tenths retained pending conflict resolution\",\"global_detune\":null,\"prefix_hex\":\""<<bytesHex(bytes.data()+base,directory)<<"\",\"strokes\":[";
  for(std::size_t i=0;i<strokes.size();++i){if(i)o<<',';const auto& s=strokes[i];o<<"{\"index\":"<<i<<",\"record_offset\":"<<s.recordOffset<<",\"root\":"<<s.root<<",\"bank\":"<<s.bank<<",\"layer\":"<<s.layer<<",\"threshold\":"<<s.threshold<<",\"velocity_low\":"<<s.velLow<<",\"velocity_high\":"<<s.velHigh<<",\"audio_offset\":"<<s.audioOffset<<",\"frames\":"<<s.frames<<",\"blocks\":"<<s.blocks<<",\"loop_start\":"<<s.loopStart<<",\"loop_length\":"<<s.loopLength<<",\"loop_decay_q23\":"<<s.loopDecay<<",\"trim\":"<<s.trim<<",\"record_hex\":\""<<bytesHex(bytes.data()+s.recordOffset,recordSize)<<"\"}";}
- o<<"]}";return o.str();
+ o<<"],\"canonical_velocity_bands\":[";for(std::size_t i=0;i<velocityBands.size();++i){if(i)o<<',';const auto& b=velocityBands[i];o<<"{\"root\":"<<b.root<<",\"band\":"<<b.index<<",\"low\":"<<b.low<<",\"high\":"<<b.high<<",\"attack_record\":"<<b.attackStroke<<",\"pedal_record\":"<<b.pedalStroke<<",\"pedal_class\":"<<b.pedalClass<<",\"inherited\":"<<(b.inherited?"true":"false")<<'}';}o<<"]}";return o.str();
 }
 }

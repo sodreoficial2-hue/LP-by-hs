@@ -1,0 +1,33 @@
+Checking workshop-og.nsmp
+Checking workshop-v2.nsmp
+Checking workshop-v3.nsmp3
+Checking workshop-v4.nsmp4
+Checking workshop-v3-format0.nsmp3
+Checking workshop-v3-map12.nsmp3
+PASS: six OpenNord differential fixtures (raw PCM, channels, zones, loops), SFZ/WAV export, real sndfile, NKI companion map, original/sidecar hashes, catalog and rollback
+Rejecting short
+Rejecting truncated
+Rejecting unknown-version
+Rejecting unknown-stream
+Rejecting bad-signature
+Rejecting bad-loop
+Rejecting bad-block
+Rejecting bad-count
+Rejecting bad-offset
+Rejecting bad-pcm
+PASS: public demo and independent v5/v6 multilayer PCM goldens; mono/stereo PCM16 WAV; loops/tuning/pedal/release; 1..127 velocity coverage; audit, aliases, preserved original/catalog, malformed-file rollback
+PASS: catalog categories, UTF-8, portable favorites, legacy paths, invalid bank rejection
+Catalog edits: persistence, portable identity, hide/restore, shared files, deletion, restart and failed writes passed
+Sampler: decoding, pitch, stereo, segmentation, dynamics, loop, mapping, SF2 and safe failure passed
+Generated 18 spec NKI fixtures
+PASS: NKI binary zlib/gzip offsets, programs, defaults/discards, linear gain, loops, overlap partition, Unicode/stereo, embedded RIFF, explicit fallback, preserved XML, RR/crossfade, errors/rollback and project rejection
+PASS: 8 outer revisions (synthetic mutations, 2 internal PCM16 families), unknown version diagnostic, checksum warning, shared RR exclusivity/stable count, velocity gaps/overlaps and opt-in crossfade voice cost 1->2
+PASS: 44 pares ON/OFF; voices=1/2; delta=1.79687..1.79851 dB; residual=6.0372e-07 dB; sustain_tail=-39.8905 dB; chord_peak=-4.13691 dBFS
+NKI pitch_cents=-0.202508 sounded=768 unmapped_source_keys=0
+NSMP pitch_cents=-0.159406 sounded=768 unmapped_source_keys=0
+NPNO pitch_cents=-0.159406 sounded=768 unmapped_source_keys=0
+crossfade=0 peak_voices=128 first_limit_chord=16 simulated_seconds=1.6 cpu_ms=828.843
+crossfade=1 peak_voices=128 first_limit_chord=8 simulated_seconds=0.8 cpu_ms=1019.23
+PASS: real sfizz pitch <3 cents, mapped MIDI scale dynamics, CC64 loops, RR voices and sustained 88-key/6-layer/2-RR load
+PASSOU: CLI dos três formatos, padrões NPNO, width, aliases, fallback estéreo, calibração e erros em português
+PASS: 5 original + 2 import/policy + CLI groups; real render when explicitly configured

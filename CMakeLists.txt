@@ -10,7 +10,7 @@ target_include_directories(lp_engine PUBLIC src)
 target_link_libraries(lp_engine PRIVATE ${CMAKE_DL_LIBS} Threads::Threads)
 # Offline conversion uses sample_builder.hpp's existing dynamic libsndfile ABI.
 # sndfile.dll is already copied to the portable; no codec work runs on audio threads.
-add_library(lp_timbre_import src/nki_reader.cpp src/sfz_calibration.cpp src/sfz_policy.cpp src/timbre_format.cpp src/sfz_conversion.cpp src/nsmp_to_sfz.cpp src/nki_to_sfz.cpp src/npno_reader.cpp src/npno_to_sfz.cpp
+add_library(lp_timbre_import src/nki_reader.cpp src/sfz_calibration.cpp src/npno_sustain.cpp src/sfz_policy.cpp src/timbre_format.cpp src/sfz_conversion.cpp src/nsmp_to_sfz.cpp src/nki_to_sfz.cpp src/npno_reader.cpp src/npno_to_sfz.cpp
  src/nsmp/cbin.cpp src/nsmp/nsmp_sections.cpp src/nsmp/nsmp_codek.cpp
  src/nsmp/nw1_dsp.cpp src/nsmp/bitstream.cpp src/nsmp/checksum.cpp)
 target_include_directories(lp_timbre_import PUBLIC src)
@@ -401,4 +401,14 @@ if(WIN32)
  elseif(MSVC)
   target_compile_options(lp_win32_parameter_memory_test PRIVATE /UNDEBUG)
  endif()
+endif()
+
+# Sustain matrix uses the actual offline renderer; personal L/XL remains optional.
+set(LP_NPNO_LXL_REAL_FIXTURE "" CACHE FILEPATH "Personal large NPNO sustain acceptance fixture")
+if(UNIX AND LP_REAL_SFIZZ_LIBRARY AND LP_SNDFILE_LIBRARY)
+ add_executable(lp_npno_sustain_render_test tests/npno_sustain_render_test.cpp)
+ target_link_libraries(lp_npno_sustain_render_test PRIVATE lp_timbre_import)
+ add_test(NAME npno_sustain_matrix COMMAND lp_npno_sustain_render_test "${LP_REAL_SFIZZ_LIBRARY}" "${LP_SNDFILE_LIBRARY}" "${CMAKE_BINARY_DIR}/sustain-matrix" "${LP_IMPORT_FIXTURE_ROOT}/npno")
+ add_test(NAME npno_sustain_personal_lxl COMMAND lp_npno_sustain_render_test "${LP_REAL_SFIZZ_LIBRARY}" "${LP_SNDFILE_LIBRARY}" "${CMAKE_BINARY_DIR}/sustain-personal" "${LP_IMPORT_FIXTURE_ROOT}/npno" "${LP_NPNO_LXL_REAL_FIXTURE}")
+ set_tests_properties(npno_sustain_personal_lxl PROPERTIES SKIP_RETURN_CODE 77)
 endif()

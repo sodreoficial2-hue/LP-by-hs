@@ -1,0 +1,108 @@
+Test project /tmp/lp-sustain-cmake
+      Start  1: automatic_sample_builder
+ 1/44 Test  #1: automatic_sample_builder ..................   Passed    0.34 sec
+      Start  2: session_regression
+ 2/44 Test  #2: session_regression ........................   Passed    0.02 sec
+      Start  3: engine_midi_regression
+ 3/44 Test  #3: engine_midi_regression ....................   Passed    0.01 sec
+      Start  4: dsp_regression
+ 4/44 Test  #4: dsp_regression ............................   Passed    0.56 sec
+      Start  5: audio_host_regression
+ 5/44 Test  #5: audio_host_regression .....................   Passed    0.09 sec
+      Start  6: real_performance_controls
+ 6/44 Test  #6: real_performance_controls .................   Passed    0.12 sec
+      Start  7: real_sfizz_envelope
+ 7/44 Test  #7: real_sfizz_envelope .......................Subprocess aborted***Exception:   0.05 sec
+Enabling freewheeling
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  Real OSC ADSR readback
+
+      Start  8: instrument_catalog_regression
+ 8/44 Test  #8: instrument_catalog_regression .............   Passed    0.01 sec
+      Start  9: performance_midi_integration
+ 9/44 Test  #9: performance_midi_integration ..............   Passed    0.00 sec
+      Start 10: layout_glide_profile_regression
+10/44 Test #10: layout_glide_profile_regression ...........   Passed    0.00 sec
+      Start 11: vision_bridge_protocol
+11/44 Test #11: vision_bridge_protocol ....................   Passed    0.00 sec
+      Start 12: large_hall_reverb
+12/44 Test #12: large_hall_reverb .........................   Passed   16.88 sec
+      Start 13: sf2_expansion_categories
+13/44 Test #13: sf2_expansion_categories ..................   Passed    0.00 sec
+      Start 14: hidden_sounds_persistence
+14/44 Test #14: hidden_sounds_persistence .................   Passed    0.02 sec
+      Start 15: stage_readiness_profiles_restore_search
+15/44 Test #15: stage_readiness_profiles_restore_search ...   Passed    0.02 sec
+      Start 16: audio_continuous_handoff
+16/44 Test #16: audio_continuous_handoff ..................   Passed    0.03 sec
+      Start 17: persistent_level_balance
+17/44 Test #17: persistent_level_balance ..................   Passed    0.02 sec
+      Start 18: offline_incremental_level_calibration
+18/44 Test #18: offline_incremental_level_calibration .....   Passed    0.75 sec
+      Start 19: catalog_edits_and_permanent_delete
+19/44 Test #19: catalog_edits_and_permanent_delete ........   Passed    0.01 sec
+      Start 20: independent_performance_persistence
+20/44 Test #20: independent_performance_persistence .......   Passed    0.02 sec
+      Start 21: performance_workspace_recovery
+21/44 Test #21: performance_workspace_recovery ............   Passed    0.01 sec
+      Start 22: async_performance_latest_selection
+22/44 Test #22: async_performance_latest_selection ........   Passed    0.33 sec
+      Start 23: stability_audio_switch_order
+23/44 Test #23: stability_audio_switch_order ..............   Passed    0.12 sec
+      Start 24: stability_recovery_dependencies
+24/44 Test #24: stability_recovery_dependencies ...........   Passed    0.02 sec
+      Start 25: stability_concurrent_four_layers
+25/44 Test #25: stability_concurrent_four_layers ..........   Passed    0.01 sec
+      Start 26: cached_performance_recall_no_ghost
+26/44 Test #26: cached_performance_recall_no_ghost ........   Passed    0.13 sec
+      Start 27: master_midi_learn_all_cc_channels
+27/44 Test #27: master_midi_learn_all_cc_channels .........   Passed    0.09 sec
+      Start 28: smooth_transition_budget_and_peaks
+28/44 Test #28: smooth_transition_budget_and_peaks ........   Passed    0.21 sec
+      Start 29: timbre_import_validation
+29/44 Test #29: timbre_import_validation ..................   Passed    0.18 sec
+      Start 30: npno_import_validation
+30/44 Test #30: npno_import_validation ....................   Passed    0.74 sec
+      Start 31: npno_external_fixture
+31/44 Test #31: npno_external_fixture .....................***Skipped   0.00 sec
+      Start 32: npno_real_sfizz_render
+32/44 Test #32: npno_real_sfizz_render ....................   Passed   42.36 sec
+      Start 33: nsmp_external_real_fixture
+33/44 Test #33: nsmp_external_real_fixture ................***Skipped   0.00 sec
+      Start 34: nki_generate_spec_fixtures
+34/44 Test #34: nki_generate_spec_fixtures ................   Passed    0.23 sec
+      Start 35: pitch_restore_reference_fixtures
+35/44 Test #35: pitch_restore_reference_fixtures ..........   Passed    0.03 sec
+      Start 36: nki_binary_mapping
+36/44 Test #36: nki_binary_mapping ........................   Passed    0.49 sec
+      Start 37: shared_format_policy
+37/44 Test #37: shared_format_policy ......................   Passed    0.14 sec
+      Start 38: shared_format_real_render
+38/44 Test #38: shared_format_real_render .................   Passed  174.66 sec
+      Start 39: npno_personal_v5_render
+39/44 Test #39: npno_personal_v5_render ...................***Skipped   0.00 sec
+      Start 40: npno_personal_v6_render
+40/44 Test #40: npno_personal_v6_render ...................***Skipped   0.00 sec
+      Start 41: timbre_conversion_cli
+41/44 Test #41: timbre_conversion_cli .....................   Passed    0.52 sec
+      Start 42: permanent_sound_parameters
+42/44 Test #42: permanent_sound_parameters ................   Passed    0.01 sec
+      Start 43: npno_sustain_matrix
+43/44 Test #43: npno_sustain_matrix .......................   Passed   30.28 sec
+      Start 44: npno_sustain_personal_lxl
+44/44 Test #44: npno_sustain_personal_lxl .................***Skipped   0.00 sec
+
+98% tests passed, 1 tests failed out of 44
+
+Total Test time (real) = 269.58 sec
+
+The following tests did not run:
+	 31 - npno_external_fixture (Skipped)
+	 33 - nsmp_external_real_fixture (Skipped)
+	 39 - npno_personal_v5_render (Skipped)
+	 40 - npno_personal_v6_render (Skipped)
+	 44 - npno_sustain_personal_lxl (Skipped)
+
+The following tests FAILED:
+	  7 - real_sfizz_envelope (Subprocess aborted)
+Errors while running CTest

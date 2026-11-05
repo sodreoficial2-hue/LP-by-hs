@@ -45,6 +45,7 @@ bool writeSfzRegion(std::ostream& s,const ConvertedZone& z,std::vector<std::stri
   if(warnings)warnings->push_back("Região omitida: ganho nulo, negativo ou não finito: "+z.sample);
   return false;
  }
+ if(!std::isfinite(z.moduleGainDb)||!std::isfinite(z.decaySeconds)||!std::isfinite(z.sustainPercent)||z.sustainPercent>100)throw std::runtime_error("SFZ: ganho de módulo/decay/sustain inválido");
  if(!std::isfinite(z.tuneCents)||!std::isfinite(z.pan)||!std::isfinite(z.releaseSeconds))throw std::runtime_error("SFZ: afinação/pan/envelope não finito");
  if(z.root<0||z.root>127||z.keyLow<0||z.keyHigh>127||z.keyLow>z.keyHigh||z.velLow<0||z.velHigh>127||z.velLow>z.velHigh)throw std::runtime_error("SFZ: faixa MIDI inválida");
  auto path=z.sample;std::replace(path.begin(),path.end(),'\\','/');
@@ -59,11 +60,13 @@ bool writeSfzRegion(std::ostream& s,const ConvertedZone& z,std::vector<std::stri
  s<<"<region> sample="<<path<<" lokey="<<z.keyLow<<" hikey="<<z.keyHigh<<" pitch_keycenter="<<z.root<<" lovel="<<z.velLow<<" hivel="<<z.velHigh<<" offset="<<z.sampleStart<<" end="<<end-1;
  if(z.zoneMode==1)s<<" pitch_keytrack=0";
  int transpose=static_cast<int>(std::trunc(z.tuneCents/100));if(transpose<-127||transpose>127)throw std::runtime_error("Afinação excede limites SFZ; original preservado");
- s<<" volume="<<std::max(-144.0,z.volumeDb)<<" transpose="<<transpose<<" tune="<<z.tuneCents-transpose*100;
+ s<<" volume="<<std::max(-144.0,z.volumeDb+z.moduleGainDb)<<" transpose="<<transpose<<" tune="<<z.tuneCents-transpose*100;
  if(z.ampVeltrack!=100)s<<" amp_veltrack="<<z.ampVeltrack;
  if(z.hasPan)s<<" pan="<<z.pan;
  if(z.releaseTrigger)s<<" trigger=release_key";
  if(z.releaseSeconds>=0)s<<" ampeg_release="<<z.releaseSeconds;
+ if(z.decaySeconds>=0)s<<" ampeg_decay="<<z.decaySeconds;
+ if(z.sustainPercent>=0)s<<" ampeg_sustain="<<z.sustainPercent;
  if(z.cc64Low>=0)s<<" locc64="<<z.cc64Low;
  if(z.cc64High>=0)s<<" hicc64="<<z.cc64High;
  if(z.sequenceLength>0)s<<" seq_length="<<z.sequenceLength<<" seq_position="<<z.sequencePosition;

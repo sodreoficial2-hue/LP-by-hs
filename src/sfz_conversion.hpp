@@ -31,6 +31,9 @@ double linearGainDb(double gain);
 void auditVelocityCoverage(const std::vector<ConvertedZone>& zones);
 void prepareSfzZones(std::vector<ConvertedZone>& zones,MetaSidecar& meta,const ConversionOptions& options={});
 void calibrateSfzZones(std::vector<ConvertedZone>& zones,MetaSidecar& meta,const ConversionOptions& options,const std::filesystem::path& output);
+void auditNpnoPedalBands(const std::vector<ConvertedZone>& zones);
+void prepareNpnoSustain(std::vector<ConvertedZone>& zones,MetaSidecar& meta,const ConversionOptions& options,const std::filesystem::path& output,const std::filesystem::path& sndfile);
+double npnoLoopDecaySeconds(std::uint32_t coefficient);
 std::string writeSfzInstrument(const std::vector<ConvertedZone>& zones);
 std::string bytesHex(const std::uint8_t* data,std::size_t size);
 }

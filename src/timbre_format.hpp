@@ -43,12 +43,18 @@ struct ConvertedZone {
  int sourceVelLow=1,sourceVelHigh=127;
  double ampVeltrack=100,calibrationOffsetDb=0,calibrationResidualDb=0;
  bool calibrated=false;
+ int canonicalBand=-1,pedalClass=-1,sourceStroke=-1;bool bandInherited=false,npnoResonance=false;
+ double pedalOffsetDb=0,pedalResidualDb=0,moduleGainDb=0;
+ std::uint32_t sourceLoopDecay=0;
+ double decaySeconds=-1,sustainPercent=-1;
 };
 struct ConversionOptions {
  bool velocityCrossfade=false;
  int crossfadeWidth=8; // Half window in MIDI steps, capped by neighboring layer widths.
  bool velocityCrossfadeExplicit=false; // NPNO defaults on, others retain opt-in behavior.
  bool stereoMonoFallback=false;
+ bool npnoPedalResonance=true;
+ std::filesystem::path sustainSfizzLibrary;
  std::filesystem::path calibrationSfizzLibrary; // Explicit offline renderer; empty = measured calibration N/A.
 
 };

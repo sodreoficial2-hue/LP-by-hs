@@ -1,3 +1,5 @@
+> **Atualização de sustain de 5/11:** [relatório e limitações](FORMAT-INTEGRATION-2026-11-05.md). Os números e políticas abaixo são históricos quando substituídos por esse relatório.
+
 > **Última etapa NPNO/NPMO:** consulte “Atualização NPNO/NPMO: timbre, camadas e estéreo” ao final. Aceite amplo parcial; resultados e pendências explícitos.
 
 > **Estado atual:** consulte a seção “Atualização: fechamento das lacunas P1–P6”. O registro inicial abaixo é histórico. O aceite amplo ainda depende de monólitos Kontakt não suportados.

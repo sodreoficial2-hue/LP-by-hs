@@ -4,9 +4,9 @@
 #include <tuple>
 namespace lp {
 namespace {
-using Condition=std::tuple<int,int,bool,int,int,int>;
-Condition condition(const ConvertedZone& z){return {z.program,z.root,z.releaseTrigger,z.cc64Low,z.cc64High,z.hasPan?static_cast<int>(z.pan*1000):0};}
-bool sameTrigger(const ConvertedZone& a,const ConvertedZone& b){return a.program==b.program&&a.releaseTrigger==b.releaseTrigger&&a.cc64Low==b.cc64Low&&a.cc64High==b.cc64High;}
+using Condition=std::tuple<int,int,bool,int,int,int,bool>;
+Condition condition(const ConvertedZone& z){return {z.program,z.root,z.releaseTrigger,z.cc64Low,z.cc64High,z.hasPan?static_cast<int>(z.pan*1000):0,z.npnoResonance};}
+bool sameTrigger(const ConvertedZone& a,const ConvertedZone& b){return a.npnoResonance==b.npnoResonance&&a.program==b.program&&a.releaseTrigger==b.releaseTrigger&&a.cc64Low==b.cc64Low&&a.cc64High==b.cc64High;}
 }
 void auditVelocityCoverage(const std::vector<ConvertedZone>& zones){
  std::map<std::pair<Condition,int>,std::vector<const ConvertedZone*>> groups;
@@ -22,6 +22,20 @@ void auditVelocityCoverage(const std::vector<ConvertedZone>& zones){
    for(auto z:entry.second)if(key>=z->keyLow&&key<=z->keyHigh){present=true;for(int v=std::max(1,z->velLow);v<=z->velHigh;++v)++count[v];}
    if(present)for(int v=1;v<=127;++v)if(count[v]!=1)throw std::runtime_error("Auditoria velocity: lacuna/sobreposição na tecla "+std::to_string(key)+", velocity "+std::to_string(v));
   }
+ }
+}
+void auditNpnoPedalBands(const std::vector<ConvertedZone>& zones){
+ using Key=std::tuple<int,int,int,int>; // program, root, playing key, stereo lane
+ std::map<Key,std::array<std::vector<const ConvertedZone*>,2>> groups;
+ for(const auto& z:zones)if(z.canonicalBand>=0&&!z.muted&&!z.releaseTrigger&&!z.npnoResonance&&(z.sourceBank==0||z.sourceBank==1))for(int key=z.keyLow;key<=z.keyHigh;++key)groups[{z.program,z.root,key,z.hasPan?int(z.pan):0}][z.sourceBank].push_back(&z);
+ for(const auto& entry:groups){const auto& a=entry.second[0];const auto& b=entry.second[1];if(b.empty())continue; // A root without any pedal samples is legitimate.
+  if(a.empty())throw std::runtime_error("Auditoria pedal: banco de ataque ausente");
+  for(int v=1;v<=127;++v){const ConvertedZone* x=nullptr;const ConvertedZone* y=nullptr;int nx=0,ny=0;
+   for(auto z:a)if(v>=z->velLow&&v<=z->velHigh){x=z;++nx;}for(auto z:b)if(v>=z->velLow&&v<=z->velHigh){y=z;++ny;}
+   if(nx!=1||ny!=1||x->canonicalBand!=y->canonicalBand||x->pedalClass!=y->pedalClass||x->bandInherited!=y->bandInherited||x->velLow!=y->velLow||x->velHigh!=y->velHigh)throw std::runtime_error("Auditoria pedal: classe de banda divergente em velocity "+std::to_string(v));
+  }
+  auto ordered=b;std::sort(ordered.begin(),ordered.end(),[](auto x,auto y){return x->velLow<y->velLow;});
+  for(std::size_t i=0;i<ordered.size();++i){auto z=ordered[i];bool inherited=i&&z->sourceStroke==ordered[i-1]->sourceStroke;if(inherited!=z->bandInherited)throw std::runtime_error("Auditoria pedal: herança de camada sem registro explícito");}
  }
 }
 void prepareSfzZones(std::vector<ConvertedZone>& zones,MetaSidecar& meta,const ConversionOptions& options){
@@ -41,6 +55,7 @@ void prepareSfzZones(std::vector<ConvertedZone>& zones,MetaSidecar& meta,const C
   }
  }
  auditVelocityCoverage(zones);
+ auditNpnoPedalBands(zones);
  meta.preservedFeatures.push_back("velocity_coverage=audited_before_crossfade; round_robin=seq_length/seq_position_only; resample=false; resample_error_cents=0");
  meta.preservedFeatures.push_back(options.velocityCrossfade?"velocity_crossfade=on; width="+std::to_string(options.crossfadeWidth):"velocity_crossfade=off (default; bounded voice cost)");
  if(!options.velocityCrossfade)return;
@@ -57,10 +72,10 @@ std::string writeSfzInstrument(const std::vector<ConvertedZone>& zones){
  auto s=sfzStream();
  // Stable first-seen group order, stable source order inside each group. Regions
  // retain their controls too: a new group cannot leak inherited CC/trigger state.
- using Group=std::tuple<int,int,bool,int,int>;
+ using Group=std::tuple<int,int,bool,int,int,bool>;
  std::vector<Group> order;std::map<Group,std::vector<const ConvertedZone*>> groups;
- for(const auto& z:zones){Group key{z.program,z.sourceBank,z.releaseTrigger,z.cc64Low,z.cc64High};if(!groups.count(key))order.push_back(key);groups[key].push_back(&z);}
- for(const auto& key:order){writeSfzGroup(s);s<<"// source_bank="<<std::get<1>(key)<<"; controls repeated per region\n";for(auto z:groups[key])writeSfzRegion(s,*z);}
+ for(const auto& z:zones){Group key{z.program,z.sourceBank,z.releaseTrigger,z.cc64Low,z.cc64High,z.npnoResonance};if(!groups.count(key))order.push_back(key);groups[key].push_back(&z);}
+ for(const auto& key:order){writeSfzGroup(s);s<<"// source_bank="<<std::get<1>(key)<<"; resonance="<<std::get<5>(key)<<"; controls repeated per region\n";for(auto z:groups[key])writeSfzRegion(s,*z);}
  return s.str();
 }
 }

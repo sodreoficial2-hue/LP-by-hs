@@ -16,7 +16,7 @@ int main(int argc,char** argv){try{
  check(argc==5,"arguments: sfizz sndfile fixtures output");auto root=std::filesystem::absolute(std::filesystem::u8path(argv[4]));std::filesystem::remove_all(root);std::filesystem::create_directories(root);
  lp::SfizzEngine engine(std::filesystem::u8path(argv[1]),48000,256,true);
  for(const char* name:{"tine-demo.npno","layers-v5.npno","layers-v6.npno"}){
-  lp::MetaSidecar meta;auto sfz=lp::npnoParaSFZ(std::filesystem::u8path(argv[3])/name,root/name,meta,std::filesystem::u8path(argv[2]));engine.load(sfz);check(engine.regions()==int(meta.zones.size()),"real sfizz region count differs from audited output");
+  lp::ConversionOptions options;options.sustainSfizzLibrary=argv[1];lp::MetaSidecar meta;auto sfz=lp::npnoParaSFZ(std::filesystem::u8path(argv[3])/name,root/name,meta,std::filesystem::u8path(argv[2]),{},options);engine.load(sfz);check(engine.regions()==int(meta.zones.size()),"real sfizz region count differs from audited output");
   for(int pedal:{0,127})for(int velocity:{1,30,80,127}){
    engine.panic();engine.cc(64,pedal);engine.noteOn(48,velocity);auto audio=render(engine,8192);check(energy(audio)>1e-15,"real sfizz emitted no audio for a velocity/pedal combination");engine.noteOff(48);check(energy(render(engine,2048))>1e-15,"release path emitted no audio");
   }

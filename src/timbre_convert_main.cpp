@@ -2,7 +2,7 @@
 #include <iostream>
 #include <charconv>
 int main(int argc,char** argv){try{
- if(argc<4){std::cerr<<"Uso: lp_convert_timbre ORIGINAL PASTA_NOVA LIBSNDFILE [PASTA_SAMPLES] [--velocity-crossfade|--no-velocity-crossfade] [--crossfade-width=1..16] [--stereo-mono-fallback] [--calibrate-sfizz=LIB]\n";return 2;}
+ if(argc<4){std::cerr<<"Uso: lp_convert_timbre ORIGINAL PASTA_NOVA LIBSNDFILE [PASTA_SAMPLES] [--velocity-crossfade|--no-velocity-crossfade] [--crossfade-width=1..16] [--stereo-mono-fallback] [--calibrate-sfizz=LIB] [--sustain-sfizz=LIB] [--no-pedal-resonance]\n";return 2;}
  auto input=std::filesystem::u8path(argv[1]),output=std::filesystem::u8path(argv[2]),library=std::filesystem::u8path(argv[3]);lp::ConversionOptions options;std::filesystem::path sampleRoot;
  for(int i=4;i<argc;++i){std::string arg=argv[i];
   auto width=[&](const std::string& number){auto parsed=std::from_chars(number.data(),number.data()+number.size(),options.crossfadeWidth);if(parsed.ec!=std::errc()||parsed.ptr!=number.data()+number.size()||options.crossfadeWidth<1||options.crossfadeWidth>16)throw std::runtime_error("Crossfade velocity deve ter 1 a 16 passos MIDI");};
@@ -10,6 +10,8 @@ int main(int argc,char** argv){try{
   else if(arg=="--no-velocity-crossfade"){options.velocityCrossfade=false;options.velocityCrossfadeExplicit=true;}
   else if(arg.rfind("--velocity-crossfade=",0)==0){width(arg.substr(21));options.velocityCrossfade=true;options.velocityCrossfadeExplicit=true;}
   else if(arg.rfind("--crossfade-width=",0)==0)width(arg.substr(18));
+  else if(arg=="--no-pedal-resonance")options.npnoPedalResonance=false;
+  else if(arg.rfind("--sustain-sfizz=",0)==0){options.sustainSfizzLibrary=std::filesystem::u8path(arg.substr(16));if(options.sustainSfizzLibrary.empty())throw std::runtime_error("Informe a biblioteca sfizz para sustain");}
   else if(arg=="--stereo-mono-fallback")options.stereoMonoFallback=true;
   else if(arg.rfind("--calibrate-sfizz=",0)==0){options.calibrationSfizzLibrary=std::filesystem::u8path(arg.substr(18));if(options.calibrationSfizzLibrary.empty())throw std::runtime_error("Informe a biblioteca sfizz para calibrar");}
   else if(arg.rfind("--",0)==0)throw std::runtime_error("Opção desconhecida: "+arg);

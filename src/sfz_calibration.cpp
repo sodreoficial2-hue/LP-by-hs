@@ -9,14 +9,14 @@ namespace {
 // Project reference, not a decoded Nord DSP law: preserve PCM+trim layer RMS,
 // remove additional velocity tracking, pool descending neighbors by least squares.
 // T4's inverse Touch curve determines the disjoint velocity bands before this fit.
-constexpr double pedalReferenceDb=-12,releaseReferenceDb=-18;
+constexpr double pedalReferenceDb=0,releaseReferenceDb=-18;
 struct Measurement {double mean=0;std::vector<double> db;std::vector<std::pair<int,int>> notes;};
 using Stack=std::tuple<int,int,int,int,int,int>; // program/root/key range/lane/sequence
 Stack stack(const ConvertedZone& z){return {z.program,z.root,z.keyLow,z.keyHigh,z.hasPan?int(z.pan):0,z.sequencePosition};}
 }
 void calibrateSfzZones(std::vector<ConvertedZone>& zones,MetaSidecar& meta,const ConversionOptions& options,const std::filesystem::path& output){
  if(options.calibrationSfizzLibrary.empty()){
-  meta.limitations.push_back("Calibração RMS medida N/A: biblioteca sfizz offline não fornecida; use --calibrate-sfizz=LIB. Ganhos iniciais não são calibração medida.");return;
+  meta.limitations.push_back("Calibração isotônica de dinâmica por camada N/A: use --calibrate-sfizz=LIB para essa etapa opcional. A equalização RMS específica do pedal NPNO é registrada separadamente.");return;
  }
  for(auto& z:zones){z.velLow=std::max(1,z.velLow);if(z.velLow>z.velHigh||z.velHigh>127)throw std::runtime_error("Calibração: faixa de velocity inválida");}
  if(zones.size()>65536)throw std::runtime_error("Calibração excede limite de 65536 regiões");
@@ -66,7 +66,7 @@ void calibrateSfzZones(std::vector<ConvertedZone>& zones,MetaSidecar& meta,const
   z.calibrated=true;maximum=std::max(maximum,z.calibrationResidualDb);++count;
  }
  meta.preservedFeatures.push_back("calibration_reference=source_PCM_plus_trim_isotonic_layer_RMS; continuous_Nord_DSP_curve=unknown; amp_veltrack=0; RMS_window_frames=4096; rate=48000; keys=low/mid/high_unique; velocities=low/mid/high_unique; regions="+std::to_string(count)+"; residual_max_db="+std::to_string(maximum));
- meta.preservedFeatures.push_back("calibrated_bank_reference_db: pedal=-12; release=-18; tolerance_synthetic_db=0.5; volume_bounds=[-144,10.8]");
+ meta.preservedFeatures.push_back("calibrated_bank_reference_db: pedal=0; release=-18; tolerance_synthetic_db=0.5; volume_bounds=[-144,10.8]");
  if(!bounded||maximum>0.5)meta.limitations.push_back("Calibração fora da tolerância de projeto 0.5 dB (variação por tecla ou limite de ganho); consulte residual por região. Não declarar aceite timbrístico deste módulo.");
 }
 }

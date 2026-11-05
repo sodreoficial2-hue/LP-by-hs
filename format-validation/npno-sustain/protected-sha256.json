@@ -1,0 +1,28 @@
+{
+  "base": "38c24d3b7736a9dcfff41523693b9473bc3c9e7f",
+  "all_unchanged": true,
+  "files": {
+    "src/sfizz_engine.cpp": "b69e09b7cf07b329ca52a03a07a47d6f6212e74a6153e78cc98debee8dc53a0d",
+    "src/sfizz_engine.hpp": "53ef303bf79500c000864bd88a6982a88d8809fd9afaf47d4bdf02442179375a",
+    "src/sf2_engine.cpp": "f0f62ff3510dfefe94a04c7be3d6938e05f0d07f120afa2a7e2cbedc03dffc84",
+    "src/sf2_engine.hpp": "84e502af6d603ee905bc8e84357440813dd0a74c43be2dadda7bd54d30d47bfa",
+    "src/dsp.cpp": "cf4257f37c807f6edf15074d4be7c6fddfa8225c2a29b83d104ace64bdf1dee1",
+    "src/dsp.hpp": "d34dce5cf1d85384a7bc23701760cfc7bbb980fe131b943bef60c85c4b0d2486",
+    "src/audio_host.cpp": "c78fc357a8072ae5f05c8f1a4d50c7e85c183c1cc8c02dcf7e28bc9e1e9020cf",
+    "src/audio_host.hpp": "6265dc6bb5615fd9ba08bd5baf75ee8a1cfc8834f2f50413758d65e26443a78f",
+    "src/sample_builder.hpp": "b85e4359071a543fbee29a8c8766922fea535ab674c3e74042766de97fc774b6",
+    "src/sound_parameters.hpp": "58a9489223a7d7342f8436515b89e846b94580e58b9d06bc578657f638a7b457",
+    "src/ui_app.inc": "558d751e28776869836ea7e76a3bb000e43611ad05a721ff83403a887c01f85f",
+    "src/ui_studio.inc": "02d4f4b4862cbdd3b1084228ab0a2dbb55bf7a7b9fcc95b6382ecddd56d13e52",
+    "src/win32_app.cpp": "d90a5a828fa672a4ab3b51fe9209cae634e7e26d4723eafef3635f267c621730",
+    "vision-ui/asset-provenance.json": "4daf61967030f297b7e825b5feb232bc6b3200ff11563ba8ee295096758880b7",
+    "vision-ui/assets.js": "98668c22b150e0f0372d7e86030db20580530d8244b588320a1dfc0de0527e9a",
+    "vision-ui/index.html": "90554bead796c16b1d63870b329bc37db5c62c51bda4b3baac5293a2d81798db",
+    "vision-ui/licenses/dmsans-OFL.txt": "2af94f4fb533be8fa23282eb33e08ca311ddf47c2f32777e2040b282deeec65c",
+    "vision-ui/licenses/plusjakartasans-OFL.txt": "995c7199cab65954f545996326755daee7b63cc6b42b06c13da1f9502ab08a99",
+    "vision-ui/splash-assets.js": "43ec47f117067d62cc92138003958c471966542f0620b0ca3549144b9ab813c2",
+    "vision-ui/splash-provenance.json": "68bb3946bc271fe24619828162495af9c3b95b45e12211808157a6e9bd560c00",
+    "vision-ui/vision.css": "c4b6c8ef661cc2a9ec2781fd3a1317d6732e12d5b1da827c4d9fb6b22b77e6d5",
+    "vision-ui/vision.js": "41672cfae5647eeba717315d7de660400a78941f2625b5e2c3b2d72885ced233"
+  }
+}

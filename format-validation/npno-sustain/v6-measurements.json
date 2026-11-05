@@ -1,0 +1,147 @@
+{
+  "fixture": "bundled layers-v6.npno, independent synthetic encoder; not an original Nord piano recording",
+  "regions": 48,
+  "measurements": "PASS: 44 pares ON/OFF; voices=1/2; delta=1.80476..1.86156 dB; residual=0.00545079 dB; sustain_tail=-66.2806 dB; chord_peak=-28.3114 dBFS",
+  "preserved_features": [
+    "stereo_output=interleaved_pcm16; voices_per_stroke=1",
+    "stereo_pan_law=sfizz_equal_power; mono_fallback_region_gain_db=-3.01029995664; WAV_PCM_unchanged=true",
+    "release_model=conservative; damped_seconds=0.2; undamped_seconds=2.0; release_key_seconds=0.2; raw_fades_preserved=true",
+    "pedal_equalization=offline_RMS; release_bank_initial_gain_db=-18; resonance_model=bounded_extra_attack",
+    "Original binary with SHA-256; full body prefix and every sample record in source_metadata; per-channel WAV hashes; separate extraction and velocity audit.",
+    "All source sample records are decoded, including unmapped/unreachable layers; only reachable regions are played.",
+    "headroom_refinement_db=7.394646; trigger=measured_grid_outside_target_by_2dB_or_ceiling; chords=5; velocities=9",
+    "pedal_calibration=sfizz_RMS_ON_equals_OFF_without_extra_resonance; positions=low/mid/high; regions=12; residual_max_db=0.005451",
+    "resonance_enabled=true; resonance_gain_db=-12; release_seconds=4; decay_max_seconds=2; sustain_percent=0; trigger=new_note_CC64_ge_64; target_delta_db=1..3; physical_resonance=false",
+    "loopDecay_model=project_Q23_frame_multiplier_to_minus60dB; formula=clamp(log(0.001)/(35002*log(q/8388608)),0.15,4); sustain_percent=25; source_units_unconfirmed=true; q_zero_seconds=0.15; q_unity_limit_seconds=4; q_above_unity=legacy_without_decay",
+    "headroom_module_gain_db=7.394646; measured_10_note_peak_dbfs=-18.889994; target_measured_grid_dbfs=-3.2",
+    "velocity_coverage=audited_before_crossfade; round_robin=seq_length/seq_position_only; resample=false; resample_error_cents=0",
+    "velocity_crossfade=off (default; bounded voice cost)"
+  ],
+  "limitations": [
+    "Velocity usa Touch 0 empírico legado; estimativa histórica de dois passos MIDI não confirmada independentemente. nord-format 0.8.0 e OpenNord divergem; curva e regras efetivas registradas no source_metadata. Cobertura auditada por root/banco antes do crossfade.",
+    "Playback uses 35002 Hz and the stored root, following the hardware-tested reference. The alternate reference uses 44100 Hz and root+4. No rate field or resampling is invented.",
+    "Per-key fine tune is 0.7 cents per unit (reference measurement 0.6..0.8). No global-detune field was identified; no guessed global tuning is applied.",
+    "Banco 1 igualado por RMS ao banco 0 quando sfizz está disponível; ressonância extra de ataque é aproximação, sem simulação física de cordas. Banco 2 usa release_key.",
+    "Note-off fades and damping use conservative SFZ releases of 0.2 s, or 2 s for undamped upper keys, rather than an unverified conversion of raw fade bytes. Release-trigger regions use 0.2 s. Source fade/release-level tables are retained raw.",
+    "Loop bounds are mapped exactly (exclusive source end becomes inclusive SFZ end). loopDecay usa aproximação de projeto registrada; tabela de 14 entradas permanece crua, sem interpretação inventada.",
+    "No confirmed pan, crossfade, round-robin or global-detune fields exist in the consulted schema. Take identifiers are retained, not treated as round robin. Entire prefix and each 118-byte record remain in source_metadata.",
+    "WAV PCM16 mono/stereo sem normalização; estéreo intercalado por padrão, par mono hard-pan por opção. Ganho final limitado a [-144,+10.8] dB.",
+    "amp_veltrack=0 evita tracking SFZ duplicado. A curva dinâmica contínua do DSP Nord não é conhecida: equalização de pedal usa RMS; regressão isotônica por camada com PCM/trim é opcional; não comprova equivalência auditiva.",
+    "Banco 2 mantém -18 dB inicial; ressonância não reage retroativamente a notas antigas.",
+    "damperTop confirma apenas o limite de amortecimento, não ausência de banco 2 acima dele: regiões release_key mantidas; sem confirmação independente para silenciá-las.",
+    "Known outer revisions 500/520/530/540 and 600/610/620/630 are routed by validated internal 0x450/0x464 layouts. Corpus-wide compatibility is not established. Limits: 512 MiB input, 16 million frames per record, 256 million total PCM values.",
+    "Calibração RMS medida N/A: biblioteca sfizz offline não fornecida; use --calibrate-sfizz=LIB. Ganhos iniciais não são calibração medida.",
+    "FALHADO: headroom conservador deixa acorde medido abaixo do alvo por mais de 2 dB; não aplicado boost sem prova da grade completa.",
+    "loopDecay é aproximação de projeto com unidades temporais não confirmadas independentemente; medição de um acorde não prova todos os acordes possíveis nem sustentações ilimitadas."
+  ],
+  "offsets": [
+    {
+      "root": 48,
+      "key_low": 0,
+      "key_high": 59,
+      "canonical_band": 2,
+      "source_stroke": 3,
+      "pedal_offset_db": 0.00320311,
+      "pedal_residual_db": 0.00241115
+    },
+    {
+      "root": 48,
+      "key_low": 0,
+      "key_high": 59,
+      "canonical_band": 1,
+      "source_stroke": 4,
+      "pedal_offset_db": 0.00535383,
+      "pedal_residual_db": 0.00545079
+    },
+    {
+      "root": 48,
+      "key_low": 0,
+      "key_high": 59,
+      "canonical_band": 0,
+      "source_stroke": 5,
+      "pedal_offset_db": -0.00636758,
+      "pedal_residual_db": 0.00123216
+    },
+    {
+      "root": 72,
+      "key_low": 60,
+      "key_high": 60,
+      "canonical_band": 2,
+      "source_stroke": 12,
+      "pedal_offset_db": -0.0043335,
+      "pedal_residual_db": 5.85942e-07
+    },
+    {
+      "root": 72,
+      "key_low": 60,
+      "key_high": 60,
+      "canonical_band": 1,
+      "source_stroke": 13,
+      "pedal_offset_db": -0.0174139,
+      "pedal_residual_db": 3.80541e-07
+    },
+    {
+      "root": 72,
+      "key_low": 60,
+      "key_high": 60,
+      "canonical_band": 0,
+      "source_stroke": 14,
+      "pedal_offset_db": -0.00925355,
+      "pedal_residual_db": 3.40717e-07
+    },
+    {
+      "root": 72,
+      "key_low": 61,
+      "key_high": 61,
+      "canonical_band": 2,
+      "source_stroke": 12,
+      "pedal_offset_db": -0.00461708,
+      "pedal_residual_db": 4.66448e-07
+    },
+    {
+      "root": 72,
+      "key_low": 61,
+      "key_high": 61,
+      "canonical_band": 1,
+      "source_stroke": 13,
+      "pedal_offset_db": -0.0173904,
+      "pedal_residual_db": 7.46633e-07
+    },
+    {
+      "root": 72,
+      "key_low": 61,
+      "key_high": 61,
+      "canonical_band": 0,
+      "source_stroke": 14,
+      "pedal_offset_db": -0.00897687,
+      "pedal_residual_db": 4.56094e-07
+    },
+    {
+      "root": 72,
+      "key_low": 62,
+      "key_high": 127,
+      "canonical_band": 2,
+      "source_stroke": 12,
+      "pedal_offset_db": -0.00314378,
+      "pedal_residual_db": 0.0019339
+    },
+    {
+      "root": 72,
+      "key_low": 62,
+      "key_high": 127,
+      "canonical_band": 1,
+      "source_stroke": 13,
+      "pedal_offset_db": -0.0189512,
+      "pedal_residual_db": 0.00113242
+    },
+    {
+      "root": 72,
+      "key_low": 62,
+      "key_high": 127,
+      "canonical_band": 0,
+      "source_stroke": 14,
+      "pedal_offset_db": -0.00791967,
+      "pedal_residual_db": 0.00110591
+    }
+  ]
+}

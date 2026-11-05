@@ -33,6 +33,12 @@ public:
  try{bind(create,"sfizz_create_synth");bind(destroy,"sfizz_free");bind(loadFile,"sfizz_load_file");bind(rate,"sfizz_set_sample_rate");bind(block,"sfizz_set_samples_per_block");bind(on,"sfizz_send_note_on");bind(off,"sfizz_send_note_off");bind(cc,"sfizz_send_cc");bind(freewheel,"sfizz_enable_freewheeling");bind(render,"sfizz_render_block");}catch(...){close();throw;}
  }
  ~OfflineSfizz(){close();}OfflineSfizz(const OfflineSfizz&)=delete;OfflineSfizz& operator=(const OfflineSfizz&)=delete;
+ double chordPeak(const std::filesystem::path& path,const std::vector<int>& keys,int velocity,int pedal){
+  if(synth){destroy(synth);synth=nullptr;}synth=create();if(!synth)throw std::runtime_error("Falha ao criar sfizz offline");rate(synth,48000);block(synth,256);freewheel(synth);
+  if(!loadFile(synth,path.u8string().c_str()))throw std::runtime_error("Falha no probe de headroom");cc(synth,0,64,pedal);for(int k:keys)on(synth,0,k,velocity);
+  std::array<float,256> l{},r{};float* ptrs[]={l.data(),r.data()};double peak=0;
+  for(int b=0;b<188;++b){render(synth,ptrs,2,256);for(int i=0;i<256;++i){if(!std::isfinite(l[i])||!std::isfinite(r[i]))throw std::runtime_error("Headroom: áudio não finito");peak=std::max(peak,double(std::max(std::abs(l[i]),std::abs(r[i]))));}}return peak;
+ }
  double rmsDb(const std::filesystem::path& path,int key,int velocity,int pedal,bool release){
   if(synth){destroy(synth);synth=nullptr;}synth=create();if(!synth)throw std::runtime_error("Falha ao criar sfizz offline");rate(synth,48000);block(synth,256);freewheel(synth);
   auto name=path.u8string();if(!loadFile(synth,name.c_str()))throw std::runtime_error("Falha ao carregar instrumento de calibração offline");

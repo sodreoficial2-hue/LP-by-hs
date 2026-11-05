@@ -1,0 +1,56 @@
+{
+  "source_base": "38c24d3b7736a9dcfff41523693b9473bc3c9e7f",
+  "ctest": {
+    "registered": 44,
+    "passed": 38,
+    "failed": 1,
+    "skipped": 5,
+    "exit": 8,
+    "legacy_failure": "real_sfizz_envelope / Real OSC ADSR readback",
+    "skips": [
+      "npno_external_fixture",
+      "nsmp_external_real_fixture",
+      "npno_personal_v5_render",
+      "npno_personal_v6_render",
+      "npno_sustain_personal_lxl"
+    ]
+  },
+  "script": {
+    "exit": 0,
+    "passed_groups": 10,
+    "failed_groups": 0,
+    "skipped_groups": 0,
+    "original_five_passed": true
+  },
+  "synthetic": {
+    "pairs": 44,
+    "off_voices": 1,
+    "on_voices": 2,
+    "delta_min_db": 1.79687388899,
+    "delta_max_db": 1.79850710519,
+    "pedal_residual_max_db": 6.0372e-07,
+    "headroom_features": [
+      "headroom_refinement_db=11.826994; trigger=measured_grid_outside_target_by_2dB_or_ceiling; chords=5; velocities=18",
+      "headroom_module_gain_db=-3.995316; measured_10_note_peak_dbfs=-3.199999; target_measured_grid_dbfs=-3.2"
+    ],
+    "held_tail_rms_dbfs": -39.8905,
+    "additional_chord_peak_dbfs": -4.13691,
+    "resonance_voices_after_8_seconds": 0,
+    "release_voice_instances_per_note_off": 1,
+    "sustain_stability_tolerance_db": 0.5
+  },
+  "documented_failures": [
+    "T5 absolute target cannot be reached in extremely quiet goldens under +10.8 dB ceiling",
+    "Nord loopDecay original time units unconfirmed; project approximation only",
+    "P1.6 Kontakt monolith unsupported",
+    "legacy OSC ADSR readback"
+  ],
+  "not_available": [
+    "personal L/XL original NPNO",
+    "original keyboard AB recording",
+    "Windows ASIO execution",
+    "optional FluidSynth suites: backend not configured"
+  ],
+  "actions_used": false,
+  "authenticated_github_quota": "unknown; no usage tool exposed"
+}

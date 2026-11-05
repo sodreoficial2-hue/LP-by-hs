@@ -1,0 +1,87 @@
+{
+  "fixture": "v6 bundled binary, pedal layer threshold mutation; physical PCM retained",
+  "canonical_bands": [
+    {
+      "root": 48,
+      "band": 0,
+      "low": 1,
+      "high": 61,
+      "attack_record": 2,
+      "pedal_record": 5,
+      "pedal_class": 0,
+      "inherited": false
+    },
+    {
+      "root": 48,
+      "band": 1,
+      "low": 62,
+      "high": 99,
+      "attack_record": 1,
+      "pedal_record": 4,
+      "pedal_class": 1,
+      "inherited": false
+    },
+    {
+      "root": 48,
+      "band": 2,
+      "low": 100,
+      "high": 127,
+      "attack_record": 0,
+      "pedal_record": 4,
+      "pedal_class": 1,
+      "inherited": true
+    },
+    {
+      "root": 72,
+      "band": 0,
+      "low": 1,
+      "high": 61,
+      "attack_record": 11,
+      "pedal_record": 14,
+      "pedal_class": 0,
+      "inherited": false
+    },
+    {
+      "root": 72,
+      "band": 1,
+      "low": 62,
+      "high": 99,
+      "attack_record": 10,
+      "pedal_record": 13,
+      "pedal_class": 1,
+      "inherited": false
+    },
+    {
+      "root": 72,
+      "band": 2,
+      "low": 100,
+      "high": 127,
+      "attack_record": 9,
+      "pedal_record": 13,
+      "pedal_class": 1,
+      "inherited": true
+    }
+  ],
+  "inherited_bands": [
+    {
+      "root": 48,
+      "band": 2,
+      "low": 100,
+      "high": 127,
+      "attack_record": 0,
+      "pedal_record": 4,
+      "pedal_class": 1,
+      "inherited": true
+    },
+    {
+      "root": 72,
+      "band": 2,
+      "low": 100,
+      "high": 127,
+      "attack_record": 9,
+      "pedal_record": 13,
+      "pedal_class": 1,
+      "inherited": true
+    }
+  ]
+}
