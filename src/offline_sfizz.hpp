@@ -43,7 +43,7 @@ public:
   cc(synth,0,20,int(region%128));cc(synth,0,21,int((region/128)%128));cc(synth,0,22,int(region/(128*128)));
  }
  double chordPeakLoaded(const std::vector<int>& keys,int velocity,int pedal){
-  silence(synth);cc(synth,0,64,pedal);for(int k:keys)on(synth,0,k,velocity);
+  cc(synth,0,123,0);silence(synth);cc(synth,0,64,pedal);for(int k:keys)on(synth,0,k,velocity);
   std::array<float,256> l{},r{};float* ptrs[]={l.data(),r.data()};double peak=0;
   for(int b=0;b<188;++b){render(synth,ptrs,2,256);for(int i=0;i<256;++i){if(!std::isfinite(l[i])||!std::isfinite(r[i]))throw std::runtime_error("Headroom: áudio não finito");peak=std::max(peak,double(std::max(std::abs(l[i]),std::abs(r[i]))));}}return peak;
  }
@@ -51,7 +51,7 @@ public:
   load(path);return chordPeakLoaded(keys,velocity,pedal);
  }
  double rmsDbLoaded(int key,int velocity,int pedal,bool release,std::size_t region=0){
-  silence(synth);select(region);
+  cc(synth,0,123,0);silence(synth);select(region);
   cc(synth,0,64,pedal);on(synth,0,key,velocity);
   std::array<float,256> left{},right{};float* ptrs[]={left.data(),right.data()};
   // Release bank is measured alone, with a note-off after priming its note-on.

@@ -42,14 +42,21 @@ jobs:
             cmake -S "$version" -B "$version/build" -G Ninja -DLP_TEST_ONLY=ON -DCMAKE_BUILD_TYPE=Debug -DLP_SNDFILE_LIBRARY=/usr/lib/x86_64-linux-gnu/libsndfile.so.1 -DLP_REAL_SFIZZ_LIBRARY="$sfizz_path"
             cmake --build "$version/build" --parallel 2
           done
+      - uses: actions/cache/save@v4
+        if: steps.sfizz-cache.outputs.cache-hit != 'true'
+        with:
+          path: sfizz-install
+          key: sfizz-1.2.3-ubuntu24-npno-v1
+      - name: Check grouped versus isolated measurements first
+        run: candidate/build/lp_offline_probe_test "$LP_REAL_SFIZZ_LIBRARY" /usr/lib/x86_64-linux-gnu/libsndfile.so.1 "$PWD/grouped-probe-results"
       - name: Baseline CTest (unmodified reference)
         id: baseline-tests
         continue-on-error: true
-        run: ctest --test-dir baseline/build --output-on-failure --output-log baseline-ctest.txt
+        run: env LP_REAL_SFIZZ_LIBRARY= ctest --test-dir baseline/build --output-on-failure --timeout 600 --output-log baseline-ctest.txt
       - name: Candidate CTest (all registered tests)
         id: candidate-tests
         continue-on-error: true
-        run: ctest --test-dir candidate/build --output-on-failure --output-log candidate-ctest.txt
+        run: env LP_REAL_SFIZZ_LIBRARY= ctest --test-dir candidate/build --output-on-failure --timeout 600 --output-log candidate-ctest.txt
       - name: Verify import script
         id: import-tests
         continue-on-error: true
