@@ -632,7 +632,7 @@ struct App {
   if(extension==".npno"||extension==".npmo"||sourceName.find(".npno.converted.sfz")!=std::string::npos||sourceName.find(".npmo.converted.sfz")!=std::string::npos){
    HMENU releaseMenu=CreatePopupMenu(),gainMenu=CreatePopupMenu();AppendMenuW(releaseMenu,MF_STRING|(show.releaseKeyEnabled?MF_CHECKED:0),4,L"Som de soltura ligado");
    for(int gain=-24;gain<=0;++gain){auto label=std::to_wstring(gain)+L" dB";AppendMenuW(gainMenu,MF_STRING|(std::abs(show.releaseKeyGainDb-gain)<.01?MF_CHECKED:0),200+gain+24,label.c_str());}
-   AppendMenuW(releaseMenu,MF_POPUP,reinterpret_cast<UINT_PTR>(gainMenu),L"Intensidade");AppendMenuW(menu,MF_POPUP,reinterpret_cast<UINT_PTR>(releaseMenu),L"Som de soltura");
+   AppendMenuW(releaseMenu,MF_POPUP,reinterpret_cast<UINT_PTR>(gainMenu),L"Intensidade");AppendMenuW(menu,MF_POPUP,reinterpret_cast<UINT_PTR>(releaseMenu),L"Som de soltura sem pedal");
   }
   deleteDialogActive=true;auto action=TrackPopupMenu(menu,TPM_RETURNCMD|TPM_NONOTIFY|TPM_RIGHTBUTTON,point.x,point.y,0,window,nullptr);DestroyMenu(menu);deleteDialogActive=false;
   if(!action)return;
@@ -856,7 +856,7 @@ struct App {
     lp::conversionCheckpoint(options);format=lp::detectarTimbreFormat(source);auto path=source;
     if(lp::convertedTimbre(source))path=lp::importarTimbreConvertido(source,destination,library,sampleRoot,options.progress,options);
     else if(format!=lp::TimbreFormat::SFZ&&format!=lp::TimbreFormat::SF2)throw std::runtime_error("Formato de timbre não suportado");
-    lp::conversionCheckpoint(options);ImportEvent event;event.kind=ImportEvent::Done;event.path=path;event.format=format;event.warnings=warnings;send(std::move(event));
+    ImportEvent event;event.kind=ImportEvent::Done;event.path=path;event.format=format;event.warnings=warnings;send(std::move(event));
    }catch(const lp::ConversionCancelled& e){ImportEvent event;event.kind=ImportEvent::Cancelled;event.text=e.what();send(std::move(event));}
    catch(const lp::MissingNkiSamples& e){ImportEvent event;event.kind=ImportEvent::Missing;event.text=e.what();send(std::move(event));}
    catch(const std::exception& e){ImportEvent event;event.kind=ImportEvent::Failed;event.text=e.what();send(std::move(event));}

@@ -1,4 +1,1 @@
-{
-  "revision": "program-batches",
-  "purpose": "Validate isolation without performance CC selectors; preserve baseline audio"
-}
+{"revision":"preserve-pedal-release","purpose":"New key-release controls apply only with CC64 below 64; compare pedal output byte for byte."}

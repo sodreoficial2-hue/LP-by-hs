@@ -122,14 +122,17 @@ std::filesystem::path npnoParaSFZ(const std::filesystem::path& input,const std::
  out.preservedFeatures.insert(out.preservedFeatures.end(),{"Original binary with SHA-256; full body prefix and every sample record in source_metadata; per-channel WAV hashes; separate extraction and velocity audit.","All source sample records are decoded, including unmapped/unreachable layers; only reachable regions are played."});
  status("calibrando níveis e sustain offline...");calibrateSfzZones(out.zones,out,effective,output);prepareNpnoSustain(out.zones,out,effective,output,library);
  out.releaseKeyGainDb=effective.releaseKeyGainDb;out.releaseKeyEnabled=effective.releaseKeyEnabled;
+ std::vector<ConvertedZone> pedalReleases;
  for(auto& z:out.zones)if(z.releaseTrigger){
-  z.releaseKeyBaseVolumeDb=z.volumeDb;z.volumeDb=std::clamp(z.volumeDb+effective.releaseKeyGainDb,-144.0,10.8);
+  z.releaseKeyBaseVolumeDb=z.volumeDb;auto passthrough=z;passthrough.releaseKeyPedalPassthrough=true;passthrough.cc64Low=64;passthrough.cc64High=-1;passthrough.releaseSeconds=.2;pedalReleases.push_back(passthrough);
+  z.cc64Low=-1;z.cc64High=63;z.volumeDb=std::clamp(z.volumeDb+effective.releaseKeyGainDb,-144.0,10.8);
   auto seconds=npnoLoopDecaySeconds(z.sourceLoopDecay);z.releaseSeconds=seconds<0?.25:std::clamp(seconds,.12,.45);if(!effective.releaseKeyEnabled)z.muted=true;
  }
+ out.zones.insert(out.zones.end(),pedalReleases.begin(),pedalReleases.end());
  prepareSfzZones(out.zones,out,effective);
  auto releaseTemplate=out.zones;for(auto& zone:releaseTemplate)if(zone.releaseTrigger){zone.volumeDb=zone.releaseKeyBaseVolumeDb;zone.releaseSeconds=.2;zone.muted=false;}
  auto templatePath=output/input.filename();templatePath+=".release-base.txt";atomicWrite(templatePath,writeSfzInstrument(releaseTemplate));
- auto releaseAudit=sfzStream();releaseAudit.str("");releaseAudit<<'[';bool firstRelease=true;for(std::size_t index=0;index<out.zones.size();++index){const auto& zone=out.zones[index];if(!zone.releaseTrigger)continue;if(!firstRelease)releaseAudit<<',';firstRelease=false;releaseAudit<<"{\"zone\":"<<index<<",\"ampeg_release_seconds\":"<<zone.releaseSeconds<<",\"release_key_gain_db\":"<<out.releaseKeyGainDb<<",\"muted\":"<<(zone.muted?"true":"false")<<'}';}releaseAudit<<']';
+ auto releaseAudit=sfzStream();releaseAudit.str("");releaseAudit<<'[';bool firstRelease=true;for(std::size_t index=0;index<out.zones.size();++index){const auto& zone=out.zones[index];if(!zone.releaseTrigger)continue;if(!firstRelease)releaseAudit<<',';firstRelease=false;releaseAudit<<"{\"zone\":"<<index<<",\"ampeg_release_seconds\":"<<zone.releaseSeconds<<",\"release_key_gain_db\":"<<(zone.releaseKeyPedalPassthrough?0:out.releaseKeyGainDb)<<",\"muted\":"<<(zone.muted?"true":"false")<<'}';}releaseAudit<<']';
  auto auditText=audit.str();auto at=auditText.find("\"divergences\"");auditText.insert(at,"\"release_key_regions\":"+releaseAudit.str()+",\n\"release_key_gain_db\":"+std::to_string(out.releaseKeyGainDb)+",\n\"release_key_enabled\":"+(out.releaseKeyEnabled?"true":"false")+",\n\"regions_after_calibration_policy\":"+std::to_string(out.zones.size())+",\n");atomicWrite(report,auditText);auto result=transaction.finish(input,out,writeSfzInstrument(out.zones));status("concluído");return result;
 }
 }

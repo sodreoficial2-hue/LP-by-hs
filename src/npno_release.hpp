@@ -47,24 +47,39 @@ inline bool updateNpnoRelease(std::filesystem::path original,double gain,bool en
  auto oldMeta=release_detail::read(metadata);
  if(oldMeta.find("\"format\": \"npno\"")==std::string::npos)throw std::runtime_error("Sidecar não pertence ao importador NPNO");
  auto oldGain=release_detail::field(oldMeta,"release_key_gain_db"),oldEnabled=release_detail::field(oldMeta,"release_key_enabled");
- if(oldGain&&oldEnabled&&release_detail::number(oldMeta,"release_key_gain_db",0)==gain&&(*oldEnabled=="true")==enabled)return false;
+ if((oldMeta.find("\"release_key_pedal_passthrough\"")!=std::string::npos||oldMeta.find("\"release_trigger\": true")==std::string::npos)&&oldGain&&oldEnabled&&release_detail::number(oldMeta,"release_key_gain_db",0)==gain&&(*oldEnabled=="true")==enabled)return false;
  auto sfz=derivedSfz(original);auto oldSfz=release_detail::read(sfz);auto templatePath=original;templatePath+=".release-base.txt";
  auto baseline=std::filesystem::exists(templatePath)?release_detail::read(templatePath):oldSfz;
  std::vector<std::string> releaseLines;std::istringstream templateInput(baseline);std::string line;
- while(std::getline(templateInput,line))if(line.find("trigger=release_key")!=std::string::npos)releaseLines.push_back(line);
- std::string updatedMeta;std::istringstream input(oldMeta);std::size_t zone=0,zoneIndex=0;std::string auditRegions="[";
+ while(std::getline(templateInput,line))if(line.find("trigger=release_key")!=std::string::npos&&line.find("locc64=64")==std::string::npos)releaseLines.push_back(line);
+ std::string updatedMeta;std::istringstream input(oldMeta);std::size_t zone=0,zoneIndex=0;std::string auditRegions="[";std::vector<std::string> migratedPedalLines;
+ auto appendAudit=[&](const std::string& object,std::size_t index){if(release_detail::field(object,"release_trigger")!=std::optional<std::string>("true"))return;
+  if(auditRegions.size()>1)auditRegions+=',';
+  bool passthrough=release_detail::field(object,"release_key_pedal_passthrough")==std::optional<std::string>("true"),muted=release_detail::field(object,"muted")==std::optional<std::string>("true");
+  auditRegions+="{\"zone\":"+std::to_string(index)+",\"ampeg_release_seconds\":"+release_detail::numeric(release_detail::number(object,"release_seconds",.25))+",\"release_key_gain_db\":"+release_detail::numeric(passthrough?0:gain)+",\"muted\":"+(muted?"true":"false")+"}";
+ };
  while(std::getline(input,line)){
   // Canonical sidecars emit exactly one flat object per converted zone.
-  if(line.find("{\"sample\":")!=std::string::npos&&release_detail::field(line,"release_trigger")==std::optional<std::string>("true")){
+  if(line.find("{\"sample\":")!=std::string::npos&&release_detail::field(line,"release_trigger")==std::optional<std::string>("true")&&release_detail::field(line,"release_key_pedal_passthrough")!=std::optional<std::string>("true")){
    if(zone>=releaseLines.size())throw std::runtime_error("Template de soltura incompleto; banco preservado");
+   bool legacy=release_detail::number(line,"cc64_low",-1)<64&&release_detail::number(line,"cc64_high",-1)!=63;
+   std::string pedalLine=line;
    double base=release_detail::number(line,"release_key_base_volume_db",release_detail::number(line,"volume_db",0));
    double raw=release_detail::number(line,"source_loop_decay_q23",0);if(raw<0||raw>4294967295.0)throw std::runtime_error("Q23 de soltura inválido");auto seconds=npnoLoopDecaySeconds(static_cast<std::uint32_t>(raw));seconds=seconds<0?.25:std::clamp(seconds,.12,.45);
+   release_detail::set(line,"release_key_pedal_passthrough","false");release_detail::set(line,"cc64_low","-1");release_detail::set(line,"cc64_high","63");
    release_detail::set(line,"release_key_base_volume_db",release_detail::numeric(base));
    release_detail::set(line,"volume_db",release_detail::numeric(std::clamp(base+gain,-144.0,10.8)));
    release_detail::set(line,"release_seconds",release_detail::numeric(seconds));release_detail::set(line,"muted",enabled?"false":"true");
-   auto& region=releaseLines[zone++];release_detail::opcode(region,"volume",std::clamp(release_detail::opcodeValue(region,"volume")+gain,-144.0,10.8));release_detail::opcode(region,"ampeg_release",seconds);
+   auto& region=releaseLines[zone++];
+   if(legacy){
+    auto passthrough=region+" locc64=64";migratedPedalLines.push_back(passthrough);region+=" hicc64=63";
+    release_detail::set(pedalLine,"release_key_pedal_passthrough","true");release_detail::set(pedalLine,"release_key_base_volume_db",release_detail::numeric(base));release_detail::set(pedalLine,"volume_db",release_detail::numeric(base));release_detail::set(pedalLine,"cc64_low","64");release_detail::set(pedalLine,"cc64_high","-1");release_detail::set(pedalLine,"release_seconds","0.2");release_detail::set(pedalLine,"muted","false");
+    auto comma=line.find_last_not_of(" \t");bool hadComma=comma!=line.npos&&line[comma]==',';if(hadComma)line.erase(comma,1);auto pedalComma=pedalLine.find_last_not_of(" \t");if(pedalComma!=pedalLine.npos&&pedalLine[pedalComma]==',')pedalLine.erase(pedalComma,1);
+    updatedMeta+=line+",\n";appendAudit(line,zoneIndex);line=pedalLine+(hadComma?",":"");++zoneIndex;
+   }
+   release_detail::opcode(region,"volume",std::clamp(release_detail::opcodeValue(region,"volume")+gain,-144.0,10.8));release_detail::opcode(region,"ampeg_release",seconds);
   }
-  if(line.find("{\"sample\":")!=std::string::npos){if(release_detail::field(line,"release_trigger")==std::optional<std::string>("true")){if(auditRegions.size()>1)auditRegions+=',';auditRegions+="{\"zone\":"+std::to_string(zoneIndex)+",\"ampeg_release_seconds\":"+release_detail::numeric(release_detail::number(line,"release_seconds",.25))+",\"release_key_gain_db\":"+release_detail::numeric(gain)+",\"muted\":"+(enabled?"false":"true")+"}";}++zoneIndex;}
+  if(line.find("{\"sample\":")!=std::string::npos){appendAudit(line,zoneIndex);++zoneIndex;}
   updatedMeta+=line+'\n';
  }
  auditRegions+=']';
@@ -72,9 +87,9 @@ inline bool updateNpnoRelease(std::filesystem::path original,double gain,bool en
  release_detail::set(updatedMeta,"release_key_gain_db",release_detail::numeric(gain));release_detail::set(updatedMeta,"release_key_enabled",enabled?"true":"false");
  std::istringstream current(oldSfz);std::string updatedSfz;bool inserted=false;
  while(std::getline(current,line)){
-  if(line.find("trigger=release_key")!=std::string::npos)continue;
+  if(line.find("trigger=release_key")!=std::string::npos&&line.find("locc64=64")==std::string::npos)continue;
   updatedSfz+=line+'\n';
-  if(!inserted&&line.find("// source_bank=2;")!=std::string::npos){inserted=true;if(enabled)for(const auto& region:releaseLines)updatedSfz+=region+'\n';}
+  if(!inserted&&line.find("// source_bank=2;")!=std::string::npos){inserted=true;if(enabled)for(const auto& region:releaseLines)updatedSfz+=region+'\n';for(const auto& region:migratedPedalLines)updatedSfz+=region+'\n';}
  }
  if(zone&&!inserted)throw std::runtime_error("Grupo SFZ de soltura ausente; banco preservado");
  auto audit=original;audit+=".audit.json";std::string oldAudit,newAudit;

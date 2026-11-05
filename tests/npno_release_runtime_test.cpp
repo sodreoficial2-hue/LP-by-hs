@@ -3,14 +3,16 @@
 #include <iostream>
 using namespace lp;
 void require(bool value,const char* text){if(!value)throw std::runtime_error(text);}
-std::string attacks(const std::string& text){std::string result,line;std::istringstream in(text);while(std::getline(in,line))if(line.find("trigger=release_key")==std::string::npos)result+=line+'\n';return result;}
+std::string attacks(const std::string& text){std::string result,line;std::istringstream in(text);while(std::getline(in,line))if(line.find("trigger=release_key")==std::string::npos||line.find("locc64=64")!=std::string::npos)result+=line+'\n';return result;}
 int main(int argc,char** argv){try{
  require(argc==4,"fixture sndfile output");auto root=std::filesystem::absolute(argv[3]);std::filesystem::remove_all(root);
  MetaSidecar meta;ConversionOptions options;options.releaseKeyGainDb=0;
  auto sfz=npnoParaSFZ(argv[1],root,meta,argv[2],{},options);auto original=root/std::filesystem::path(argv[1]).filename();
  auto baseline=release_detail::read(sfz);auto pcmHashes=meta.sampleHashes;
  require(updateNpnoRelease(original,-12,false),"disable must update controls");
- require(release_detail::read(sfz).find("trigger=release_key")==std::string::npos,"disabled release must omit regions");
+ {
+  std::istringstream disabled(release_detail::read(sfz));std::string line;while(std::getline(disabled,line))if(line.find("trigger=release_key")!=std::string::npos)require(line.find("locc64=64")!=std::string::npos,"disabled unpedaled release must omit controlled regions");
+ }
  require(attacks(release_detail::read(sfz))==attacks(baseline),"runtime update changed attack/pedal regions");
  require(updateNpnoRelease(original,-8,true),"enable must restore regions");
  auto once=release_detail::read(sfz);

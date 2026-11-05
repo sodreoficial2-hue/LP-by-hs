@@ -46,7 +46,7 @@ struct ConvertedZone {
  bool calibrated=false;
  int canonicalBand=-1,pedalClass=-1,sourceStroke=-1;bool bandInherited=false,npnoResonance=false;
  double pedalOffsetDb=0,pedalResidualDb=0,moduleGainDb=0;
- double releaseKeyBaseVolumeDb=0;
+ double releaseKeyBaseVolumeDb=0;bool releaseKeyPedalPassthrough=false;
  int softVelocityCeiling=0; // NPNO: linear amplitude up to the canonical soft-layer top, then unity.
  std::uint32_t sourceLoopDecay=0;
  double decaySeconds=-1,sustainPercent=-1;
