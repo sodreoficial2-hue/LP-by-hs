@@ -2,6 +2,8 @@
 #include "offline_sfizz.hpp"
 #include <cstdlib>
 #include <set>
+#include <map>
+#include <tuple>
 namespace lp {
 // Project approximation, not a decoded Nord time unit. A Q23 multiplier is
 // interpreted at the source frame rate; time to -60 dB is bounded for safety.
@@ -36,17 +38,29 @@ void prepareNpnoSustain(std::vector<ConvertedZone>& zones,MetaSidecar& meta,cons
  }
  OfflineSfizz synth(lib);auto probe=output/".lp-sustain-probe.sfz";
  struct Remove{std::filesystem::path p;~Remove(){std::error_code ec;std::filesystem::remove(p,ec);}} cleanup{probe};
- auto measure=[&](ConvertedZone z,int key,int vel){z.velLow=1;z.velHigh=127;z.cc64Low=z.cc64High=-1;atomicWrite(probe,writeSfzInstrument({z}));return synth.rmsDb(probe,key,vel,0,false);};
+ // Keep both measurement passes: the verification uses the writer-rounded
+ // adjusted gain, not an algebraic estimate of the residual.
+ using AttackKey=std::tuple<int,int,int,int,double>;
+ std::map<AttackKey,std::size_t> attacks;
+ for(std::size_t i=0;i<zones.size();++i){const auto& a=zones[i];if(a.sourceBank==0){AttackKey key{a.root,a.canonicalBand,a.keyLow,a.keyHigh,a.pan};if(!attacks.emplace(key,i).second)throw std::runtime_error("Calibração pedal: ataque canônico duplicado");}}
+ struct Pair {std::size_t pedal,normal;double delta=0;};
+ std::vector<Pair> pairs;
+ for(std::size_t i=0;i<zones.size();++i){const auto& z=zones[i];if(z.sourceBank!=1||z.releaseTrigger||z.muted)continue;auto found=attacks.find({z.root,z.canonicalBand,z.keyLow,z.keyHigh,z.pan});if(found==attacks.end())throw std::runtime_error("Calibração pedal: ataque canônico ausente");pairs.push_back({i,found->second});}
+ auto measurementZones=[&](){auto copy=zones;for(auto& z:copy){z.velLow=1;z.velHigh=127;z.cc64Low=z.cc64High=-1;}return copy;};
  double residual=0;int measured=0;
- for(auto& z:zones)if(z.sourceBank==1&&!z.releaseTrigger&&!z.muted){
-  const ConvertedZone* normal=nullptr;
-  for(const auto& a:zones)if(a.sourceBank==0&&a.root==z.root&&a.canonicalBand==z.canonicalBand&&a.keyLow==z.keyLow&&a.keyHigh==z.keyHigh&&a.pan==z.pan){if(normal)throw std::runtime_error("Calibração pedal: ataque canônico duplicado");normal=&a;}
-  if(!normal)throw std::runtime_error("Calibração pedal: ataque canônico ausente");
-  std::vector<double> differences;int vel=(z.velLow+z.velHigh)/2;
-  for(int key:{z.keyLow,(z.keyLow+z.keyHigh)/2,z.keyHigh})differences.push_back(measure(*normal,key,vel)-measure(z,key,vel));
-  double delta=(differences[0]+differences[1]+differences[2])/3;double before=z.volumeDb;z.volumeDb=std::clamp(before+delta,-144.0,10.8);z.pedalOffsetDb=z.volumeDb-before;
-  for(int key:{z.keyLow,(z.keyLow+z.keyHigh)/2,z.keyHigh})z.pedalResidualDb=std::max(z.pedalResidualDb,std::abs(measure(*normal,key,vel)-measure(z,key,vel)));residual=std::max(residual,z.pedalResidualDb);++measured;
-  if(std::abs(delta-z.pedalOffsetDb)>.01)meta.limitations.push_back("Calibração pedal limitada: registro "+std::to_string(z.sourceStroke)+", banda "+std::to_string(z.canonicalBand)+", déficit dB="+std::to_string(delta-z.pedalOffsetDb));
+ if(!pairs.empty()){
+  {OfflineRegionProbe initial(lib,probe,measurementZones());
+   for(auto& pair:pairs){auto& z=zones[pair.pedal];int vel=(z.velLow+z.velHigh)/2;std::vector<double> differences;
+    for(int key:{z.keyLow,(z.keyLow+z.keyHigh)/2,z.keyHigh})differences.push_back(initial.rmsDb(pair.normal,key,vel,0,false)-initial.rmsDb(pair.pedal,key,vel,0,false));
+    pair.delta=(differences[0]+differences[1]+differences[2])/3;double before=z.volumeDb;z.volumeDb=std::clamp(before+pair.delta,-144.0,10.8);z.pedalOffsetDb=z.volumeDb-before;
+   }
+  }
+  {OfflineRegionProbe adjusted(lib,probe,measurementZones());
+   for(const auto& pair:pairs){auto& z=zones[pair.pedal];int vel=(z.velLow+z.velHigh)/2;
+    for(int key:{z.keyLow,(z.keyLow+z.keyHigh)/2,z.keyHigh})z.pedalResidualDb=std::max(z.pedalResidualDb,std::abs(adjusted.rmsDb(pair.normal,key,vel,0,false)-adjusted.rmsDb(pair.pedal,key,vel,0,false)));residual=std::max(residual,z.pedalResidualDb);++measured;
+    if(std::abs(pair.delta-z.pedalOffsetDb)>.01)meta.limitations.push_back("Calibração pedal limitada: registro "+std::to_string(z.sourceStroke)+", banda "+std::to_string(z.canonicalBand)+", déficit dB="+std::to_string(pair.delta-z.pedalOffsetDb));
+   }
+  }
  }
  // -12 dB coherent extra amplitude gives approximately +1.95 dB initially.
  // This project seed is measured below, not a claim of physical Nord resonance.
@@ -66,8 +80,8 @@ void prepareNpnoSustain(std::vector<ConvertedZone>& zones,MetaSidecar& meta,cons
   std::vector<int> stage;for(int k:{30,36,42,48,54,60,66,72,78,84})if(available.count(k))stage.push_back(k);if(stage.size()==10)chords.push_back(stage);
  }
  std::set<int> velocities{10,40,80,127};for(const auto& z:zones)if(z.sourceBank==0){velocities.insert(z.velLow);velocities.insert(z.velHigh);}
- auto rendered=zones;MetaSidecar probeMeta;prepareSfzZones(rendered,probeMeta,options);atomicWrite(probe,writeSfzInstrument(rendered));double peak=0;
- for(const auto& chord:chords)for(int velocity:velocities)peak=std::max(peak,synth.chordPeak(probe,chord,velocity,127));
+ auto rendered=zones;MetaSidecar probeMeta;prepareSfzZones(rendered,probeMeta,options);atomicWrite(probe,writeSfzInstrument(rendered));synth.load(probe);double peak=0;
+ for(const auto& chord:chords)for(int velocity:velocities)peak=std::max(peak,synth.chordPeakLoaded(chord,velocity,127));
  double peakDb=peak>0?20*std::log10(peak):-144;
  // Refine only when the measured chord grid is >2 dB below target or clips.
  // The finite grid, its gain and the remaining worst-case uncertainty are explicit.
@@ -76,8 +90,8 @@ void prepareNpnoSustain(std::vector<ConvertedZone>& zones,MetaSidecar& meta,cons
   for(const auto& z:zones)if(!z.muted)ceiling=std::min(ceiling,10.8-z.volumeDb);
   double adjusted=std::min(requested,ceiling),change=adjusted-gain;gain=adjusted;for(auto& z:zones)z.moduleGainDb=gain;
   // Scalar gain is linear in sfizz; re-render to verify the actual maximum.
-  for(auto& z:rendered)z.moduleGainDb=gain;atomicWrite(probe,writeSfzInstrument(rendered));peak=0;
-  for(const auto& chord:chords)for(int velocity:velocities)peak=std::max(peak,synth.chordPeak(probe,chord,velocity,127));peakDb=peak>0?20*std::log10(peak):-144;
+  for(auto& z:rendered)z.moduleGainDb=gain;atomicWrite(probe,writeSfzInstrument(rendered));synth.load(probe);peak=0;
+  for(const auto& chord:chords)for(int velocity:velocities)peak=std::max(peak,synth.chordPeakLoaded(chord,velocity,127));peakDb=peak>0?20*std::log10(peak):-144;
   meta.preservedFeatures.push_back("headroom_refinement_db="+std::to_string(change)+"; trigger=measured_grid_outside_target_by_2dB_or_ceiling; chords="+std::to_string(chords.size())+"; velocities="+std::to_string(velocities.size()));
  }
  meta.preservedFeatures.push_back("pedal_calibration=sfizz_RMS_ON_equals_OFF_without_extra_resonance; positions=low/mid/high; regions="+std::to_string(measured)+"; residual_max_db="+std::to_string(residual));
