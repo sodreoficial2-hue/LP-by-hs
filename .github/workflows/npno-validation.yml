@@ -20,7 +20,7 @@ jobs:
           path: baseline
       - uses: actions/checkout@v4
         with:
-          ref: 1d40147c718b220ea0f8892df0d86b81788f8c29
+          ref: 6969d11ba526d5d3c3b943b3c00501a08052816b
           path: optimization
       - name: Install build dependencies
         run: sudo apt-get update && sudo apt-get install -y ninja-build libsndfile1-dev libexpat1-dev zlib1g-dev libglib2.0-dev
@@ -76,6 +76,9 @@ jobs:
         id: comparison
         continue-on-error: true
         run: python3 candidate/scripts/compare_npno_baseline.py baseline optimization comparison-results
+      - name: Print measured release acceptance
+        if: always()
+        run: cat candidate/build/release-acceptance/release-acceptance.json || true
       - name: Part B preserves all source WAV bytes
         id: pcm-tests
         continue-on-error: true
