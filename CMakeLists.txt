@@ -431,8 +431,9 @@ if(LP_SNDFILE_LIBRARY)
  add_test(NAME npno_hashes_and_cancel_rollback COMMAND lp_npno_transaction_test "${LP_IMPORT_FIXTURE_ROOT}/npno/layers-v6.npno" "${LP_SNDFILE_LIBRARY}" "${CMAKE_BINARY_DIR}/npno-transaction")
 endif()
 
-if(UNIX AND LP_REAL_SFIZZ_LIBRARY AND LP_SNDFILE_LIBRARY)
+if(LP_REAL_SFIZZ_LIBRARY AND LP_SNDFILE_LIBRARY)
  add_executable(lp_npno_release_acceptance_test tests/npno_release_acceptance_test.cpp)
  target_link_libraries(lp_npno_release_acceptance_test PRIVATE lp_timbre_import)
  add_test(NAME npno_release_audio_acceptance COMMAND lp_npno_release_acceptance_test "${LP_REAL_SFIZZ_LIBRARY}" "${LP_SNDFILE_LIBRARY}" "${LP_IMPORT_FIXTURE_ROOT}/npno/layers-v6.npno" "${CMAKE_BINARY_DIR}/release-acceptance")
 endif()
+
