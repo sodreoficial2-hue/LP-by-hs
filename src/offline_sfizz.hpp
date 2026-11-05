@@ -39,11 +39,16 @@ public:
   rate(synth,48000);block(synth,256);freewheel(synth);
   if(!loadFile(synth,path.u8string().c_str()))throw std::runtime_error("Falha ao carregar instrumento de calibração offline");
  }
+ void resetMeasurement(){
+  cc(synth,0,121,0);cc(synth,0,123,0);silence(synth);
+  std::array<float,256> left{},right{};float* output[]={left.data(),right.data()};render(synth,output,2,256);
+  silence(synth);
+ }
  void select(std::size_t region){
   cc(synth,0,20,int(region%128));cc(synth,0,21,int((region/128)%128));cc(synth,0,22,int(region/(128*128)));
  }
  double chordPeakLoaded(const std::vector<int>& keys,int velocity,int pedal){
-  cc(synth,0,123,0);silence(synth);cc(synth,0,64,pedal);for(int k:keys)on(synth,0,k,velocity);
+  resetMeasurement();cc(synth,0,64,pedal);for(int k:keys)on(synth,0,k,velocity);
   std::array<float,256> l{},r{};float* ptrs[]={l.data(),r.data()};double peak=0;
   for(int b=0;b<188;++b){render(synth,ptrs,2,256);for(int i=0;i<256;++i){if(!std::isfinite(l[i])||!std::isfinite(r[i]))throw std::runtime_error("Headroom: áudio não finito");peak=std::max(peak,double(std::max(std::abs(l[i]),std::abs(r[i]))));}}return peak;
  }
@@ -51,7 +56,7 @@ public:
   load(path);return chordPeakLoaded(keys,velocity,pedal);
  }
  double rmsDbLoaded(int key,int velocity,int pedal,bool release,std::size_t region=0){
-  cc(synth,0,123,0);silence(synth);select(region);
+  resetMeasurement();select(region);
   cc(synth,0,64,pedal);on(synth,0,key,velocity);
   std::array<float,256> left{},right{};float* ptrs[]={left.data(),right.data()};
   // Release bank is measured alone, with a note-off after priming its note-on.
@@ -76,6 +81,6 @@ public:
  }
  ~OfflineRegionProbe(){std::error_code ec;std::filesystem::remove(path,ec);}
  OfflineRegionProbe(const OfflineRegionProbe&)=delete;OfflineRegionProbe& operator=(const OfflineRegionProbe&)=delete;
- double rmsDb(std::size_t region,int key,int velocity,int pedal,bool release){return synth.rmsDbLoaded(key,velocity,pedal,release,region);}
+ double rmsDb(std::size_t region,int key,int velocity,int pedal,bool release){try{return synth.rmsDbLoaded(key,velocity,pedal,release,region);}catch(const std::exception& e){throw std::runtime_error("Probe "+std::to_string(region)+": "+e.what());}}
 };
 }
