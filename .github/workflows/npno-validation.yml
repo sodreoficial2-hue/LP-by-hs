@@ -83,3 +83,18 @@ jobs:
             candidate/build/Testing/Temporary/
             baseline/build/Testing/Temporary/
           retention-days: 7
+  windows-compile:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-expat mingw-w64-x86_64-zlib
+      - name: Compile native and Vision Windows harnesses
+        shell: msys2 {0}
+        run: |
+          cmake -S . -B build -G Ninja -DLP_TEST_ONLY=ON -DLP_ENABLE_VISION_UI=ON -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build --parallel 2 --target lp_win32_layout_test lp_win32_vision_test lp_win32_parameter_memory_test
