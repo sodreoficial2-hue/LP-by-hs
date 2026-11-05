@@ -63,7 +63,7 @@ int main(int argc,char** argv){try{
    }
    check(expected>=1&&expected<=(pedal?4:2),"layer handoff not bounded to two");auto& note=handoff;note.silence(note.synth);note.cc(note.synth,0,64,pedal);note.on(note.synth,0,key,velocity);auto audio=note.render(512);check(energy(audio)>1e-15,"mapped NPNO note silent");
    check(note.voices(note.synth)==expected,"NPNO attack voices differ from crossfade envelope at "+std::to_string(velocity)+" got "+std::to_string(note.voices(note.synth))+" expected "+std::to_string(expected));
-   int releaseCount=0;for(const auto& z:m.zones)if(z.releaseTrigger&&key>=z.keyLow&&key<=z.keyHigh&&velocity>=z.velLow&&velocity<=z.velHigh)++releaseCount;
+   int releaseCount=0;for(const auto& z:m.zones)if(z.releaseTrigger&&!z.muted&&key>=z.keyLow&&key<=z.keyHigh&&velocity>=z.velLow&&velocity<=z.velHigh&&(z.cc64Low<0||pedal>=z.cc64Low)&&(z.cc64High<0||pedal<=z.cc64High))++releaseCount;
    note.off(note.synth,0,key,0);note.render(16);check(note.voices(note.synth)==expected+releaseCount,"note-off must add only the documented release layer(s)");++boundaryProbes;
   }
   // A light touch must change level within the SAME soft sample, including
