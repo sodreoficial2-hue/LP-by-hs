@@ -3,6 +3,9 @@
 #include "npno_reader.hpp"
 #include "sfz_conversion.hpp"
 #include <map>
+#include <thread>
+#include <atomic>
+#include <mutex>
 #include "pcm16_wave.hpp"
 namespace lp {
 namespace {
@@ -32,7 +35,7 @@ std::filesystem::path npnoParaSFZ(const std::filesystem::path& input,const std::
   "damperTop confirma apenas o limite de amortecimento, não ausência de banco 2 acima dele: regiões release_key mantidas; sem confirmação independente para silenciá-las.",
   "Known outer revisions 500/520/530/540 and 600/610/620/630 are routed by validated internal 0x450/0x464 layouts. Corpus-wide compatibility is not established. Limits: 512 MiB input, 16 million frames per record, 256 million total PCM values."
  });
- ConversionOutput transaction(output);std::filesystem::create_directory(output/"Samples");WavWriter wav(library);
+ ConversionOutput transaction(output);std::filesystem::create_directory(output/"Samples");
  auto effective=options;if(!effective.velocityCrossfadeExplicit)effective.velocityCrossfade=true;
  int lanes=module.channels==2&&!options.stereoMonoFallback?1:module.channels;
  out.preservedFeatures.push_back(lanes==1&&module.channels==2?"stereo_output=interleaved_pcm16; voices_per_stroke=1":"stereo_output=mono_lanes; voices_per_stroke="+std::to_string(lanes));
@@ -48,9 +51,11 @@ std::filesystem::path npnoParaSFZ(const std::filesystem::path& input,const std::
  for(const auto& s:module.strokes){declared+=std::uint64_t(s.frames)*module.channels*2;compressed+=std::uint64_t(s.blocks)*1022*module.channels;}
  for(const auto& z:module.zones){for(const auto& band:module.velocityBands)if(band.root==z.root)expectedRegions+=lanes*(band.pedalStroke>=0?2:1);for(const auto& s:module.strokes)if(z.root==s.root&&s.bank==2&&s.velHigh)expectedRegions+=lanes;}
  if(expectedRegions>65536)throw std::runtime_error("Módulo de piano excede limite de 65536 regiões SFZ");
- for(const auto& stroke:module.strokes){
-  status("convertendo amostra "+std::to_string(stroke.index+1)+" de "+std::to_string(module.strokes.size())+"...");
-  auto pcm=npno::decodeStroke(module,stroke);for(const auto& lane:pcm.lanes)for(auto value:lane)peaks[stroke.index]=std::max(peaks[stroke.index],std::abs(double(value))/32768.0);++recordsExtracted;overlapChecked+=pcm.overlapChecked;
+ struct StrokeResult {std::vector<std::string> hashes;std::uint64_t bytes=0,overlap=0;};
+ std::vector<StrokeResult> strokeResults(module.strokes.size());std::mutex progressMutex,errorMutex;std::exception_ptr failure;std::atomic<std::size_t> nextStroke{0};std::atomic<bool> failed{false};
+ auto convertStroke=[&](const npno::Stroke& stroke,WavWriter& wav){
+  {std::lock_guard<std::mutex> lock(progressMutex);status("convertendo amostra "+std::to_string(stroke.index+1)+" de "+std::to_string(module.strokes.size())+"...");}
+  auto pcm=npno::decodeStroke(module,stroke);for(const auto& lane:pcm.lanes)for(auto value:lane)peaks[stroke.index]=std::max(peaks[stroke.index],std::abs(double(value))/32768.0);strokeResults[stroke.index].overlap=pcm.overlapChecked;
   for(int c=0;c<lanes;++c){
    bool stereo=module.channels==2&&lanes==1;
    auto relative="Samples/"+prefix+"-"+std::to_string(stroke.index)+(module.channels==1||stereo?"":c==0?"-L":"-R")+".wav";
@@ -58,9 +63,21 @@ std::filesystem::path npnoParaSFZ(const std::filesystem::path& input,const std::
    if(stereo){interleaved.reserve(stroke.frames*2);for(std::size_t f=0;f<stroke.frames;++f){interleaved.push_back(pcm.lanes[0][f]);interleaved.push_back(pcm.lanes[1][f]);}}
    const auto& values=stereo?interleaved:pcm.lanes[c];
    auto file=output/std::filesystem::u8path(relative);std::string hash;wav.writePcm16Hashed(file,npno::sampleRate,values,stereo?2:1,&hash);
-   names[stroke.index].push_back(relative);out.samples.push_back(std::filesystem::u8path(relative));out.sampleHashes.push_back(std::move(hash));extracted+=values.size()*2;
+   names[stroke.index].push_back(relative);strokeResults[stroke.index].hashes.push_back(std::move(hash));strokeResults[stroke.index].bytes+=values.size()*2;
   }
+ };
+ auto work=[&](){try{WavWriter wav(library);for(;;){if(failed.load())return;conversionCheckpoint(options);auto i=nextStroke.fetch_add(1);if(i>=module.strokes.size())return;convertStroke(module.strokes[i],wav);}}
+  catch(...){std::lock_guard<std::mutex> lock(errorMutex);if(!failure)failure=std::current_exception();failed=true;}};
+ // Bound peak decoding/interleaving memory as well as CPU competition with live audio.
+ auto workers=std::min<std::size_t>({std::max(1u,std::thread::hardware_concurrency()),4u,module.strokes.size()});
+ std::vector<std::thread> pool;
+ try{for(std::size_t n=1;n<workers;++n)pool.emplace_back(work);work();}
+ catch(...){failed=true;for(auto& thread:pool)thread.join();throw;}
+ for(auto& thread:pool)thread.join();if(failure)std::rethrow_exception(failure);
+ for(const auto& stroke:module.strokes){++recordsExtracted;auto& result=strokeResults[stroke.index];overlapChecked+=result.overlap;extracted+=result.bytes;
+  for(std::size_t lane=0;lane<names[stroke.index].size();++lane){out.samples.push_back(std::filesystem::u8path(names[stroke.index][lane]));out.sampleHashes.push_back(std::move(result.hashes[lane]));}
  }
+
  auto audit=sfzStream();audit.str("");audit<<"{\n\"schema\":1,\n\"velocity_profile\":\"reference_touch_0_approximate\",\n\"velocity_coverage\":[";
  bool firstCoverage=true;
  for(const auto& keyZone:module.zones){

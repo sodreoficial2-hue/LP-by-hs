@@ -14,7 +14,7 @@ add_library(lp_timbre_import src/nki_reader.cpp src/sfz_calibration.cpp src/npno
  src/nsmp/cbin.cpp src/nsmp/nsmp_sections.cpp src/nsmp/nsmp_codek.cpp
  src/nsmp/nw1_dsp.cpp src/nsmp/bitstream.cpp src/nsmp/checksum.cpp)
 target_include_directories(lp_timbre_import PUBLIC src)
-target_link_libraries(lp_timbre_import PRIVATE ${CMAKE_DL_LIBS} ZLIB::ZLIB EXPAT::EXPAT)
+target_link_libraries(lp_timbre_import PRIVATE ${CMAKE_DL_LIBS} ZLIB::ZLIB EXPAT::EXPAT Threads::Threads)
 add_executable(lp_catalog src/main.cpp)
 add_executable(lp_session_test tests/session_test.cpp)
 target_include_directories(lp_session_test PRIVATE src)
