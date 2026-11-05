@@ -4,6 +4,9 @@
 #include <set>
 #include <map>
 #include <tuple>
+#include <thread>
+#include <atomic>
+#include <mutex>
 namespace lp {
 // Project approximation, not a decoded Nord time unit. A Q23 multiplier is
 // interpreted at the source frame rate; time to -60 dB is bounded for safety.
@@ -37,7 +40,7 @@ void prepareNpnoSustain(std::vector<ConvertedZone>& zones,MetaSidecar& meta,cons
   for(auto& z:zones){if(z.sourceBank==0)z.cc64High=-1;if(z.sourceBank==1)z.muted=true;}
   meta.limitations.push_back("FALHADO/N-A: sfizz offline ausente; calibração pedal, ressonância e headroom não medidos. Fallback seguro mantém banco 0 em ambos estados; banco 1 preservado e marcado muted.");return;
  }
- OfflineSfizz synth(lib);auto probe=output/".lp-sustain-probe.sfz";
+ auto probe=output/".lp-sustain-probe.sfz";
  struct Remove{std::filesystem::path p;~Remove(){std::error_code ec;std::filesystem::remove(p,ec);}} cleanup{probe};
  // Keep both measurement passes: the verification uses the writer-rounded
  // adjusted gain, not an algebraic estimate of the residual.
@@ -81,8 +84,27 @@ void prepareNpnoSustain(std::vector<ConvertedZone>& zones,MetaSidecar& meta,cons
   std::vector<int> stage;for(int k:{30,36,42,48,54,60,66,72,78,84})if(available.count(k))stage.push_back(k);if(stage.size()==10)chords.push_back(stage);
  }
  std::set<int> velocities{10,40,80,127};for(const auto& z:zones)if(z.sourceBank==0){velocities.insert(z.velLow);velocities.insert(z.velHigh);}
- auto rendered=zones;MetaSidecar probeMeta;prepareSfzZones(rendered,probeMeta,options);atomicWrite(probe,writeSfzInstrument(rendered));synth.load(probe);double peak=0;
- for(const auto& chord:chords)for(int velocity:velocities){conversionCheckpoint(options);peak=std::max(peak,synth.chordPeakLoaded(chord,velocity,127));}
+ // Chord renders are independent. Keep a private offline synth per worker;
+ // reduce only their maxima in the original grid order, without changing DSP.
+ auto measureGrid=[&](const std::vector<std::vector<int>>& grid,const std::set<int>& touches){
+  std::vector<std::pair<const std::vector<int>*,int>> jobs;
+  for(const auto& chord:grid)for(int velocity:touches)jobs.push_back({&chord,velocity});
+  if(jobs.empty())return 0.;
+  auto workers=std::min<std::size_t>({std::max(1u,std::thread::hardware_concurrency()),2u,jobs.size()});
+  std::vector<double> peaks(jobs.size());std::atomic<std::size_t> next{0};std::atomic<bool> stopped{false};std::exception_ptr failure;std::mutex failureMutex,progressMutex;std::size_t finished=0;
+  auto work=[&](){try{OfflineSfizz renderer(lib);renderer.load(probe);
+   for(;;){if(stopped.load())return;conversionCheckpoint(options);auto i=next.fetch_add(1);if(i>=jobs.size())return;
+    peaks[i]=renderer.chordPeakLoaded(*jobs[i].first,jobs[i].second,127);
+    std::lock_guard<std::mutex> progressLock(progressMutex);conversionStatus(options,"avaliando níveis finais "+std::to_string(++finished)+" de "+std::to_string(jobs.size())+"...");
+   }
+  }catch(...){std::lock_guard<std::mutex> lock(failureMutex);if(!failure)failure=std::current_exception();stopped=true;}};
+  std::vector<std::thread> threads;
+  try{for(std::size_t i=1;i<workers;++i)threads.emplace_back(work);work();}
+  catch(...){stopped=true;for(auto& worker:threads)worker.join();throw;}
+  for(auto& worker:threads)worker.join();if(failure)std::rethrow_exception(failure);
+  double peak=0;for(double value:peaks)peak=std::max(peak,value);return peak;
+ };
+ auto rendered=zones;MetaSidecar probeMeta;prepareSfzZones(rendered,probeMeta,options);atomicWrite(probe,writeSfzInstrument(rendered));double peak=measureGrid(chords,velocities);
  double peakDb=peak>0?20*std::log10(peak):-144;
  // Refine only when the measured chord grid is >2 dB below target or clips.
  // The finite grid, its gain and the remaining worst-case uncertainty are explicit.
@@ -91,8 +113,7 @@ void prepareNpnoSustain(std::vector<ConvertedZone>& zones,MetaSidecar& meta,cons
   for(const auto& z:zones)if(!z.muted)ceiling=std::min(ceiling,10.8-z.volumeDb);
   double adjusted=std::min(requested,ceiling),change=adjusted-gain;gain=adjusted;for(auto& z:zones)z.moduleGainDb=gain;
   // Scalar gain is linear in sfizz; re-render to verify the actual maximum.
-  for(auto& z:rendered)z.moduleGainDb=gain;atomicWrite(probe,writeSfzInstrument(rendered));synth.load(probe);peak=0;
-  for(const auto& chord:chords)for(int velocity:velocities){conversionCheckpoint(options);peak=std::max(peak,synth.chordPeakLoaded(chord,velocity,127));}peakDb=peak>0?20*std::log10(peak):-144;
+  for(auto& z:rendered)z.moduleGainDb=gain;atomicWrite(probe,writeSfzInstrument(rendered));peak=measureGrid(chords,velocities);peakDb=peak>0?20*std::log10(peak):-144;
   meta.preservedFeatures.push_back("headroom_refinement_db="+std::to_string(change)+"; trigger=measured_grid_outside_target_by_2dB_or_ceiling; chords="+std::to_string(chords.size())+"; velocities="+std::to_string(velocities.size()));
  }
  meta.preservedFeatures.push_back("pedal_calibration=sfizz_RMS_ON_equals_OFF_without_extra_resonance; positions=low/mid/high; regions="+std::to_string(measured)+"; residual_max_db="+std::to_string(residual));

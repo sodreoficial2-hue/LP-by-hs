@@ -1,0 +1,81 @@
+name: Final NPNO fidelity benchmark
+on:
+  push:
+    branches: [work/npno-performance-release-20261105]
+    paths: ['.github/workflows/npno-final-benchmark.yml']
+permissions:
+  contents: read
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: candidate
+      - uses: actions/checkout@v4
+        with:
+          ref: 26382628896d6e53baa54908e8b928000692ad7f
+          path: baseline
+      - uses: actions/checkout@v4
+        with:
+          ref: b9bec18e994f19a1097581b098687f0382ebb6f1
+          path: optimization
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libsndfile1-dev libexpat1-dev zlib1g-dev
+      - uses: actions/cache/restore@v4
+        with:
+          path: sfizz-install
+          key: sfizz-1.2.3-ubuntu24-npno-v1
+          fail-on-cache-miss: true
+      - name: Configure all revisions and build converters plus final candidate tests
+        run: |
+          echo "LP_REAL_SFIZZ_LIBRARY=$PWD/sfizz-install/lib/libsfizz.so" >> "$GITHUB_ENV"
+          for version in baseline optimization candidate; do
+            cmake -S "$version" -B "$version/build" -G Ninja -DLP_TEST_ONLY=ON -DCMAKE_BUILD_TYPE=Debug -DLP_SNDFILE_LIBRARY=/usr/lib/x86_64-linux-gnu/libsndfile.so.1 -DLP_REAL_SFIZZ_LIBRARY="$PWD/sfizz-install/lib/libsfizz.so"
+            if [ "$version" = candidate ]; then cmake --build "$version/build" --parallel 2; else cmake --build "$version/build" --parallel 2 --target lp_convert_timbre; fi
+          done
+      - name: Full final candidate CTest (strict gates remain enabled)
+        id: candidate-tests
+        continue-on-error: true
+        run: env LP_REAL_SFIZZ_LIBRARY= ctest --test-dir candidate/build --output-on-failure --timeout 600 --output-log final-ctest.txt
+      - name: Strict Part A file equivalence and timing by available phase boundaries
+        id: equivalence
+        continue-on-error: true
+        run: python3 candidate/scripts/compare_npno_baseline.py baseline optimization comparison-results
+      - name: Report strict outcomes
+        if: always()
+        env:
+          TEST_RESULT: ${{ steps.candidate-tests.outcome }}
+          BYTE_RESULT: ${{ steps.equivalence.outcome }}
+        run: |
+          printf 'Final CTest: %s\nPart A byte equivalence: %s\n' "$TEST_RESULT" "$BYTE_RESULT" >> "$GITHUB_STEP_SUMMARY"
+          cat candidate/build/release-acceptance/release-acceptance.json || true
+          test "$TEST_RESULT" = success
+          test "$BYTE_RESULT" = success
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: final-npno-fidelity-and-release
+          path: |
+            final-ctest.txt
+            comparison-results/
+            candidate/build/release-acceptance/
+            candidate/build/release-runtime/
+            candidate/build/Testing/Temporary/
+          retention-days: 7
+  windows-compile:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-expat mingw-w64-x86_64-zlib
+      - name: Compile native and Vision Windows harnesses
+        shell: msys2 {0}
+        run: |
+          cmake -S . -B build -G Ninja -DLP_TEST_ONLY=ON -DLP_ENABLE_VISION_UI=ON -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build --parallel 2 --target lp_win32_layout_test lp_win32_vision_test lp_win32_parameter_memory_test
