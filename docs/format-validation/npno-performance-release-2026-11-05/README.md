@@ -1,0 +1,72 @@
+# Validação NPNO/NPMO — 2026-11-05
+
+Status: implementação em revisão; **não liberada para main**. A suíte completa ainda não está verde. As medições foram executadas no GitHub Actions, pois o ambiente de execução desta conversa não está disponível.
+
+## Revisões e evidências
+
+- Baseline original: `26382628896d6e53baa54908e8b928000692ad7f`.
+- Parte A isolada (inclui paralelismo final de headroom): `b9bec18e994f19a1097581b098687f0382ebb6f1`.
+- Candidato completo compilado no Windows: `d3e09c70029e2080a77251e4d3c452fefbb22407`.
+- [PR de revisão #2](https://github.com/sodreoficial2-hue/LP-by-hs/pull/2).
+- [Suíte completa, comparação integral e tempos Linux](https://github.com/sodreoficial2-hue/LP-by-hs/actions/runs/42088915194).
+- [Verificação separada contra DLLs distribuídas no Windows](https://github.com/sodreoficial2-hue/LP-by-hs/actions/runs/42090342898).
+- [Renders WAV de 8 s, CSV, JSON e logs](https://github.com/sodreoficial2-hue/LP-by-hs/actions/runs/42088915194/artifacts/13444144296), retenção de sete dias. São vetores sintéticos; não gravações de um piano pessoal.
+
+## Resultado por passo
+
+| Item | Estado | Implementação e limite da evidência |
+| --- | --- | --- |
+| A1 | PASSOU nos fixtures | Probes por programas, até 128 regiões por lote, cache de até quatro engines; reset entre medições. Duas fases preservam a calibração original. Headroom usa no máximo duas engines privadas em paralelo, redução determinística. Não há escrita/carregamento por tecla. Comparação integral idêntica em oito cenários. |
+| A2 | PASSOU nos fixtures | Calibração opcional usa probes agrupados, preservando subdivisão por tecla e isotônica. Comparação integral inclui v5 e v6 com esta opção. |
+| A3 | PARCIAL | Importação nas duas entradas Win32 movida para worker, eventos via PostMessage, fila de progresso/erros, cancelamento atômico e limpeza de staging. Harnesses Win32/Vision compilam. Testes de cancelamento passam; interação manual em Windows/ASIO não executada. |
+| A4 | PASSOU nos fixtures | Hash do original reutilizado; cópia verificada separadamente; tamanho/mtime verificam mudança. WAV hasheado com os mesmos bytes RIFF gravados. Testes SHA e arquivos integrais idênticos. |
+| A5 | PASSOU nos fixtures Linux | PCM16 RIFF little-endian direto, mesmo cabeçalho de 44 bytes; float permanece via libsndfile. Todos os WAVs idênticos ao baseline. Resultado com a DLL real do Windows descrito abaixo. |
+| A6 | PASSOU nos fixtures | Até quatro workers por stroke; agregação por índice, nomes, vetores, hashes e auditoria determinísticos. Comparação integral idêntica. Previsão interna permanece sequencial. |
+| A7 | PASSOU nos fixtures | Busca de lacunas limitada, bit reader por bytes validados e palavras BE locais, índices por root. O guard de offsets invertidos já existia: foi preservado e o erro ganhou os offsets, sem alegar correção de um travamento reproduzido. |
+| B1 | PARCIAL | release_key da mesma tecla preservado; release derivado/clamp/fallback; ganho -8 dB após calibração, limitado a [-24,0], metadados efetivos. Gate de redução de pico total em 15 dB falha. |
+| B2 | PASSOU nos fixtures | Banco normal abafado usa 0,45 s; não abafado mantém 2 s. Pedal não recebe esta mudança. Monotonicidade, salto máximo e silêncio passam no vetor sintético. |
+| B3 | PASSOU nos testes de persistência | Perfil v11, defaults retrocompatíveis, menu de ganho/ativação, atualização do banco sem reimportar PCM, migração de banco antigo, template imutável e rollback. Ganho não acumula entre ajustes. Audição/manual em palco não realizada. |
+
+As regiões de soltura foram divididas por CC64 para cumprir a exigência de preservar pedal: região controlada até CC64=63 e região passthrough a partir de 64, com os parâmetros originais. Os renders de pedal sustentado e de note-off com CC64=127 são byte-idênticos nos testes.
+
+## Tempos e igualdade — Linux
+
+Uma execução por cenário, Debug, no mesmo runner, baseline e candidato lado a lado. Não extrapolar estes resultados para o timbre pessoal de cinco minutos.
+
+| Fixture | Modo | Antes (s) | Depois (s) | Redução | Saída integral |
+| --- | --- | ---: | ---: | ---: | --- |
+| tine-demo.npno | fallback | 0.0190 | 0.0139 | 27.2% | Idêntica |
+| tine-demo.npno | sustain | 1.2470 | 0.6529 | 47.6% | Idêntica |
+| layers-v5.npno | fallback | 0.0139 | 0.0107 | 22.8% | Idêntica |
+| layers-v5.npno | sustain | 6.8366 | 3.3812 | 50.5% | Idêntica |
+| layers-v5.npno | isotonic | 28.7694 | 11.9956 | 58.3% | Idêntica |
+| layers-v6.npno | fallback | 0.0205 | 0.0142 | 30.9% | Idêntica |
+| layers-v6.npno | sustain | 11.3086 | 5.7371 | 49.3% | Idêntica |
+| layers-v6.npno | isotonic | 35.0817 | 16.4881 | 53.0% | Idêntica |
+
+A comparação inclui WAV, SFZ, meta.json, audit.json e o original copiado; não foi necessário ignorar timestamps. Partes A e B são verificadas separadamente, pois B altera intencionalmente SFZ/metadados. Os WAVs continuam iguais na Parte B.
+
+Os limites de progresso existentes permitem separar quatro grupos: leitura/hash inicial, decodificação+WAV+hash, mapeamento de zonas e calibração+sustain+SFZ/meta+cópia. A série completa está em `linux-benchmark.json`. Não há medição independente de cada subfase dentro desses grupos; não atribuímos tempos individuais inventados.
+
+A primeira versão agrupada mostrou pouco ganho no sustain padrão; o paralelismo adicional da avaliação de headroom trouxe a redução final próxima de 50%. As versões intermediárias e os logs ficam no histórico. Não foi medida uma contribuição isolada confiável de cada commit.
+
+## Suíte completa e bloqueios
+
+No candidato final Linux: **48 testes registrados, 41 passaram, 2 falharam e 5 foram pulados**, duração 114,68 s.
+
+1. `real_sfizz_envelope`: falha de readback OSC ADSR já presente no baseline original com sfizz upstream 1.2.3. A implementação upstream consultada expõe getters OSC destes envelopes, sem os setters esperados pelo teste. O teste não foi enfraquecido nem escondido. A verificação com a DLL distribuída no Windows está registrada abaixo.
+2. `npno_release_audio_acceptance`: o requisito de reduzir em >=15 dB o **pico total** após note-off ao desligar apenas release_key não é satisfeito. Reduções medidas: 1,5747 dB (vel40), 1,5871 dB (vel80), 1,5382 dB (vel110). A cauda da voz normal continua audível por definição; silenciar o ruído de soltura não silencia essa voz. O teste permanece reprovado e os critérios não foram alterados.
+
+Os demais critérios de áudio passam nos três casos: energia por janelas monotônica, sem salto >3 dB, silêncio abaixo de -70 dB em 0,1 s; CC64=127 idêntico. O JSON completo fica em `release-acceptance.json`.
+
+Os cinco skips correspondem a fixtures externos/pessoais NPNO/NSMP/v5/v6/LXL ausentes. O arquivo de fixtures do repositório contém vetores sintéticos de interoperabilidade. Conversão do NPNO pessoal real, audição, tempo em SSD/HDD do usuário, integração MIDI/ASIO e qualidade no palco: **N/A**.
+
+A exigência global de ctest verde ainda não foi atendida. Não há merge em main nem pacote de produção aprovado.
+
+## Decisão técnica necessária
+
+Confirmar se a redução de 15 dB deve ser medida **no componente release_key isolado**, mantendo a cauda natural da voz normal. Exigi-la na mistura completa pode exigir mudar também a voz normal, o que não corresponde ao liga/desliga do som de soltura especificado. Nenhum limiar foi relaxado automaticamente.
+
+## Windows — estado desta revisão do relatório
+
+A compilação dos conversores baseline, Parte A e candidato, mais os três harnesses nativos/Vision, terminou. A comparação de oito cenários usando `recovery/extracted/live/sfizz.dll` e `sndfile.dll` ainda está em execução. O resultado ADSR não é inferido do resumo de uma etapa com continue-on-error; será classificado pelos logs completos do job. Não há aprovação antecipada desta validação.

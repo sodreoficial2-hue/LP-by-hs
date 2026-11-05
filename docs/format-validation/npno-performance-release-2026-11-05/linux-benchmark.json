@@ -1,0 +1,185 @@
+{
+  "baseline": "26382628896d6e53baa54908e8b928000692ad7f",
+  "candidate": "b9bec18e994f19a1097581b098687f0382ebb6f1",
+  "run": 42088915194,
+  "fixture_kind": "synthetic_interoperability_vectors",
+  "single_run": true,
+  "results": [
+    {
+      "fixture": "tine-demo.npno",
+      "mode": "fallback",
+      "baseline_seconds": 0.019048634000000675,
+      "candidate_seconds": 0.013864713999964806,
+      "phase_seconds": {
+        "baseline": {
+          "read_hash_setup": 0.004105375999984062,
+          "decode_wav_hash": 0.010598361000006662,
+          "zone_mapping": 0.00001419099999111495,
+          "calibration_sustain_sfz_meta_original_copy": 0.002393008000012742
+        },
+        "candidate": {
+          "read_hash_setup": 0.003549141000007694,
+          "decode_wav_hash": 0.006289917999993122,
+          "zone_mapping": 0.000006358999996791681,
+          "calibration_sustain_sfz_meta_original_copy": 0.0023396070000103464
+        }
+      },
+      "identical": true,
+      "differences": []
+    },
+    {
+      "fixture": "tine-demo.npno",
+      "mode": "sustain",
+      "baseline_seconds": 1.2469594010000264,
+      "candidate_seconds": 0.6528882999999723,
+      "phase_seconds": {
+        "baseline": {
+          "read_hash_setup": 0.004146257999991576,
+          "decode_wav_hash": 0.010590609000018958,
+          "zone_mapping": 0.000012578999985635164,
+          "calibration_sustain_sfz_meta_original_copy": 1.2298775589999877
+        },
+        "candidate": {
+          "read_hash_setup": 0.0037514109999960965,
+          "decode_wav_hash": 0.0067358619999708935,
+          "zone_mapping": 0.00001685600000200793,
+          "calibration_sustain_sfz_meta_original_copy": 0.6397992650000219
+        }
+      },
+      "identical": true,
+      "differences": []
+    },
+    {
+      "fixture": "layers-v5.npno",
+      "mode": "fallback",
+      "baseline_seconds": 0.013930498000036096,
+      "candidate_seconds": 0.010748401999990165,
+      "phase_seconds": {
+        "baseline": {
+          "read_hash_setup": 0.0031089689999816983,
+          "decode_wav_hash": 0.004502897000008943,
+          "zone_mapping": 0.00009638599999561848,
+          "calibration_sustain_sfz_meta_original_copy": 0.004148520999990524
+        },
+        "candidate": {
+          "read_hash_setup": 0.004563743000005616,
+          "decode_wav_hash": 0.0003300089999811462,
+          "zone_mapping": 0.00009207900001229063,
+          "calibration_sustain_sfz_meta_original_copy": 0.003978133999964939
+        }
+      },
+      "identical": true,
+      "differences": []
+    },
+    {
+      "fixture": "layers-v5.npno",
+      "mode": "sustain",
+      "baseline_seconds": 6.836560894999991,
+      "candidate_seconds": 3.3811577110000144,
+      "phase_seconds": {
+        "baseline": {
+          "read_hash_setup": 0.0029579620000390605,
+          "decode_wav_hash": 0.004538269999954991,
+          "zone_mapping": 0.00009112800000821153,
+          "calibration_sustain_sfz_meta_original_copy": 6.8264344410000035
+        },
+        "candidate": {
+          "read_hash_setup": 0.004598074999989876,
+          "decode_wav_hash": 0.0001830070000323758,
+          "zone_mapping": 0.00011982099999841012,
+          "calibration_sustain_sfz_meta_original_copy": 3.373641323999948
+        }
+      },
+      "identical": true,
+      "differences": []
+    },
+    {
+      "fixture": "layers-v5.npno",
+      "mode": "isotonic",
+      "baseline_seconds": 28.76938333800001,
+      "candidate_seconds": 11.995559971999967,
+      "phase_seconds": {
+        "baseline": {
+          "read_hash_setup": 0.0032007679999992433,
+          "decode_wav_hash": 0.004741765999995096,
+          "zone_mapping": 0.0001372180000203116,
+          "calibration_sustain_sfz_meta_original_copy": 28.756794629000012
+        },
+        "candidate": {
+          "read_hash_setup": 0.0028313170000160426,
+          "decode_wav_hash": 0.0022062029999574406,
+          "zone_mapping": 0.00009840800004212724,
+          "calibration_sustain_sfz_meta_original_copy": 11.986029470000005
+        }
+      },
+      "identical": true,
+      "differences": []
+    },
+    {
+      "fixture": "layers-v6.npno",
+      "mode": "fallback",
+      "baseline_seconds": 0.02053685499998892,
+      "candidate_seconds": 0.014199948999987555,
+      "phase_seconds": {
+        "baseline": {
+          "read_hash_setup": 0.004730745000017578,
+          "decode_wav_hash": 0.009114474999989852,
+          "zone_mapping": 0.000131808999981331,
+          "calibration_sustain_sfz_meta_original_copy": 0.004442018000020198
+        },
+        "candidate": {
+          "read_hash_setup": 0.004039820999992116,
+          "decode_wav_hash": 0.0038496980000104486,
+          "zone_mapping": 0.00009940000001051885,
+          "calibration_sustain_sfz_meta_original_copy": 0.004428478000022551
+        }
+      },
+      "identical": true,
+      "differences": []
+    },
+    {
+      "fixture": "layers-v6.npno",
+      "mode": "sustain",
+      "baseline_seconds": 11.308552099999986,
+      "candidate_seconds": 5.737093254999991,
+      "phase_seconds": {
+        "baseline": {
+          "read_hash_setup": 0.004574457999979131,
+          "decode_wav_hash": 0.009218551999992997,
+          "zone_mapping": 0.00012526000000434578,
+          "calibration_sustain_sfz_meta_original_copy": 11.291957027000024
+        },
+        "candidate": {
+          "read_hash_setup": 0.004744218000041656,
+          "decode_wav_hash": 0.002868799999987459,
+          "zone_mapping": 0.00010592000000997359,
+          "calibration_sustain_sfz_meta_original_copy": 5.7268859959999645
+        }
+      },
+      "identical": true,
+      "differences": []
+    },
+    {
+      "fixture": "layers-v6.npno",
+      "mode": "isotonic",
+      "baseline_seconds": 35.08168485899995,
+      "candidate_seconds": 16.488062670000033,
+      "phase_seconds": {
+        "baseline": {
+          "read_hash_setup": 0.004270303999987846,
+          "decode_wav_hash": 0.008566056000006483,
+          "zone_mapping": 0.00008330600002182109,
+          "calibration_sustain_sfz_meta_original_copy": 35.064343099999974
+        },
+        "candidate": {
+          "read_hash_setup": 0.004909749000034935,
+          "decode_wav_hash": 0.0030513780000092083,
+          "zone_mapping": 0.00009402199998476135,
+          "calibration_sustain_sfz_meta_original_copy": 16.475393878999967
+        }
+      },
+      "identical": true,
+      "differences": []
+    }
+  ]
+}
