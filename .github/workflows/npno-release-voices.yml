@@ -1,4 +1,5 @@
 name: NPNO release voice-count regression
+# Revision: calibrated release reference includes the explicit no-pedal gain.
 on:
   push:
     branches: [work/npno-performance-release-20261105]
