@@ -16,6 +16,8 @@
 #include "session.hpp"
 #include "performance_store.hpp"
 #include "sound_parameters.hpp"
+#include "npno_release.hpp"
+#include <set>
 #include "performance_workspace.hpp"
 #include "background_store.hpp"
 #include "instrument_catalog.hpp"
@@ -475,7 +477,7 @@ struct App {
    audioDevices=engine->devices();for(const auto& device:audioDevices){auto text=std::filesystem::u8path(device.name).wstring();SendMessageW(audioDriver,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(text.c_str()));}
    if(audioDevices.empty())message(L"Nenhum driver ASIO estéreo encontrado. Instale ou habilite seu driver ASIO. Não há fallback Windows.");
    try{hiddenSounds.load(hiddenSoundsPath());}catch(const std::exception& e){hiddenCatalogReady=false;error(e);}
-   try{loadMySounds();for(auto& p:instruments)catalogEdits.apply(p,base);refreshCatalog();}catch(const std::exception& e){error(e);}
+   try{loadMySounds();for(auto& p:instruments)catalogEdits.apply(p,base);applyReleaseControls();refreshCatalog();}catch(const std::exception& e){error(e);}
    if(std::filesystem::exists(settingsPath)){
     auto saved=lp::AudioSettings::load(settingsPath);int device=lp::resolveAsioDriver(audioDevices,saved.driver);
     for(std::size_t i=0;i<audioDevices.size();++i)if(audioDevices[i].id==device)SendMessageW(audioDriver,CB_SETCURSEL,i+1,0);
@@ -599,6 +601,12 @@ struct App {
   if(msg==WM_COMMAND&&LOWORD(wp)==IDOK){wchar_t name[257]{};GetDlgItemTextW(w,5101,name,257);std::wstring text=name;auto first=text.find_first_not_of(L" \t");if(first==text.npos){MessageBoxW(w,L"Digite um nome para o timbre.",L"Renomear",MB_OK);return TRUE;}context->name=text.substr(first,text.find_last_not_of(L" \t")-first+1);EndDialog(w,IDOK);return TRUE;}
   if((msg==WM_COMMAND&&LOWORD(wp)==IDCANCEL)||msg==WM_CLOSE){EndDialog(w,IDCANCEL);return TRUE;}return FALSE;
  }
+ void applyReleaseControls(){
+  std::set<std::filesystem::path> seen;
+  for(const auto& sound:instruments){auto source=lp::soundSource(sound);if(!seen.insert(source).second)continue;
+   if(lp::updateNpnoRelease(source,show.releaseKeyGainDb,show.releaseKeyEnabled)&&engine)engine->invalidateSound(lp::resolveInstrument(lp::instrumentReference(sound),instruments).u8string());
+  }
+ }
  void soundMenu(int row,POINT point){try{
   if(loading||effects||restoringSounds||screen!=lp::Screen::Instruments||deleteDialogActive||categoryIndex==15)return;
   if(categoryIndex==13){
@@ -620,8 +628,15 @@ struct App {
   AppendMenuW(menu,MF_STRING,1,L"Renomear");
   for(unsigned c=0;c<15;++c)if(c!=13){auto name=std::filesystem::u8path(lp::instrumentCategories[c]).wstring();AppendMenuW(move,MF_STRING|(c==instrument.category?MF_CHECKED:0),100+c,name.c_str());}
   AppendMenuW(menu,MF_POPUP,reinterpret_cast<UINT_PTR>(move),L"Mover");AppendMenuW(menu,MF_STRING,2,L"Ocultar");AppendMenuW(menu,MF_STRING,3,L"Deletar permanentemente");
+  auto source=lp::soundSource(instrument);auto extension=lp::timbreExtension(source);auto sourceName=source.u8string();
+  if(extension==".npno"||extension==".npmo"||sourceName.find(".npno.converted.sfz")!=std::string::npos||sourceName.find(".npmo.converted.sfz")!=std::string::npos){
+   HMENU releaseMenu=CreatePopupMenu(),gainMenu=CreatePopupMenu();AppendMenuW(releaseMenu,MF_STRING|(show.releaseKeyEnabled?MF_CHECKED:0),4,L"Som de soltura ligado");
+   for(int gain=-24;gain<=0;++gain){auto label=std::to_wstring(gain)+L" dB";AppendMenuW(gainMenu,MF_STRING|(std::abs(show.releaseKeyGainDb-gain)<.01?MF_CHECKED:0),200+gain+24,label.c_str());}
+   AppendMenuW(releaseMenu,MF_POPUP,reinterpret_cast<UINT_PTR>(gainMenu),L"Intensidade");AppendMenuW(menu,MF_POPUP,reinterpret_cast<UINT_PTR>(releaseMenu),L"Som de soltura");
+  }
   deleteDialogActive=true;auto action=TrackPopupMenu(menu,TPM_RETURNCMD|TPM_NONOTIFY|TPM_RIGHTBUTTON,point.x,point.y,0,window,nullptr);DestroyMenu(menu);deleteDialogActive=false;
   if(!action)return;
+  if(action==4||(action>=200&&action<=224)){if(action==4)show.releaseKeyEnabled=!show.releaseKeyEnabled;else show.releaseKeyGainDb=static_cast<int>(action)-224;applyReleaseControls();previewActive=false;show.current.reset();audition();message(L"Som de soltura atualizado sem reimportar. Salve o Perfil de Show para guardar estas opções.");return;}
   auto edit=catalogEdits.get(key);
   if(action==1){RenameDialog context{std::filesystem::u8path(lp::instrumentDisplayName(instrument)).wstring(),font};deleteDialogActive=true;auto result=DialogBoxParamW(GetModuleHandleW(nullptr),MAKEINTRESOURCEW(5100),window,renameProc,reinterpret_cast<LPARAM>(&context));deleteDialogActive=false;if(result==-1)throw std::runtime_error("Não foi possível abrir Renomear");if(result!=IDOK)return;edit.name=std::filesystem::path(context.name).u8string();catalogEdits.set(key,edit,catalogEditsPath());catalogEdits.apply(instruments[index],base);}
   else if(action>=100&&action<=114&&action!=113){edit.category=action-100;catalogEdits.set(key,edit,catalogEditsPath());catalogEdits.apply(instruments[index],base);}
@@ -830,13 +845,13 @@ struct App {
   if(importState){importState->cancelled=true;message(L"Cancelando importação...");return;}
   if(importThread.joinable())importThread.join();
   auto state=std::make_shared<ImportState>();importState=state;importOriginal=source;
-  auto destination=settingsPath.parent_path()/L"imported-timbres",library=base/L"sndfile.dll";auto target=window;
+  auto destination=settingsPath.parent_path()/L"imported-timbres",library=base/L"sndfile.dll";auto target=window;auto releaseGain=show.releaseKeyGainDb;auto releaseEnabled=show.releaseKeyEnabled;
   message(L"Importando em segundo plano. Acione Importar novamente para cancelar.");
-  try{importThread=std::thread([state,source,sampleRoot,destination,library,target]{
+  try{importThread=std::thread([state,source,sampleRoot,destination,library,target,releaseGain,releaseEnabled]{
    auto send=[&](ImportEvent event){{std::lock_guard<std::mutex> lock(state->mutex);state->events.push_back(std::move(event));}PostMessageW(target,ImportEventMessage,0,0);};
    lp::TimbreFormat format=lp::TimbreFormat::UNKNOWN;bool warnings=false;
    try{
-    lp::ConversionOptions options;options.cancelled=[state]{return state->cancelled.load();};
+    lp::ConversionOptions options;options.releaseKeyGainDb=releaseGain;options.releaseKeyEnabled=releaseEnabled;options.cancelled=[state]{return state->cancelled.load();};
     options.progress=[&](const std::string& text){if(text.rfind("Aviso:",0)==0)warnings=true;ImportEvent event;event.text=text;send(std::move(event));};
     lp::conversionCheckpoint(options);format=lp::detectarTimbreFormat(source);auto path=source;
     if(lp::convertedTimbre(source))path=lp::importarTimbreConvertido(source,destination,library,sampleRoot,options.progress,options);
@@ -928,7 +943,7 @@ struct App {
     // Resolve/cancel against the candidate, never replace the live show on failure.
     if(!repairMissing(candidate))return;
     performanceStore.mergeInto(candidate);performanceStore.commit(candidate);
-    soundParameters.restoreSession(candidate,base);show=std::move(candidate);currentProfile=path;savedProfile=profileSnapshot();editorDraft=false;
+    soundParameters.restoreSession(candidate,base);show=std::move(candidate);applyReleaseControls();currentProfile=path;savedProfile=profileSnapshot();editorDraft=false;
     if(engine)engine->masterVolume(show.master);router.cancelLearn();editingPerformanceValid=false;activePerformanceIndex=-1;previewActive=false;show.current.reset();if(engine)engine->unload();refreshFavorites();refreshCatalog();updateIndicators();message(L"Perfil aberto. Parâmetros dos timbres são memorizados automaticamente.");
    }
   }
