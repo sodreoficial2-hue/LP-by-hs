@@ -3,6 +3,7 @@
 // Private offline ABI. Does not instantiate or modify the live audio host.
 #include "sfz_conversion.hpp"
 #include <array>
+#include <memory>
 namespace lp {
 class OfflineSfizz {
 #ifdef _WIN32
@@ -13,7 +14,7 @@ class OfflineSfizz {
  void* synth{};void* (*create)(){};void (*destroy)(void*){};
  bool (*loadFile)(void*,const char*){};void (*rate)(void*,float){};void (*block)(void*,int){};
  void (*on)(void*,int,int,int){};void (*off)(void*,int,int,int){};void (*cc)(void*,int,int,int){};
- void (*silence)(void*){};
+ void (*silence)(void*){};void (*program)(void*,int,int){};
  void (*freewheel)(void*){};void (*render)(void*,float**,int,int){};
  template<class T>void bind(T& f,const char* n){f=reinterpret_cast<T>(symbol(n));if(!f)throw std::runtime_error(std::string("sfizz offline sem função: ")+n);}
  void close(){if(synth&&destroy)destroy(synth);synth=nullptr;if(lib){
@@ -31,7 +32,7 @@ public:
  lib=dlopen(path.c_str(),RTLD_NOW|RTLD_LOCAL);
 #endif
  if(!lib)throw std::runtime_error("sfizz real indisponível para calibração offline");
- try{bind(silence,"sfizz_all_sound_off");bind(create,"sfizz_create_synth");bind(destroy,"sfizz_free");bind(loadFile,"sfizz_load_file");bind(rate,"sfizz_set_sample_rate");bind(block,"sfizz_set_samples_per_block");bind(on,"sfizz_send_note_on");bind(off,"sfizz_send_note_off");bind(cc,"sfizz_send_cc");bind(freewheel,"sfizz_enable_freewheeling");bind(render,"sfizz_render_block");}catch(...){close();throw;}
+ try{bind(program,"sfizz_send_program_change");bind(silence,"sfizz_all_sound_off");bind(create,"sfizz_create_synth");bind(destroy,"sfizz_free");bind(loadFile,"sfizz_load_file");bind(rate,"sfizz_set_sample_rate");bind(block,"sfizz_set_samples_per_block");bind(on,"sfizz_send_note_on");bind(off,"sfizz_send_note_off");bind(cc,"sfizz_send_cc");bind(freewheel,"sfizz_enable_freewheeling");bind(render,"sfizz_render_block");}catch(...){close();throw;}
  }
  ~OfflineSfizz(){close();}OfflineSfizz(const OfflineSfizz&)=delete;OfflineSfizz& operator=(const OfflineSfizz&)=delete;
  void load(const std::filesystem::path& path){
@@ -44,9 +45,7 @@ public:
   std::array<float,256> left{},right{};float* output[]={left.data(),right.data()};render(synth,output,2,256);
   silence(synth);
  }
- void select(std::size_t region){
-  cc(synth,0,20,int(region%128));cc(synth,0,21,int((region/128)%128));cc(synth,0,22,int(region/(128*128)));
- }
+ void select(std::size_t region){program(synth,0,int(region%128));}
  double chordPeakLoaded(const std::vector<int>& keys,int velocity,int pedal){
   resetMeasurement();cc(synth,0,64,pedal);for(int k:keys)on(synth,0,k,velocity);
   std::array<float,256> l{},r{};float* ptrs[]={l.data(),r.data()};double peak=0;
@@ -70,17 +69,33 @@ public:
   load(path);return rmsDbLoaded(key,velocity,pedal,release);
  }
 };
- // Probe routing is private to offline measurement, never emitted in the bank.
- // Three CC bytes provide disjoint selectors for all 65536 supported regions.
+// Program selectors avoid using performance CCs to isolate test regions.
+// MIDI programs provide 128 disjoint slots; retain at most four loaded batches.
 class OfflineRegionProbe {
- OfflineSfizz synth;std::filesystem::path path;
+ struct Batch {std::filesystem::path path;std::unique_ptr<OfflineSfizz> synth;std::uint64_t used=0;};
+ std::filesystem::path library;std::vector<Batch> batches;std::uint64_t clock=0;
+ void removeFiles()noexcept{for(auto& batch:batches){std::error_code ec;std::filesystem::remove(batch.path,ec);}}
 public:
- OfflineRegionProbe(const std::filesystem::path& library,const std::filesystem::path& file,const std::vector<ConvertedZone>& zones):synth(library),path(file){
-  try{auto text=sfzStream();for(std::size_t i=0;i<zones.size();++i){writeSfzGroup(text);if(writeSfzRegion(text,zones[i]))text<<" locc20="<<i%128<<" hicc20="<<i%128<<" locc21="<<(i/128)%128<<" hicc21="<<(i/128)%128<<" locc22="<<i/(128*128)<<" hicc22="<<i/(128*128)<<'\n';}atomicWrite(path,text.str());synth.load(path);}
-  catch(...){std::error_code ec;std::filesystem::remove(path,ec);throw;}
+ OfflineRegionProbe(const std::filesystem::path& lib,const std::filesystem::path& file,const std::vector<ConvertedZone>& zones):library(lib){
+  try{for(std::size_t begin=0;begin<zones.size();begin+=128){
+   Batch batch;batch.path=file;batch.path+="."+std::to_string(begin/128);batches.push_back(std::move(batch));auto text=sfzStream();
+   for(std::size_t i=begin;i<std::min(zones.size(),begin+128);++i){writeSfzGroup(text);if(writeSfzRegion(text,zones[i]))text<<" loprog="<<i%128<<" hiprog="<<i%128<<'\n';}
+   atomicWrite(batches.back().path,text.str());
+  }}catch(...){removeFiles();throw;}
  }
- ~OfflineRegionProbe(){std::error_code ec;std::filesystem::remove(path,ec);}
+ ~OfflineRegionProbe(){removeFiles();}
  OfflineRegionProbe(const OfflineRegionProbe&)=delete;OfflineRegionProbe& operator=(const OfflineRegionProbe&)=delete;
- double rmsDb(std::size_t region,int key,int velocity,int pedal,bool release){try{return synth.rmsDbLoaded(key,velocity,pedal,release,region);}catch(const std::exception& e){throw std::runtime_error("Probe "+std::to_string(region)+": "+e.what());}}
+ double rmsDb(std::size_t region,int key,int velocity,int pedal,bool release){
+  auto& batch=batches.at(region/128);
+  if(!batch.synth){
+   std::size_t loaded=0;Batch* oldest=nullptr;
+   for(auto& entry:batches)if(entry.synth){++loaded;if(!oldest||entry.used<oldest->used)oldest=&entry;}
+   if(loaded>=4)oldest->synth.reset();
+   batch.synth=std::make_unique<OfflineSfizz>(library);batch.synth->load(batch.path);
+  }
+  batch.used=++clock;
+  try{return batch.synth->rmsDbLoaded(key,velocity,pedal,release,region%128);}
+  catch(const std::exception& e){throw std::runtime_error("Probe "+std::to_string(region)+": "+e.what());}
+ }
 };
 }
