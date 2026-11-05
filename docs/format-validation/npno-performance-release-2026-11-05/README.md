@@ -1,6 +1,6 @@
 # Validação NPNO/NPMO — 2026-11-05
 
-Status: implementação em revisão; **não liberada para main**. A suíte completa ainda não está verde. As medições foram executadas no GitHub Actions, pois o ambiente de execução desta conversa não está disponível.
+Status: implementação em revisão; **não liberada para main**. A suíte completa ainda não está verde. As medições anteriores foram executadas no GitHub Actions; esta retomada executou verificações locais adicionais, descritas no final.
 
 ## Revisões e evidências
 
@@ -70,3 +70,18 @@ Confirmar se a redução de 15 dB deve ser medida **no componente release_key is
 ## Windows — estado desta revisão do relatório
 
 A compilação dos conversores baseline, Parte A e candidato, mais os três harnesses nativos/Vision, terminou. A comparação de oito cenários usando `recovery/extracted/live/sfizz.dll` e `sndfile.dll` ainda está em execução. O resultado ADSR não é inferido do resumo de uma etapa com continue-on-error; será classificado pelos logs completos do job. Não há aprovação antecipada desta validação.
+
+
+## Retomada local e diagnóstico final — 5 de novembro de 2026
+
+A execução Windows de produção [42107742835](https://github.com/sodreoficial2-hue/LP-by-hs/actions/runs/42107742835) compilou os executáveis clássico/Vision com ASIO. O CTest registrou 42 testes: 37 passaram, 3 falharam e 2 foram pulados. O ZIP foi corretamente omitido. Os resultados anteriores acima são históricos; esta seção registra o estado mais recente examinado.
+
+- `hidden_sounds_persistence`: a limpeza tentava remover piano.sf2 com um ifstream ainda aberto. O escopo da leitura agora encerra o handle antes da limpeza. Não muda a implementação de exclusão de timbres.
+- `stability_recovery_dependencies`: reproduzida localmente a falha com CRLF explícito. A expressão de opcode não reconhecia sample= no fim da linha com CR residual. O leitor de dependências agora remove esse CR antes de aplicar as expressões; os SFZ e seus WAVs não são regravados. O teste usa CRLF binário também no Linux e faz uma edição de envelope do mesmo tamanho com timestamp explicitamente distinto, sem depender da resolução do relógio.
+- `npno_release_audio_acceptance`: permanece FALHADO. Windows mediu 1,574716 / 1,587112 / 1,538223 dB de redução do pico total nas velocities 40/80/110. Os requisitos de monotonicidade, salto máximo, silêncio e pedal passaram. Não foi alterado o limiar, o áudio normal nem o teste para encobrir a reprovação.
+
+Verificação local nesta retomada: compilação g++17 com assertions ativas e execução de hidden_sounds_test e stability_storage_test; ambos passaram. A versão CRLF antes da correção reproduziu a assertion. `bash scripts/verify_timbre_import.sh` passou os oito grupos de importação/política/CLI; render real foi N/A neste ambiente. `git diff --check` passou. Estas execuções não equivalem a um novo CTest Windows completo nem a hardware ASIO/MIDI.
+
+O job anterior [42090342898](https://github.com/sodreoficial2-hue/LP-by-hs/actions/runs/42090342898) confirmou a igualdade integral dos oito cenários da Parte A usando as DLLs Windows distribuídas. Para layers-v6, sustain: 41,267652 → 22,610730 s; isotônica: 96,259598 → 45,720222 s. `real_sfizz_envelope` passou com essa DLL. São fixtures sintéticos, não o piano pessoal.
+
+A decisão pendente é se os 15 dB devem avaliar o ruído release_key isoladamente. Exigir essa redução no som completo ao desligar apenas release_key inclui a cauda da voz normal, que deve continuar presente. Até resolver o conflito e repetir as verificações necessárias, a revisão permanece sem merge e sem ZIP/Drive. Nenhum workflow foi alterado ou iniciado nesta retomada. Não há ferramenta de cota autenticada; saldo desconhecido.

@@ -21,6 +21,6 @@ int main(){
  {std::ofstream out(file);out<<"invalid registry";}failed=false;try{restored.load(file);}catch(const std::exception&){failed=true;}assert(failed&&restored.contains(pk));
  // Excluding a preset never deletes or modifies the bank itself.
  std::filesystem::create_directories(base/"soundbank");auto bank=base/"soundbank/piano.sf2";{std::ofstream out(bank);out<<"preserved";}
- restored.exclude(two,root/"new.catalog");std::ifstream in(bank);std::string content;in>>content;assert(content=="preserved");
+ restored.exclude(two,root/"new.catalog");{std::ifstream in(bank);std::string content;in>>content;assert(content=="preserved");}
  std::filesystem::remove_all(root);
 }
