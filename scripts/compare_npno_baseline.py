@@ -4,7 +4,7 @@ import hashlib, json, os, pathlib, subprocess, sys, time
 baseline, candidate, output = map(lambda p: pathlib.Path(p).resolve(), sys.argv[1:4])
 output.mkdir(parents=True, exist_ok=True)
 renderer = os.environ["LP_REAL_SFIZZ_LIBRARY"]
-sndfile = "/usr/lib/x86_64-linux-gnu/libsndfile.so.1"
+sndfile = os.environ.get("LP_BENCH_SNDFILE", "/usr/lib/x86_64-linux-gnu/libsndfile.so.1")
 results = []
 for fixture in ("tine-demo.npno", "layers-v5.npno", "layers-v6.npno"):
     modes = ("fallback", "sustain", "isotonic") if fixture != "tine-demo.npno" else ("fallback", "sustain")
@@ -14,7 +14,7 @@ for fixture in ("tine-demo.npno", "layers-v5.npno", "layers-v6.npno"):
             source = root / "build/import-fixtures/tests/fixtures/npno" / fixture
             destination = output / fixture / mode / label
             destination.parent.mkdir(parents=True, exist_ok=True)
-            command = [str(root / "build/lp_convert_timbre"), str(source), str(destination), sndfile]
+            command = [str(root / ("build/lp_convert_timbre.exe" if os.name == "nt" else "build/lp_convert_timbre")), str(source), str(destination), sndfile]
             environment = dict(os.environ)
             environment["LP_REAL_SFIZZ_LIBRARY"] = "" if mode == "fallback" else renderer
             if mode == "isotonic":

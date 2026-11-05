@@ -858,7 +858,7 @@ struct App {
     else if(format!=lp::TimbreFormat::SFZ&&format!=lp::TimbreFormat::SF2)throw std::runtime_error("Formato de timbre não suportado");
     ImportEvent event;event.kind=ImportEvent::Done;event.path=path;event.format=format;event.warnings=warnings;send(std::move(event));
    }catch(const lp::ConversionCancelled& e){ImportEvent event;event.kind=ImportEvent::Cancelled;event.text=e.what();send(std::move(event));}
-   catch(const lp::MissingNkiSamples& e){ImportEvent event;event.kind=ImportEvent::Missing;event.text=e.what();send(std::move(event));}
+   catch(const lp::MissingNkiSamples& e){ImportEvent event;event.kind=ImportEvent::Missing;event.path=source;event.text=e.what();send(std::move(event));}
    catch(const std::exception& e){ImportEvent event;event.kind=ImportEvent::Failed;event.text=e.what();send(std::move(event));}
    catch(...){ImportEvent event;event.kind=ImportEvent::Failed;event.text="Falha inesperada na importação.";send(std::move(event));}
   });}catch(...){importState.reset();throw;}
@@ -872,7 +872,7 @@ struct App {
    if(event.kind==ImportEvent::Missing){
     message(std::filesystem::u8path(event.text).wstring());BROWSEINFOW browse{};browse.hwndOwner=window;browse.lpszTitle=L"Escolha Samples ou a raiz desta biblioteca KONTAKT (mapa aproximado)";browse.ulFlags=BIF_RETURNONLYFSDIRS|BIF_NEWDIALOGSTYLE;
     auto pidl=SHBrowseForFolderW(&browse);if(!pidl)continue;wchar_t folder[MAX_PATH]{};bool ok=SHGetPathFromIDListW(pidl,folder);CoTaskMemFree(pidl);
-    if(!ok)throw std::runtime_error("Pasta de amostras indisponível");beginImport(importOriginal,folder);continue;
+    if(!ok)throw std::runtime_error("Pasta de amostras indisponível");beginImport(event.path,folder);continue;
    }
    if(event.kind==ImportEvent::Cancelled){message(L"Importação cancelada.");continue;}
    if(event.kind==ImportEvent::Failed){message(std::filesystem::u8path(event.text).wstring());throw std::runtime_error(event.text);}
