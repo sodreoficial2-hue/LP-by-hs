@@ -1,6 +1,6 @@
 # Validação NPNO/NPMO — 2026-11-05
 
-Status: implementação em revisão; **não liberada para main**. A suíte completa ainda não está verde. As medições anteriores foram executadas no GitHub Actions; esta retomada executou verificações locais adicionais, descritas no final.
+Status final: **validação automatizada Windows aprovada e ZIP gerado**. Consulte o fechamento no final para os números exatos e os limites dos ensaios históricos abaixo. As medições anteriores foram executadas no GitHub Actions; esta retomada executou verificações locais adicionais, descritas no final.
 
 ## Revisões e evidências
 
@@ -23,7 +23,7 @@ Status: implementação em revisão; **não liberada para main**. A suíte compl
 | A5 | PASSOU nos fixtures Linux | PCM16 RIFF little-endian direto, mesmo cabeçalho de 44 bytes; float permanece via libsndfile. Todos os WAVs idênticos ao baseline. Resultado com a DLL real do Windows descrito abaixo. |
 | A6 | PASSOU nos fixtures | Até quatro workers por stroke; agregação por índice, nomes, vetores, hashes e auditoria determinísticos. Comparação integral idêntica. Previsão interna permanece sequencial. |
 | A7 | PASSOU nos fixtures | Busca de lacunas limitada, bit reader por bytes validados e palavras BE locais, índices por root. O guard de offsets invertidos já existia: foi preservado e o erro ganhou os offsets, sem alegar correção de um travamento reproduzido. |
-| B1 | PARCIAL | release_key da mesma tecla preservado; release derivado/clamp/fallback; ganho -8 dB após calibração, limitado a [-24,0], metadados efetivos. Gate de redução de pico total em 15 dB falha. |
+| B1 | PASSOU no vetor sintético Windows após decisão natural | release_key da mesma tecla preservado; release derivado/clamp/fallback; ganho -8 dB após calibração, limitado a [-24,0], metadados efetivos. O antigo gate de pico total falhava; o fechamento registra a separação física autorizada e o gate de componente isolado aprovado. |
 | B2 | PASSOU nos fixtures | Banco normal abafado usa 0,45 s; não abafado mantém 2 s. Pedal não recebe esta mudança. Monotonicidade, salto máximo e silêncio passam no vetor sintético. |
 | B3 | PASSOU nos testes de persistência | Perfil v11, defaults retrocompatíveis, menu de ganho/ativação, atualização do banco sem reimportar PCM, migração de banco antigo, template imutável e rollback. Ganho não acumula entre ajustes. Audição/manual em palco não realizada. |
 
@@ -63,9 +63,9 @@ Os cinco skips correspondem a fixtures externos/pessoais NPNO/NSMP/v5/v6/LXL aus
 
 A exigência global de ctest verde ainda não foi atendida. Não há merge em main nem pacote de produção aprovado.
 
-## Decisão técnica necessária
+## Decisão técnica inicial — resolvida na retomada abaixo
 
-Confirmar se a redução de 15 dB deve ser medida **no componente release_key isolado**, mantendo a cauda natural da voz normal. Exigi-la na mistura completa pode exigir mudar também a voz normal, o que não corresponde ao liga/desliga do som de soltura especificado. Nenhum limiar foi relaxado automaticamente.
+A questão inicial era se a redução de 15 dB deveria ser medida **no componente release_key isolado**, mantendo a cauda natural da voz normal. Exigi-la na mistura completa pode exigir mudar também a voz normal, o que não corresponde ao liga/desliga do som de soltura especificado. Nenhum limiar foi relaxado automaticamente.
 
 ## Windows — estado desta revisão do relatório
 
@@ -133,3 +133,18 @@ A DLL distribuída Windows já passou esse teste anteriormente e será usada
 novamente na validação Windows completa. O workflow existente só produz ZIP
 se o CTest Windows inteiro passar. Autorização de Actions recuperada da
 instrução do usuário de 5/11 às 16:41 UTC; saldo autenticado desconhecido.
+
+
+## Fechamento Windows e entrega
+
+- Fonte dos executáveis validados: `095257e08f52982f88c8614a4c10d2c07fbb21b4`.
+- [Execução Windows final 42118258697](https://github.com/sodreoficial2-hue/LP-by-hs/actions/runs/42118258697): **42 registrados, 40 PASSOU, 0 FALHADO, 2 SKIP**, exit 0, 53,16 s. Os skips são os fixtures externos NPNO/NSMP ausentes. Os testes de cache CRLF, limpeza de arquivos, envelopes OSC com a DLL distribuída e soltura natural passaram.
+- `windows-final-ctest.txt`, `windows-natural-release-acceptance.json` e `windows-production-dependencies.txt` registram os resultados. O ruído isolado desligado ficou em silêncio digital; ataque, cauda normal e pedal foram preservados; erro máximo de decomposição 1,31e-10. Valores de contraste elevados usam piso numérico de 1e-12, não medem uma faixa dinâmica física de 170 dB.
+- Suíte Linux ampliada: **48 registrados, 42 PASSOU, 1 FALHADO, 5 SKIP**, exit 8, 201,40 s. Falha legada OSC/ADSR com upstream 1.2.3, registrada sem ocultação em `local-ctest-real.txt`; esse mesmo teste passou no Windows com a DLL efetivamente distribuída. A suíte Linux principal sem renderer passou 36 testes com 2 skips. Os ensaios são complementares, não uma alegação de CTest Linux integral verde.
+- Compilação local adicional: clássico e Vision x64, ASIO/PortAudio reais, SDK ASIO 2.3.3 e WebView2 1.0.2903.40 verificados por checksum. A tabela de imports dos executáveis contém apenas DLLs do Windows. Nenhum novo runtime de compilador foi exigido. Wine foi N/A por bloqueio de socket Unix; não foi apresentado como execução Windows.
+- A compilação Windows final do workflow gerou o pacote somente depois do CTest aprovado. Os executáveis desse pacote foram preservados byte a byte na entrega; apenas LEIA-ME, identificação de revisão e o manifesto foram completados localmente. A verificação percorreu todos os hashes do ZIP original, testou o CRC do ZIP final e verificou novamente os binários. O pacote contém 15 arquivos, sem bancos, perfis ou amostras para substituir.
+- Entrega: `LivePerformance-Atualizacao-NPNO-Soltura-Windows-x64.zip`, **8.787.630 bytes**, SHA-256 `0068ac813cc13d73f2a85cb21dc7f15be56355c8031d3aa9d2d3f73121f83a47`. Criado e enviado ao Drive; nome e tamanho confirmados por leitura de metadados.
+- Novas importações se beneficiam das otimizações. Para aplicar todos os parâmetros de envelope a bancos já convertidos, é necessário reimportar o original. Intensidade/ativação de release_key continuam editáveis sem reimportar PCM, pelo menu do timbre, com persistência no Perfil de Show.
+- Audição comparativa com Nord, arquivo pessoal L/XL e execução com o ASIO/controlador do usuário permanecem **N/A**. Os critérios de decaimento são verificados no vetor sintético; não estabelecem uma constante física universal para todos os pianos. As fontes fundamentam a separação dos componentes, sem prometer reprodução exata do DSP proprietário.
+
+As seções anteriores preservam a sequência e os resultados intermediários. O critério de liberação automatizada foi satisfeito no Windows; os limites acima continuam explícitos. A cota autenticada permanece desconhecida. Foi executado um único novo workflow nesta retomada, dentro da autorização anterior de Hugo.
