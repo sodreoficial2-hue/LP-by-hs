@@ -23,6 +23,7 @@ CbinHeader lerHeaderCbin(const std::filesystem::path& path);
 TimbreFormat detectarVersaoNsmp(const std::filesystem::path& path);
 TimbreFormat detectarTimbreFormat(const std::filesystem::path& path);
 std::string sha256File(const std::filesystem::path& path);
+std::string sha256Bytes(const std::vector<std::uint8_t>& bytes);
 struct ConvertedZone {
  std::string sample,rootSource;
  int root=60,keyLow=0,keyHigh=127,velLow=1,velHigh=127,rate=0,channels=0;
@@ -51,6 +52,7 @@ struct ConvertedZone {
 };
 struct ConversionCancelled:std::runtime_error {ConversionCancelled():std::runtime_error("Importação cancelada."){}};
 struct ConversionOptions {
+ std::string originalSha256; // Import transaction cache; copied original is still verified independently.
  std::function<bool()> cancelled;
  std::function<void(const std::string&)> progress;
 

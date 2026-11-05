@@ -34,6 +34,12 @@ std::string sha256File(const std::filesystem::path& path){
  if(n>56){std::fill(b.begin()+n,b.end(),0);s.block(b.data());n=0;}
  std::fill(b.begin()+n,b.begin()+56,0);for(int i=0;i<8;++i)b[63-i]=static_cast<unsigned char>((length*8)>>(8*i));s.block(b.data());std::ostringstream o;o<<std::hex<<std::setfill('0');for(auto v:s.h)o<<std::setw(8)<<v;return o.str();
 }
+std::string sha256Bytes(const std::vector<std::uint8_t>& bytes){
+ Sha256 s;std::size_t at=0;while(bytes.size()-at>=64){s.block(bytes.data()+at);at+=64;}
+ std::array<unsigned char,64> b{};auto n=bytes.size()-at;std::copy(bytes.begin()+at,bytes.end(),b.begin());b[n++]=0x80;
+ if(n>56){s.block(b.data());b.fill(0);}
+ auto length=std::uint64_t(bytes.size())*8;for(int i=0;i<8;++i)b[63-i]=static_cast<unsigned char>(length>>(8*i));s.block(b.data());std::ostringstream o;o<<std::hex<<std::setfill('0');for(auto v:s.h)o<<std::setw(8)<<v;return o.str();
+}
 CbinHeader lerHeaderCbin(const std::filesystem::path& path){return nsmp::readCbin(nsmp::readFile(path));}
 TimbreFormat detectarVersaoNsmp(const std::filesystem::path& path){auto id=nsmp::identifyNsmp(nsmp::readFile(path));auto e=timbreExtension(path);if((e==".nsmp3"&&id.codec!=3)||(e==".nsmp4"&&id.codec!=4)||(e==".nsmp"&&id.codec>2))throw std::runtime_error("Extensão e geração Nord não correspondem");return TimbreFormat::NSMP;}
 TimbreFormat detectarTimbreFormat(const std::filesystem::path& path){
@@ -62,14 +68,15 @@ std::string MetaSidecar::json()const{
 std::filesystem::path importarTimbreConvertido(const std::filesystem::path& original,const std::filesystem::path& destination,const std::filesystem::path& library,const std::filesystem::path& root,const ConversionProgress& progress,const ConversionOptions& options){
  conversionCheckpoint(options);
  auto f=detectarTimbreFormat(original);if(!convertedTimbre(original))throw std::runtime_error("Formato não requer conversão");
- auto hash=sha256File(original);std::filesystem::create_directories(destination);std::filesystem::path stage,final;bool reserved=false;
+ auto originalSize=std::filesystem::file_size(original);auto originalTime=std::filesystem::last_write_time(original);
+ auto hash=sha256File(original);auto effective=options;effective.originalSha256=hash;std::filesystem::create_directories(destination);std::filesystem::path stage,final;bool reserved=false;
  for(unsigned i=0;i<10000;++i){final=destination/(hash+"-"+std::to_string(i));stage=final;stage+=".staging";if(std::filesystem::exists(final))continue;if(std::filesystem::create_directory(stage)){reserved=true;break;}}
  if(!reserved)throw std::runtime_error("Não foi possível reservar pasta de importação");
  try{
   MetaSidecar meta;auto bank=stage/"bank";
-  if(f==TimbreFormat::NPNO)npnoParaSFZ(original,bank,meta,library,progress,options);else if(f==TimbreFormat::NKI)nkiParaSFZ(original,bank,meta,library,root,options);else nsmpParaSFZ(original,bank,meta,library,options);
+  if(f==TimbreFormat::NPNO)npnoParaSFZ(original,bank,meta,library,progress,effective);else if(f==TimbreFormat::NKI)nkiParaSFZ(original,bank,meta,library,root,options);else nsmpParaSFZ(original,bank,meta,library,options);
   conversionCheckpoint(options);
-  auto copy=bank/original.filename();if(hash!=meta.originalSha256||hash!=sha256File(copy))throw std::runtime_error("Original mudou durante a importação");
+  if(hash!=meta.originalSha256||std::filesystem::file_size(original)!=originalSize||std::filesystem::last_write_time(original)!=originalTime)throw std::runtime_error("Original mudou durante a importação");
   std::filesystem::rename(bank,final);std::error_code ignored;std::filesystem::remove(stage,ignored);return final/original.filename();
  }catch(...){std::error_code ignored;std::filesystem::remove_all(stage,ignored);throw;}
 }
