@@ -1,0 +1,40 @@
+name: Focused NPNO probe diagnostic
+on:
+  push:
+    branches: [work/npno-performance-release-20261105]
+    paths: ['.github/workflows/npno-probe-validation.yml', 'validation/npno-probe-request.json']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libsndfile1-dev libexpat1-dev zlib1g-dev
+      - uses: actions/cache/restore@v4
+        with:
+          path: sfizz-install
+          key: sfizz-1.2.3-ubuntu24-npno-v1
+          fail-on-cache-miss: true
+      - name: Compile focused measurement test
+        run: |
+          cmake -S . -B build-probe -G Ninja -DLP_TEST_ONLY=ON -DCMAKE_BUILD_TYPE=Debug -DLP_SNDFILE_LIBRARY=/usr/lib/x86_64-linux-gnu/libsndfile.so.1 -DLP_REAL_SFIZZ_LIBRARY="$PWD/sfizz-install/lib/libsfizz.so"
+          cmake --build build-probe --parallel 2 --target lp_offline_probe_test lp_npno_release_runtime_test lp_npno_release_acceptance_test
+      - name: Test exact probe isolation on binary fixtures
+        run: build-probe/lp_offline_probe_test "$PWD/sfizz-install/lib/libsfizz.so" /usr/lib/x86_64-linux-gnu/libsndfile.so.1 "$PWD/probe-results" "$PWD/build-probe/import-fixtures/tests/fixtures/npno"
+      - name: Test runtime updates and render requested release gates
+        if: always()
+        run: |
+          env LP_REAL_SFIZZ_LIBRARY= build-probe/lp_npno_release_runtime_test "$PWD/build-probe/import-fixtures/tests/fixtures/npno/layers-v6.npno" /usr/lib/x86_64-linux-gnu/libsndfile.so.1 "$PWD/runtime-results"
+          build-probe/lp_npno_release_acceptance_test "$PWD/sfizz-install/lib/libsfizz.so" /usr/lib/x86_64-linux-gnu/libsndfile.so.1 "$PWD/build-probe/import-fixtures/tests/fixtures/npno/layers-v6.npno" "$PWD/release-results"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: focused-npno-diagnostic
+          path: |
+            probe-results/
+            runtime-results/
+            release-results/
+          retention-days: 7
