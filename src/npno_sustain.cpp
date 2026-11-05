@@ -50,13 +50,13 @@ void prepareNpnoSustain(std::vector<ConvertedZone>& zones,MetaSidecar& meta,cons
  double residual=0;int measured=0;
  if(!pairs.empty()){
   {OfflineRegionProbe initial(lib,probe,measurementZones());
-   for(auto& pair:pairs){auto& z=zones[pair.pedal];int vel=(z.velLow+z.velHigh)/2;std::vector<double> differences;
+   for(auto& pair:pairs){conversionStatus(options,"calibrando zona "+std::to_string(&pair-pairs.data()+1)+" de "+std::to_string(pairs.size())+"...");auto& z=zones[pair.pedal];int vel=(z.velLow+z.velHigh)/2;std::vector<double> differences;
     for(int key:{z.keyLow,(z.keyLow+z.keyHigh)/2,z.keyHigh})differences.push_back(initial.rmsDb(pair.normal,key,vel,0,false)-initial.rmsDb(pair.pedal,key,vel,0,false));
     pair.delta=(differences[0]+differences[1]+differences[2])/3;double before=z.volumeDb;z.volumeDb=std::clamp(before+pair.delta,-144.0,10.8);z.pedalOffsetDb=z.volumeDb-before;
    }
   }
   {OfflineRegionProbe adjusted(lib,probe,measurementZones());
-   for(const auto& pair:pairs){auto& z=zones[pair.pedal];int vel=(z.velLow+z.velHigh)/2;
+   for(const auto& pair:pairs){conversionCheckpoint(options);auto& z=zones[pair.pedal];int vel=(z.velLow+z.velHigh)/2;
     for(int key:{z.keyLow,(z.keyLow+z.keyHigh)/2,z.keyHigh})z.pedalResidualDb=std::max(z.pedalResidualDb,std::abs(adjusted.rmsDb(pair.normal,key,vel,0,false)-adjusted.rmsDb(pair.pedal,key,vel,0,false)));residual=std::max(residual,z.pedalResidualDb);++measured;
     if(std::abs(pair.delta-z.pedalOffsetDb)>.01)meta.limitations.push_back("Calibração pedal limitada: registro "+std::to_string(z.sourceStroke)+", banda "+std::to_string(z.canonicalBand)+", déficit dB="+std::to_string(pair.delta-z.pedalOffsetDb));
    }
@@ -81,7 +81,7 @@ void prepareNpnoSustain(std::vector<ConvertedZone>& zones,MetaSidecar& meta,cons
  }
  std::set<int> velocities{10,40,80,127};for(const auto& z:zones)if(z.sourceBank==0){velocities.insert(z.velLow);velocities.insert(z.velHigh);}
  auto rendered=zones;MetaSidecar probeMeta;prepareSfzZones(rendered,probeMeta,options);atomicWrite(probe,writeSfzInstrument(rendered));synth.load(probe);double peak=0;
- for(const auto& chord:chords)for(int velocity:velocities)peak=std::max(peak,synth.chordPeakLoaded(chord,velocity,127));
+ for(const auto& chord:chords)for(int velocity:velocities){conversionCheckpoint(options);peak=std::max(peak,synth.chordPeakLoaded(chord,velocity,127));}
  double peakDb=peak>0?20*std::log10(peak):-144;
  // Refine only when the measured chord grid is >2 dB below target or clips.
  // The finite grid, its gain and the remaining worst-case uncertainty are explicit.
@@ -91,7 +91,7 @@ void prepareNpnoSustain(std::vector<ConvertedZone>& zones,MetaSidecar& meta,cons
   double adjusted=std::min(requested,ceiling),change=adjusted-gain;gain=adjusted;for(auto& z:zones)z.moduleGainDb=gain;
   // Scalar gain is linear in sfizz; re-render to verify the actual maximum.
   for(auto& z:rendered)z.moduleGainDb=gain;atomicWrite(probe,writeSfzInstrument(rendered));synth.load(probe);peak=0;
-  for(const auto& chord:chords)for(int velocity:velocities)peak=std::max(peak,synth.chordPeakLoaded(chord,velocity,127));peakDb=peak>0?20*std::log10(peak):-144;
+  for(const auto& chord:chords)for(int velocity:velocities){conversionCheckpoint(options);peak=std::max(peak,synth.chordPeakLoaded(chord,velocity,127));}peakDb=peak>0?20*std::log10(peak):-144;
   meta.preservedFeatures.push_back("headroom_refinement_db="+std::to_string(change)+"; trigger=measured_grid_outside_target_by_2dB_or_ceiling; chords="+std::to_string(chords.size())+"; velocities="+std::to_string(velocities.size()));
  }
  meta.preservedFeatures.push_back("pedal_calibration=sfizz_RMS_ON_equals_OFF_without_extra_resonance; positions=low/mid/high; regions="+std::to_string(measured)+"; residual_max_db="+std::to_string(residual));

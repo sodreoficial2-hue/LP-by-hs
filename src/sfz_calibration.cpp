@@ -34,7 +34,7 @@ void calibrateSfzZones(std::vector<ConvertedZone>& zones,MetaSidecar& meta,const
  for(auto& z:zones)if(!z.muted)z.ampVeltrack=0;
  auto measurementZones=[&](){auto copy=zones;for(auto& single:copy){single.sequenceLength=single.sequencePosition=0;single.velLow=1;single.velHigh=127;single.xfinLowVel=single.xfoutLowVel=-1;}return copy;};
  {OfflineRegionProbe initial(options.calibrationSfizzLibrary,probe,measurementZones());
- for(std::size_t i=0;i<zones.size();++i){auto& z=zones[i];if(z.muted)continue;
+ for(std::size_t i=0;i<zones.size();++i){conversionStatus(options,"calibrando zona "+std::to_string(i+1)+" de "+std::to_string(zones.size())+"...");auto& z=zones[i];if(z.muted)continue;
   z.ampVeltrack=0; // Explicit compensation: no hidden sfizz velocity->amplitude curve.
   auto& m=measured[i];
   std::set<int> keys{z.keyLow,(z.keyLow+z.keyHigh)/2,z.keyHigh};
@@ -61,11 +61,11 @@ void calibrateSfzZones(std::vector<ConvertedZone>& zones,MetaSidecar& meta,const
   if(!matched)throw std::runtime_error("Calibração: velocity sem ataque de referência");
  }
  double maximum=0;int count=0;bool bounded=true;
- for(std::size_t i=0;i<zones.size();++i){auto& z=zones[i];if(z.muted)continue;double before=z.volumeDb;
+ for(std::size_t i=0;i<zones.size();++i){conversionStatus(options,"calibrando zona "+std::to_string(i+1)+" de "+std::to_string(zones.size())+"...");auto& z=zones[i];if(z.muted)continue;double before=z.volumeDb;
   double requested=before+targets[i]-measured[i].mean;z.volumeDb=std::clamp(requested,-144.0,10.8);bounded=bounded&&std::abs(requested-z.volumeDb)<1e-8;z.calibrationOffsetDb=z.volumeDb-before;
  }
  {OfflineRegionProbe adjusted(options.calibrationSfizzLibrary,probe,measurementZones());
- for(std::size_t i=0;i<zones.size();++i){auto& z=zones[i];if(z.muted)continue;
+ for(std::size_t i=0;i<zones.size();++i){conversionStatus(options,"calibrando zona "+std::to_string(i+1)+" de "+std::to_string(zones.size())+"...");auto& z=zones[i];if(z.muted)continue;
   for(auto note:measured[i].notes){double db=adjusted.rmsDb(i,note.first,note.second,z.cc64Low>=64?127:0,z.releaseTrigger);z.calibrationResidualDb=std::max(z.calibrationResidualDb,std::abs(db-targets[i]));}
   z.calibrated=true;maximum=std::max(maximum,z.calibrationResidualDb);++count;
  }

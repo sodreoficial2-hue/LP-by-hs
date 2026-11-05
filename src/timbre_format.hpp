@@ -49,7 +49,11 @@ struct ConvertedZone {
  std::uint32_t sourceLoopDecay=0;
  double decaySeconds=-1,sustainPercent=-1;
 };
+struct ConversionCancelled:std::runtime_error {ConversionCancelled():std::runtime_error("Importação cancelada."){}};
 struct ConversionOptions {
+ std::function<bool()> cancelled;
+ std::function<void(const std::string&)> progress;
+
  bool velocityCrossfade=false;
  int crossfadeWidth=8; // Half window in MIDI steps, capped by neighboring layer widths.
  bool velocityCrossfadeExplicit=false; // NPNO defaults on, others retain opt-in behavior.
@@ -59,6 +63,8 @@ struct ConversionOptions {
  std::filesystem::path calibrationSfizzLibrary; // Explicit offline renderer; empty = measured calibration N/A.
 
 };
+inline void conversionCheckpoint(const ConversionOptions& options){if(options.cancelled&&options.cancelled())throw ConversionCancelled();}
+inline void conversionStatus(const ConversionOptions& options,const std::string& text){conversionCheckpoint(options);if(options.progress)options.progress(text);}
 struct MetaSidecar {
  std::string name,format,version,originalSha256,signatureHex,status;
  bool signatureConfirmed=false;
@@ -80,5 +86,5 @@ std::filesystem::path nkiParaSFZ(const std::filesystem::path& entrada,const std:
  const std::filesystem::path& sndfileLibrary,const std::filesystem::path& sampleRoot={},const ConversionOptions& options={});
 // Private staging directory, published by rename only after original, SFZ, samples and sidecar succeed.
 std::filesystem::path importarTimbreConvertido(const std::filesystem::path& original,const std::filesystem::path& destination,
- const std::filesystem::path& sndfileLibrary,const std::filesystem::path& sampleRoot={},const ConversionProgress& progress={});
+ const std::filesystem::path& sndfileLibrary,const std::filesystem::path& sampleRoot={},const ConversionProgress& progress={},const ConversionOptions& options={});
 }

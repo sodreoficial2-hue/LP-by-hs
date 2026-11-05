@@ -32,6 +32,9 @@
 #include "master_midi.hpp"
 #include "sample_builder_window.hpp"
 #include <memory>
+#include <thread>
+#include <mutex>
+#include <deque>
 #include <string>
 #include <fstream>
 #include <iomanip>
@@ -46,7 +49,7 @@
 namespace {
 constexpr int Search=160,RestoreSounds=161,RestoreSelected=162,RestoreAll=163,LocateSounds=164,ProfileState=165,OutputMeter=166,PartSearch=167,PartVolumeBase=500,PartSoloBase=504,PartMuteBase=508,PartTargetBase=512,PartCopyBase=516,PartSwapBase=520,PartLowBase=524,PartHighBase=528,PerformanceSaveNew=532,PartZoneBase=536,AudioDiagnostics=170,MasterVolume=171,MasterLabel=172,CreateSample=173;
 constexpr int Catalog=100,Favorites=101,Save=102,Open=103,Midi=104,Effects=105,Import=106,ImportSf2=114,AudioDriver=107,AudioStart=109,AudioStop=110,AudioPanel=111,Panic=112,Category=113,Knob=200,MidiLearnKnob=115,PerformanceButton=116,PerformanceModeControl=117,PerformancePartBase=118,PerformancePlay=122,PerformanceSave=123,PerformanceName=124,PerformanceEditPart=125,PerformanceClearBase=126,AudioMidiButton=140,SettingsButton=141,AboutButton=142,CategoryTile=143,PreviousCategory=144,NextCategory=145,InstrumentArt=146,AboutText=147,HomeButton=148,KeyboardButton=149,CategoryCardBase=400;
-constexpr UINT BeginParameterLearn=WM_APP+40,LoadLibraryMessage=WM_APP+41,ToggleFavoriteMessage=WM_APP+42,SelectSoundMessage=WM_APP+43,RevealFocusMessage=WM_APP+44,VisionCommandMessage=WM_APP+45,DirectMidiMessage=WM_APP+46,SoundReadyMessage=WM_APP+47;
+constexpr UINT BeginParameterLearn=WM_APP+40,LoadLibraryMessage=WM_APP+41,ToggleFavoriteMessage=WM_APP+42,SelectSoundMessage=WM_APP+43,RevealFocusMessage=WM_APP+44,VisionCommandMessage=WM_APP+45,DirectMidiMessage=WM_APP+46,SoundReadyMessage=WM_APP+47,ImportEventMessage=WM_APP+48;
 LRESULT CALLBACK pageProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
 LRESULT CALLBACK focusProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
 LRESULT CALLBACK comboProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
@@ -285,7 +288,7 @@ struct App {
  bool pendingRestore=false;unsigned restoreAttempts=0;
  HMIDIIN midiHandle{};bool effects=false;
  std::filesystem::path base;
- ~App(){try{flushParameterMemory();}catch(const std::exception& e){OutputDebugStringA(e.what());}sampleBuilder.reset();levelCalibration.reset();closeVision();closeMidi();engine.reset();for(auto f:{font,titleFont,signatureFont,largeFont,smallFont,statusFont})if(f)DeleteObject(f);DeleteObject(background);DeleteObject(panelBackground);}
+ ~App(){stopImport();try{flushParameterMemory();}catch(const std::exception& e){OutputDebugStringA(e.what());}sampleBuilder.reset();levelCalibration.reset();closeVision();closeMidi();engine.reset();for(auto f:{font,titleFont,signatureFont,largeFont,smallFont,statusFont})if(f)DeleteObject(f);DeleteObject(background);DeleteObject(panelBackground);}
  void closeMidi(){router.cancelLearn();if(engine)engine->panic();if(midiHandle){midiInStop(midiHandle);midiInReset(midiHandle);midiInClose(midiHandle);midiHandle=nullptr;}}
  void message(const std::wstring& text){auto label=text;if(!levelWarning.empty())label+=L" · "+levelWarning;SetWindowTextW(status,label.c_str());markVisionDirty();}
  void error(const std::exception& e){recordVisionError(e);auto s=std::string(e.what());std::wstring text(s.begin(),s.end());MessageBoxW(window,text.c_str(),L"Live Performance",MB_OK|MB_ICONERROR);}
@@ -815,6 +818,56 @@ struct App {
   activateEditorPerformance();
   touchEditor();SetFocus(performancePartControls[index]);
  }
+ struct ImportEvent {
+  enum Kind {Progress,Done,Missing,Failed,Cancelled} kind=Progress;
+  std::string text;std::filesystem::path path;lp::TimbreFormat format=lp::TimbreFormat::UNKNOWN;bool warnings=false;
+ };
+ struct ImportState {std::mutex mutex;std::deque<ImportEvent> events;std::atomic<bool> cancelled{false};};
+ std::shared_ptr<ImportState> importState;
+ std::thread importThread;std::filesystem::path importOriginal;
+ void stopImport(){if(importState)importState->cancelled=true;if(importThread.joinable())importThread.join();importState.reset();}
+ void beginImport(const std::filesystem::path& source,const std::filesystem::path& sampleRoot={}){
+  if(importState){importState->cancelled=true;message(L"Cancelando importação...");return;}
+  if(importThread.joinable())importThread.join();
+  auto state=std::make_shared<ImportState>();importState=state;importOriginal=source;
+  auto destination=settingsPath.parent_path()/L"imported-timbres",library=base/L"sndfile.dll";auto target=window;
+  message(L"Importando em segundo plano. Acione Importar novamente para cancelar.");
+  try{importThread=std::thread([state,source,sampleRoot,destination,library,target]{
+   auto send=[&](ImportEvent event){{std::lock_guard<std::mutex> lock(state->mutex);state->events.push_back(std::move(event));}PostMessageW(target,ImportEventMessage,0,0);};
+   lp::TimbreFormat format=lp::TimbreFormat::UNKNOWN;bool warnings=false;
+   try{
+    lp::ConversionOptions options;options.cancelled=[state]{return state->cancelled.load();};
+    options.progress=[&](const std::string& text){if(text.rfind("Aviso:",0)==0)warnings=true;ImportEvent event;event.text=text;send(std::move(event));};
+    lp::conversionCheckpoint(options);format=lp::detectarTimbreFormat(source);auto path=source;
+    if(lp::convertedTimbre(source))path=lp::importarTimbreConvertido(source,destination,library,sampleRoot,options.progress,options);
+    else if(format!=lp::TimbreFormat::SFZ&&format!=lp::TimbreFormat::SF2)throw std::runtime_error("Formato de timbre não suportado");
+    lp::conversionCheckpoint(options);ImportEvent event;event.kind=ImportEvent::Done;event.path=path;event.format=format;event.warnings=warnings;send(std::move(event));
+   }catch(const lp::ConversionCancelled& e){ImportEvent event;event.kind=ImportEvent::Cancelled;event.text=e.what();send(std::move(event));}
+   catch(const lp::MissingNkiSamples& e){ImportEvent event;event.kind=ImportEvent::Missing;event.text=e.what();send(std::move(event));}
+   catch(const std::exception& e){ImportEvent event;event.kind=ImportEvent::Failed;event.text=e.what();send(std::move(event));}
+   catch(...){ImportEvent event;event.kind=ImportEvent::Failed;event.text="Falha inesperada na importação.";send(std::move(event));}
+  });}catch(...){importState.reset();throw;}
+ }
+ void drainImport(){
+  if(!importState)return;std::deque<ImportEvent> events;
+  {std::lock_guard<std::mutex> lock(importState->mutex);events.swap(importState->events);}
+  for(auto& event:events){
+   if(event.kind==ImportEvent::Progress){message(std::filesystem::u8path(event.text).wstring());continue;}
+   if(importThread.joinable())importThread.join();importState.reset();
+   if(event.kind==ImportEvent::Missing){
+    message(std::filesystem::u8path(event.text).wstring());BROWSEINFOW browse{};browse.hwndOwner=window;browse.lpszTitle=L"Escolha Samples ou a raiz desta biblioteca KONTAKT (mapa aproximado)";browse.ulFlags=BIF_RETURNONLYFSDIRS|BIF_NEWDIALOGSTYLE;
+    auto pidl=SHBrowseForFolderW(&browse);if(!pidl)continue;wchar_t folder[MAX_PATH]{};bool ok=SHGetPathFromIDListW(pidl,folder);CoTaskMemFree(pidl);
+    if(!ok)throw std::runtime_error("Pasta de amostras indisponível");beginImport(importOriginal,folder);continue;
+   }
+   if(event.kind==ImportEvent::Cancelled){message(L"Importação cancelada.");continue;}
+   if(event.kind==ImportEvent::Failed){message(std::filesystem::u8path(event.text).wstring());throw std::runtime_error(event.text);}
+   if(event.format==lp::TimbreFormat::SF2){importSf2Path(event.path);continue;}
+   lp::Instrument p;p.sfz=event.path;p.name=event.path.stem().u8string();p.category=14;if(addMySound(std::move(p)))saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();SendMessageW(catalog,LB_SETCURSEL,visibleInstruments.size()-1,0);audition();
+   if(event.format==lp::TimbreFormat::NPNO)message(event.warnings?L"Módulo de piano: concluído com avisos. Consulte o sidecar e o relatório junto ao original.":L"Módulo de piano: concluído. SFZ, WAV e relatório de auditoria salvos junto ao original.");
+   if(event.format==lp::TimbreFormat::NKI)message(L"NKI importado com mapa WAV aproximado. Original, amostras e limitações foram preservados.");
+  }flushVision();
+ }
+
  void importSf2Path(const std::filesystem::path& path){if(!engine)throw std::runtime_error("Audio engine unavailable");auto presets=lp::readSf2PresetHeaders(path);if(presets.empty())throw std::runtime_error("SF2 has no presets");for(const auto& preset:presets){lp::Instrument p;p.sfz=std::filesystem::u8path(lp::makeSf2Reference(path,preset.bank,preset.program));p.name=path.stem().u8string()+" / "+preset.name+" ("+std::to_string(preset.bank)+":"+std::to_string(preset.program)+")";p.category=14;addMySound(std::move(p));}saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();message(L"SF2 importado: escolha um preset na lista Meus Sons.");}
  void command(int id,int event){try{
   if(id==PartSearch&&event==EN_CHANGE){wchar_t text[257]{};GetWindowTextW(item(PartSearch),text,257);filterPerformanceChoices(text);return;}
@@ -880,22 +933,7 @@ struct App {
    }
   }
   if(id==CreateSample){if(!sampleBuilder)sampleBuilder=std::make_unique<lp::sampling::BuilderWindow>(window,base/L"sndfile.dll",[this](const std::filesystem::path& path){lp::Instrument sound;sound.sfz=std::filesystem::u8path(lp::makeSf2Reference(path,0,0));sound.name=path.stem().u8string();sound.category=14;addMySound(std::move(sound));saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();message(L"Timbre criado e salvo em Meus Sons.");});sampleBuilder->show();return;}
-  if(id==Import){std::filesystem::path path;if(fileDialog(false,true,path,true)){
-   auto format=lp::detectarTimbreFormat(path);bool conversionWarnings=false;
-   if(format==lp::TimbreFormat::SF2){importSf2Path(path);return;}
-   if(format==lp::TimbreFormat::NPNO||lp::convertedTimbre(path)){
-    message(format==lp::TimbreFormat::NPNO?L"Lendo módulo de piano (formato proprietário)...":format==lp::TimbreFormat::NKI?L"Importando NKI: mapa aproximado de WAVs, sem scripts ou zonas KONTAKT.":L"Convertendo amostras Nord para SFZ e WAV...");
-    try{path=lp::importarTimbreConvertido(path,settingsPath.parent_path()/L"imported-timbres",base/L"sndfile.dll",{},[this,&conversionWarnings](const std::string& status){if(status.rfind("Aviso:",0)==0)conversionWarnings=true;message(std::filesystem::u8path(status).wstring());flushVision();UpdateWindow(window);});}
-    catch(const lp::MissingNkiSamples& e){
-     message(std::filesystem::u8path(e.what()).wstring());BROWSEINFOW browse{};browse.hwndOwner=window;browse.lpszTitle=L"Escolha Samples ou a raiz desta biblioteca KONTAKT (mapa aproximado)";browse.ulFlags=BIF_RETURNONLYFSDIRS|BIF_NEWDIALOGSTYLE;
-     auto pidl=SHBrowseForFolderW(&browse);if(!pidl)return;wchar_t folder[MAX_PATH]{};bool ok=SHGetPathFromIDListW(pidl,folder);CoTaskMemFree(pidl);if(!ok)throw std::runtime_error("Pasta de amostras indisponível");
-     path=lp::importarTimbreConvertido(path,settingsPath.parent_path()/L"imported-timbres",base/L"sndfile.dll",folder);
-    }
-   }else if(format!=lp::TimbreFormat::SFZ)throw std::runtime_error("Formato de timbre não suportado");
-   lp::Instrument p;p.sfz=path;p.name=path.stem().u8string();p.category=14;if(addMySound(std::move(p)))saveMySounds();categoryIndex=14;SendMessageW(category,CB_SETCURSEL,14,0);openCategory();SendMessageW(catalog,LB_SETCURSEL,visibleInstruments.size()-1,0);audition();
-   if(format==lp::TimbreFormat::NPNO)message(conversionWarnings?L"Módulo de piano: concluído com avisos. Consulte o sidecar e o relatório junto ao original.":L"Módulo de piano: concluído. SFZ, WAV e relatório de auditoria salvos junto ao original.");
-   if(format==lp::TimbreFormat::NKI)message(L"NKI importado com mapa WAV aproximado. Original, amostras e limitações foram preservados.");
-  }}
+  if(id==Import){if(importState){importState->cancelled=true;message(L"Cancelando importação...");return;}std::filesystem::path path;if(fileDialog(false,true,path,true))beginImport(path);return;}
   if(id==ImportSf2){std::filesystem::path path;if(sf2Dialog(path))importSf2Path(path);}
   if(id==Category&&event==CBN_SELCHANGE)refreshCatalog();
   if(id==Catalog&&event==LBN_SELCHANGE)audition();
@@ -1007,6 +1045,7 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
  case WM_CREATE:try{app->initialize(w);SetWindowSubclass(app->catalog,listProc,Catalog,0);SetWindowSubclass(app->favorites,listProc,Favorites,0);app->startVision();}catch(const std::exception& e){app->error(e);return -1;}return 0;
  case LoadLibraryMessage:try{if(wp==1)app->loadNextBank();else app->loadLibrary();}catch(const std::exception& e){app->loading=false;app->layout();app->error(e);}return 0;
  case VisionCommandMessage:{std::unique_ptr<std::wstring> wire(reinterpret_cast<std::wstring*>(lp));if(wire)app->visionCommand(*wire);return 0;}
+ case ImportEventMessage:try{app->drainImport();}catch(const std::exception& e){app->error(e);}return 0;
  case SoundReadyMessage:app->updateIndicators();app->flushVision();return 0;
  case WM_TIMER:if(wp==7){try{app->queueParameterMemory();}catch(const std::exception& e){app->error(e);}return 0;}
   if(wp==6){app->updateMeter();app->flushVision();return 0;}
@@ -1045,7 +1084,7 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
  case WM_ERASEBKGND:return 1;
  case WM_GETMINMAXINFO:reinterpret_cast<MINMAXINFO*>(lp)->ptMinTrackSize={1024,600};return 0;
  case WM_CLOSE:try{app->flushParameterMemory();if(!app->confirmProfileChange())return 0;app->releaseVirtual();if(app->engine)app->persistAudioAndMidi();}catch(const std::exception& e){app->error(e);return 0;}break;
- case WM_DESTROY:try{app->flushParameterMemory();}catch(const std::exception& e){app->error(e);}app->sampleBuilder.reset();app->levelCalibration.reset();app->closeVision();app->closeMidi();PostQuitMessage(0);return 0;
+ case WM_DESTROY:app->stopImport();try{app->flushParameterMemory();}catch(const std::exception& e){app->error(e);}app->sampleBuilder.reset();app->levelCalibration.reset();app->closeVision();app->closeMidi();PostQuitMessage(0);return 0;
  }
  return DefWindowProcW(w,msg,wp,lp);
 }

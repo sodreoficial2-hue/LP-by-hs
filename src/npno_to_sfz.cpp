@@ -11,7 +11,7 @@ constexpr double releaseBankInitialGainDb=-18.0;
 constexpr double monoFallbackPanGainDb=-3.01029995664; // equal-power stereo center vs hard-pan mono.
 }
 std::filesystem::path npnoParaSFZ(const std::filesystem::path& input,const std::filesystem::path& output,MetaSidecar& out,const std::filesystem::path& library,const ConversionProgress& progress,const ConversionOptions& options){
- auto status=[&](const std::string& text){if(progress)progress(text);};status("lendo módulo...");
+ auto status=[&](const std::string& text){conversionCheckpoint(options);if(progress)progress(text);};status("lendo módulo...");
  out=MetaSidecar{};out.originalSha256=sha256File(input);auto module=npno::readModule(input);
  out.name=module.name;out.format="npno";out.version=std::to_string(module.header.version);out.codec=module.streamVersion;
  out.signatureConfirmed=true;out.signatureHex="4342494e/6e706e6f/434e5350";out.checksumValid=module.checksumValid;out.status="converted_npno_sfz_wav";
