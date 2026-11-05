@@ -46,10 +46,14 @@ std::filesystem::path npnoParaSFZ(const std::filesystem::path& input,const std::
  for(unsigned char c:input.stem().u8string()){if(stem.size()==32)break;if((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='-'||c=='_')stem+=char(c);}
  if(stem.empty())stem="module";auto prefix="npno-"+stem+"-"+out.originalSha256.substr(0,12);
  std::vector<double> peaks(module.strokes.size());std::vector<std::vector<std::string>> names(module.strokes.size());std::uint64_t declared=0,extracted=0,compressed=0,overlapChecked=0;
+ std::map<int,std::vector<const npno::Stroke*>> strokesByRoot;
+ for(const auto& stroke:module.strokes)strokesByRoot[stroke.root].push_back(&stroke);
+ std::map<int,std::vector<const npno::VelocityBand*>> bandsByRoot;
+ for(const auto& band:module.velocityBands)bandsByRoot[band.root].push_back(&band);
  std::size_t emittedRegions=0,expectedRegions=0,groups=0,recordsExtracted=0;
  // Expected totals come from the parsed directory/map, before any output is emitted.
  for(const auto& s:module.strokes){declared+=std::uint64_t(s.frames)*module.channels*2;compressed+=std::uint64_t(s.blocks)*1022*module.channels;}
- for(const auto& z:module.zones){for(const auto& band:module.velocityBands)if(band.root==z.root)expectedRegions+=lanes*(band.pedalStroke>=0?2:1);for(const auto& s:module.strokes)if(z.root==s.root&&s.bank==2&&s.velHigh)expectedRegions+=lanes;}
+ for(const auto& z:module.zones){for(auto band:bandsByRoot[z.root])expectedRegions+=lanes*(band->pedalStroke>=0?2:1);for(auto stroke:strokesByRoot[z.root])if(stroke->bank==2&&stroke->velHigh)expectedRegions+=lanes;}
  if(expectedRegions>65536)throw std::runtime_error("Módulo de piano excede limite de 65536 regiões SFZ");
  struct StrokeResult {std::vector<std::string> hashes;std::uint64_t bytes=0,overlap=0;};
  std::vector<StrokeResult> strokeResults(module.strokes.size());std::mutex progressMutex,errorMutex;std::exception_ptr failure;std::atomic<std::size_t> nextStroke{0};std::atomic<bool> failed{false};
@@ -81,13 +85,13 @@ std::filesystem::path npnoParaSFZ(const std::filesystem::path& input,const std::
  auto audit=sfzStream();audit.str("");audit<<"{\n\"schema\":1,\n\"velocity_profile\":\"reference_touch_0_approximate\",\n\"velocity_coverage\":[";
  bool firstCoverage=true;
  for(const auto& keyZone:module.zones){
-  writeSfzGroup(sfz);++groups;std::array<bool,3> banks{};for(const auto& s:module.strokes)if(s.root==keyZone.root)banks[s.bank]=true;
+  writeSfzGroup(sfz);++groups;std::array<bool,3> banks{};for(auto stroke:strokesByRoot[keyZone.root])banks[stroke->bank]=true;
   for(int bank=0;bank<3;++bank){if(!banks[bank])continue;std::array<int,128> coverage{};
-   for(const auto& s:module.strokes)if(s.root==keyZone.root&&s.bank==bank&&s.velHigh){for(int v=s.velLow;v<=s.velHigh;++v)++coverage[v];}
+   for(auto stroke:strokesByRoot[keyZone.root])if(stroke->bank==bank&&stroke->velHigh){for(int v=stroke->velLow;v<=stroke->velHigh;++v)++coverage[v];}
    for(int v=1;v<=127;++v)if(coverage[v]!=1)throw std::runtime_error("Faixa de velocity incompleta ou sobreposta: zona "+std::to_string(groups)+", banco "+std::to_string(bank)+", velocity "+std::to_string(v));
    if(!firstCoverage)audit<<',';firstCoverage=false;audit<<"{\"group\":"<<groups<<",\"root\":"<<keyZone.root<<",\"bank\":"<<bank<<",\"low\":1,\"high\":127,\"gaps\":0,\"overlaps\":0}";
   }
-  std::size_t layer=0;for(const auto& stroke:module.strokes){if(stroke.root!=keyZone.root||!stroke.velHigh)continue;++layer;
+  std::size_t layer=0;for(auto strokePointer:strokesByRoot[keyZone.root]){const auto& stroke=*strokePointer;if(!stroke.velHigh)continue;++layer;
    status("convertendo zona "+std::to_string(groups)+" de "+std::to_string(module.zones.size())+"... camada de velocidade "+std::to_string(layer)+"...");
    for(int c=0;c<lanes;++c){
     ConvertedZone z;z.sample=names[stroke.index][c];z.rootSource="npno_keymap";z.root=stroke.root;z.keyLow=keyZone.low;z.keyHigh=keyZone.high;z.velLow=stroke.velLow;z.velHigh=stroke.velHigh;z.frames=stroke.frames;z.rate=npno::sampleRate;z.channels=module.channels==2&&lanes==1?2:1;z.sourceBank=stroke.bank;z.tuneCents=keyZone.fineTune*0.7;
@@ -105,7 +109,7 @@ std::filesystem::path npnoParaSFZ(const std::filesystem::path& input,const std::
     if(module.channels==2&&lanes==2){z.hasPan=true;z.pan=c==0?-100:100;z.volumeDb=std::max(-144.0,z.volumeDb+monoFallbackPanGainDb);}
     if(banks[1]){if(stroke.bank==0)z.cc64High=63;else if(stroke.bank==1)z.cc64Low=64;}
     z.pcmPeak=peaks[stroke.index];z.sourceStroke=stroke.index;z.sourceLoopDecay=stroke.loopDecay;if(z.loop&&!z.releaseTrigger){z.decaySeconds=npnoLoopDecaySeconds(stroke.loopDecay);if(z.decaySeconds>=0)z.sustainPercent=25;}
-    if(stroke.bank<2){for(const auto& band:module.velocityBands)if(band.root==stroke.root&&(stroke.bank==0?band.attackStroke:band.pedalStroke)==int(stroke.index)){auto r=z;r.velLow=band.low;r.velHigh=band.high;r.canonicalBand=band.index;r.pedalClass=band.pedalClass;r.bandInherited=band.inherited;out.zones.push_back(r);++emittedRegions;}}
+    if(stroke.bank<2){for(auto bandPointer:bandsByRoot[stroke.root]){const auto& band=*bandPointer;if((stroke.bank==0?band.attackStroke:band.pedalStroke)==int(stroke.index)){auto r=z;r.velLow=band.low;r.velHigh=band.high;r.canonicalBand=band.index;r.pedalClass=band.pedalClass;r.bandInherited=band.inherited;out.zones.push_back(r);++emittedRegions;}}}
     else {out.zones.push_back(z);++emittedRegions;}
    }
   }

@@ -94,16 +94,16 @@ Module readModule(const std::filesystem::path& path){
   if(s.blocks==0||s.frames==0||s.frames>s.blocks*((blockBytes-2)*8/m.channels-overlap))throw std::runtime_error("Módulo de piano: tamanho declarado de áudio inválido");
   totalValues+=std::uint64_t(s.frames)*m.channels;
   if(s.frames>16000000u||totalValues>256000000u)throw std::runtime_error("Módulo de piano: limite de PCM excedido");
-  if(s.audioOffset<next)throw std::runtime_error("Módulo de piano: blocos de áudio sobrepostos ao diretório ou outra amostra");
+  if(s.audioOffset<next)throw std::runtime_error("Módulo de piano: blocos de áudio sobrepostos ao diretório ou outra amostra; offset="+std::to_string(s.audioOffset)+", mínimo="+std::to_string(next));
   v.require(s.audioOffset,span);
-  for(auto at=next;at<s.audioOffset;++at)if(v.byte(at)!=0)throw std::runtime_error("Módulo de piano: dados não identificados entre blocos de áudio");
+  if(std::find_if(m.bytes.begin()+next,m.bytes.begin()+s.audioOffset,[](std::uint8_t value){return value!=0;})!=m.bytes.begin()+s.audioOffset)throw std::runtime_error("Módulo de piano: dados não identificados entre blocos de áudio");
   next=s.audioOffset+span;
   for(int c=0;c<m.channels;++c)for(int k=0;k<4;++k)s.history[c][k]=static_cast<std::int16_t>(v.signedWord(r+0xc+c*8+k*2));
   s.loopStart=v.be(r+0x1c,4);s.loopLength=v.be(r+0x20,4);s.loopDecay=v.be(r+0x2e,4);s.trim=m.streamVersion==0x450?int(v.be(r+0x34,2)):v.signedWord(r+0x34);s.threshold=int(v.byte(r+0x74));
   if(s.loopLength&&(s.loopStart>=s.frames||s.loopLength>s.frames-s.loopStart))throw std::runtime_error("Módulo de piano: loop fora dos limites da amostra");
   m.strokes.push_back(s);
  }
- for(auto at=next;at<m.end;++at)if(v.byte(at)!=0)throw std::runtime_error("Módulo de piano: dados finais não identificados");
+ if(std::find_if(m.bytes.begin()+next,m.bytes.begin()+m.end,[](std::uint8_t value){return value!=0;})!=m.bytes.begin()+m.end)throw std::runtime_error("Módulo de piano: dados finais não identificados");
  for(int key=0;key<128;++key){
   int root=int(v.byte(m.base+0x8c+key));m.keyRoots[key]=root;m.fineTune[key]=v.signedByte(m.base+0x18c+key);
   if(root==255)continue;
@@ -147,10 +147,13 @@ Audio decodeStroke(const Module& m,const Stroke& s){
   if(width<1||width>16||order>4)throw std::runtime_error("Módulo de piano: cabeçalho de áudio corrompido; versão interna="+std::to_string(m.streamVersion)+", PCM aceito=16 bits, largura residual detectada="+std::to_string(width)+", ordem="+std::to_string(order)+", registro="+std::to_string(s.index)+", bloco="+std::to_string(block));
   std::size_t frames=(blockBytes-2)*8/(width*m.channels),own=frames-overlap;
   if(own<overlap||emitted>s.frames||own>s.frames-emitted)throw std::runtime_error("Módulo de piano: frames decodificados excedem declaração");
+  // The complete block span was checked above. Read big-endian words as
+  // bytes: uint16_t* would be unaligned and native-endian on some targets.
+  const auto* residual=m.bytes.data()+at+2;
   auto nextHistory=history;std::size_t bit=0;std::vector<std::vector<std::int16_t>> pcm(m.channels);for(auto& lane:pcm)lane.reserve(frames);
   for(std::size_t frame=0;frame<frames;++frame){
    for(int c=0;c<m.channels;++c){
-    std::uint32_t raw=0;for(unsigned got=0;got<width;){auto shift=unsigned(bit%16),take=std::min(16-shift,width-got);auto word=v.be(at+2+(bit/16)*2,2);raw|=((word>>shift)&((1u<<take)-1))<<got;got+=take;bit+=take;}
+    std::uint32_t raw=0;for(unsigned got=0;got<width;){auto shift=unsigned(bit%16),take=std::min(16-shift,width-got);auto address=residual+(bit/16)*2;auto word=(std::uint32_t(address[0])<<8)|address[1];raw|=((word>>shift)&((1u<<take)-1))<<got;got+=take;bit+=take;}
     std::int64_t value=(raw&(1u<<(width-1)))?std::int64_t(raw)-(1ll<<width):raw;
     for(unsigned k=0;k<order;++k)value+=predictors[order][k]*history[c][k];
     if(value<-32768||value>32767)throw std::runtime_error("Módulo de piano: PCM fora de 16 bits; áudio corrompido ou codec não suportado");
