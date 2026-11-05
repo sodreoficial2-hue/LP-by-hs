@@ -57,8 +57,8 @@ std::filesystem::path npnoParaSFZ(const std::filesystem::path& input,const std::
    std::vector<std::int16_t> interleaved;
    if(stereo){interleaved.reserve(stroke.frames*2);for(std::size_t f=0;f<stroke.frames;++f){interleaved.push_back(pcm.lanes[0][f]);interleaved.push_back(pcm.lanes[1][f]);}}
    const auto& values=stereo?interleaved:pcm.lanes[c];
-   auto file=output/std::filesystem::u8path(relative);wav.writePcm16(file,npno::sampleRate,values,stereo?2:1);
-   names[stroke.index].push_back(relative);out.samples.push_back(std::filesystem::u8path(relative));out.sampleHashes.push_back(sha256Bytes(pcm16Wave(npno::sampleRate,stereo?2:1,values)));extracted+=values.size()*2;
+   auto file=output/std::filesystem::u8path(relative);std::string hash;wav.writePcm16Hashed(file,npno::sampleRate,values,stereo?2:1,&hash);
+   names[stroke.index].push_back(relative);out.samples.push_back(std::filesystem::u8path(relative));out.sampleHashes.push_back(std::move(hash));extracted+=values.size()*2;
   }
  }
  auto audit=sfzStream();audit.str("");audit<<"{\n\"schema\":1,\n\"velocity_profile\":\"reference_touch_0_approximate\",\n\"velocity_coverage\":[";

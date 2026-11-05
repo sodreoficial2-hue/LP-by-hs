@@ -1,5 +1,7 @@
 #include "sfz_conversion.hpp"
 #include <iomanip>
+#include <fstream>
+#include "pcm16_wave.hpp"
 namespace lp {
 void WavWriter::unload(){if(!lib)return;
 #ifdef _WIN32
@@ -8,7 +10,9 @@ void WavWriter::unload(){if(!lib)return;
  dlclose(lib);
 #endif
  lib=nullptr;}
-WavWriter::WavWriter(const std::filesystem::path& library){
+WavWriter::WavWriter(const std::filesystem::path& library):libraryPath(library){}
+void WavWriter::load(){
+ if(lib)return;const auto& library=libraryPath;
 #ifdef _WIN32
  lib=LoadLibraryExW(std::filesystem::absolute(library).c_str(),nullptr,LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR|LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
 #else
@@ -23,6 +27,7 @@ WavWriter::WavWriter(const std::filesystem::path& library){
  writeFrames=reinterpret_cast<decltype(writeFrames)>(symbol("sf_writef_float"));closeFile=reinterpret_cast<decltype(closeFile)>(symbol("sf_close"));if(!open||!writeFrames||!closeFile){unload();throw std::runtime_error("libsndfile sem funções de gravação WAV");}
 }
 void WavWriter::write(const std::filesystem::path& path,int rate,int channels,const std::vector<float>& pcm){
+ load();
  if(rate<8000||rate>192000||channels<1||channels>2||pcm.empty()||pcm.size()%channels)throw std::runtime_error("WAV: áudio inválido");for(float x:pcm)if(!std::isfinite(x))throw std::runtime_error("WAV: PCM não finito");
  Info info{};info.samplerate=rate;info.channels=channels;info.format=0x10006; // SF_FORMAT_WAV | SF_FORMAT_FLOAT, no 16-bit quantization.
  auto file=open(path.c_str(),0x20,&info);if(!file)throw std::runtime_error("Não foi possível criar WAV");bool closed=false;
@@ -30,13 +35,16 @@ void WavWriter::write(const std::filesystem::path& path,int rate,int channels,co
 }
 std::ostringstream sfzStream(){std::ostringstream s;s.imbue(std::locale::classic());s<<std::setprecision(12)<<"// Live Performance offline conversion; see original .meta.json\n";return s;}
 void WavWriter::writePcm16(const std::filesystem::path& path,int rate,const std::vector<std::int16_t>& pcm,int channels){
- if(rate<8000||rate>192000||pcm.empty()||channels<1||channels>2||pcm.size()%channels)throw std::runtime_error("WAV: áudio PCM16 inválido");
- auto writeShort=reinterpret_cast<std::int64_t (*)(void*,const std::int16_t*,std::int64_t)>(symbol("sf_writef_short"));
- if(!writeShort)throw std::runtime_error("libsndfile sem função de gravação PCM16");
- Info info{};info.samplerate=rate;info.channels=channels;info.format=0x10002;
- auto file=open(path.c_str(),0x20,&info);if(!file)throw std::runtime_error("Não foi possível criar WAV PCM16");bool closed=false;
- try{std::int64_t pos=0,count=static_cast<std::int64_t>(pcm.size()/channels);while(pos<count){auto n=writeShort(file,pcm.data()+pos*channels,std::min<std::int64_t>(8192,count-pos));if(n<=0)throw std::runtime_error("Falha ao gravar WAV PCM16");pos+=n;}auto result=closeFile(file);closed=true;if(result)throw std::runtime_error("Falha ao concluir WAV PCM16");}
- catch(...){if(!closed)closeFile(file);std::error_code ignored;std::filesystem::remove(path,ignored);throw;}
+ writePcm16Hashed(path,rate,pcm,channels,nullptr);
+}
+void WavWriter::writePcm16Hashed(const std::filesystem::path& path,int rate,const std::vector<std::int16_t>& pcm,int channels,std::string* hash){
+ auto bytes=pcm16Wave(rate,channels,pcm);
+ try{
+  std::ofstream stream(path,std::ios::binary|std::ios::trunc);if(!stream)throw std::runtime_error("Não foi possível criar WAV PCM16");
+  stream.write(reinterpret_cast<const char*>(bytes.data()),static_cast<std::streamsize>(bytes.size()));stream.close();
+  if(!stream)throw std::runtime_error("Falha ao concluir WAV PCM16");
+  if(hash)*hash=sha256Bytes(bytes);
+ }catch(...){std::error_code ec;std::filesystem::remove(path,ec);throw;}
 }
 void writeSfzGroup(std::ostream& out){out<<"<group>\n";}
 double linearGainDb(double gain){return std::isfinite(gain)&&gain>0?std::max(-144.0,20*std::log10(gain)):-144.0;}
