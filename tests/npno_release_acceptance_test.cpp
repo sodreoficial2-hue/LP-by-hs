@@ -15,14 +15,28 @@ int main(int argc,char** argv){try{
  lp::ConversionOptions options;options.sustainSfizzLibrary=argv[1];lp::MetaSidecar meta;
  lp::npnoParaSFZ(argv[3],root,meta,argv[2],{},options);auto before=meta.zones,after=meta.zones,muted=meta.zones;
  for(auto& z:before){if(z.releaseTrigger){z.volumeDb=z.releaseKeyBaseVolumeDb;z.releaseSeconds=.2;}else if(z.sourceBank==0&&z.releaseSeconds==.45)z.releaseSeconds=.2;}
- for(auto& z:muted)if(z.releaseTrigger)z.muted=true;
+ for(auto& z:muted)if(z.releaseTrigger&&!z.releaseKeyPedalPassthrough)z.muted=true;
  auto beforeFile=root/"before.sfz",afterFile=root/"after.sfz",mutedFile=root/"muted.sfz";
  lp::atomicWrite(beforeFile,lp::writeSfzInstrument(before));lp::atomicWrite(afterFile,lp::writeSfzInstrument(after));lp::atomicWrite(mutedFile,lp::writeSfzInstrument(muted));
+ // A key-noise switch must not mute the damped string's remaining vibration.
+ // Measure the 15 dB control contrast on release_key alone. The complete
+ // note-off signal is still checked below for decay, continuity and silence.
+ auto releaseOnly=after,releaseMuted=muted;
+ for(auto& z:releaseOnly)if(!z.releaseTrigger)z.muted=true;
+ for(auto& z:releaseMuted)if(!z.releaseTrigger)z.muted=true;
+ auto releaseFile=root/"release-only.sfz",releaseMutedFile=root/"release-muted.sfz";
+ // A silent attack keeps a valid instrument and note-on history in both files.
+ const std::string silentAttack="\n<group>\n<region> sample=*silence\n";
+ lp::atomicWrite(releaseFile,lp::writeSfzInstrument(releaseOnly)+silentAttack);
+ lp::atomicWrite(releaseMutedFile,lp::writeSfzInstrument(releaseMuted)+silentAttack);
  lp::WavWriter writer(argv[2]);auto csv=lp::sfzStream();csv.str("");csv<<"velocity,window_ms,rms_before_db,rms_after_db,rms_muted_db\n";
  bool accepted=true;auto report=lp::sfzStream();report.str("");report<<"{\n\"fixture_kind\":\"synthetic_interoperability_vector\",\n\"cases\":[";
  bool first=true;
  for(int velocity:{40,80,110}){
   auto a=capture(argv[1],beforeFile,velocity,0),b=capture(argv[1],afterFile,velocity,0),off=capture(argv[1],mutedFile,velocity,0);
+  auto release=capture(argv[1],releaseFile,velocity,0),releaseOff=capture(argv[1],releaseMutedFile,velocity,0);
+  save(writer,root/("release-only-v"+std::to_string(velocity)+".wav"),release);
+  save(writer,root/("release-muted-v"+std::to_string(velocity)+".wav"),releaseOff);
   save(writer,root/("before-v"+std::to_string(velocity)+".wav"),a);save(writer,root/("after-v"+std::to_string(velocity)+".wav"),b);save(writer,root/("muted-v"+std::to_string(velocity)+".wav"),off);
   bool monotone=true,bounded=true;std::vector<double> levels;for(int window=0;window<60;++window){
    int begin=96000+window*2400;double level=rms(b,begin,2400);levels.push_back(level);
@@ -32,9 +46,19 @@ int main(int argc,char** argv){try{
   }
   int silentWindow=60;for(int window=59;window>=0&&levels[window]<-70;--window)silentWindow=window;
   double silenceSeconds=(silentWindow+1)*.05;bool silence=silenceSeconds<=.8;
-  double onPeak=peak(b,96000,144000),offPeak=peak(off,96000,144000);double reduction=20*std::log10(std::max(1e-12,onPeak)/std::max(1e-12,offPeak));bool contrast=reduction>=15;
-  accepted=accepted&&monotone&&bounded&&silence&&contrast;
-  if(!first)report<<',';first=false;report<<"{\"velocity\":"<<velocity<<",\"monotone\":"<<(monotone?"true":"false")<<",\"window_step_within_3db\":"<<(bounded?"true":"false")<<",\"silence_seconds\":"<<silenceSeconds<<",\"muted_peak_reduction_db\":"<<reduction<<",\"peak_reduction_at_least_15db\":"<<(contrast?"true":"false")<<"}";
+  double onPeak=peak(b,96000,144000),offPeak=peak(off,96000,144000);
+  double reduction=20*std::log10(std::max(1e-12,onPeak)/std::max(1e-12,offPeak));
+  double releasePeak=peak(release,96000,144000),releaseOffPeak=peak(releaseOff,96000,144000);
+  double releaseReduction=20*std::log10(std::max(1e-12,releasePeak)/std::max(1e-12,releaseOffPeak));
+  bool contrast=releasePeak>1e-8&&releaseReduction>=15&&releaseOffPeak<1e-8;
+  bool attackUnchanged=true;double decompositionError=0;
+  for(int c=0;c<2;++c)for(int n=0;n<240000;++n){
+   if(n<96000&&b[c][n]!=off[c][n])attackUnchanged=false;
+   decompositionError=std::max(decompositionError,std::abs(double(b[c][n])-off[c][n]-release[c][n]));
+  }
+  bool naturalTail=offPeak>1e-9&&decompositionError<=std::max(1e-8,onPeak*1e-4);
+  accepted=accepted&&monotone&&bounded&&silence&&contrast&&attackUnchanged&&naturalTail;
+  if(!first)report<<',';first=false;report<<"{\"velocity\":"<<velocity<<",\"monotone\":"<<(monotone?"true":"false")<<",\"window_step_within_3db\":"<<(bounded?"true":"false")<<",\"silence_seconds\":"<<silenceSeconds<<",\"total_peak_reduction_db_diagnostic\":"<<reduction<<",\"release_only_peak_reduction_db\":"<<releaseReduction<<",\"release_only_reduction_at_least_15db\":"<<(contrast?"true":"false")<<",\"attack_bytes_unchanged\":"<<(attackUnchanged?"true":"false")<<",\"normal_tail_preserved\":"<<(naturalTail?"true":"false")<<",\"decomposition_max_error\":"<<decompositionError<<"}";
  }
  auto pedalBefore=capture(argv[1],beforeFile,80,127),pedalAfter=capture(argv[1],afterFile,80,127);
  bool pedalHeld=true,pedalTail=true;for(int c=0;c<2;++c)for(std::size_t n=0;n<pedalBefore[c].size();++n)if(pedalBefore[c][n]!=pedalAfter[c][n]){if(n<96000)pedalHeld=false;else pedalTail=false;}

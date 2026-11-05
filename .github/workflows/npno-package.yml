@@ -1,4 +1,5 @@
 name: NPNO Windows final release gate
+# Natural note-off acceptance: isolate key noise while preserving the string tail.
 on:
   push:
     branches: [work/npno-performance-release-20261105]

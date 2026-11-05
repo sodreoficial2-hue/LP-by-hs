@@ -85,3 +85,51 @@ Verificação local nesta retomada: compilação g++17 com assertions ativas e e
 O job anterior [42090342898](https://github.com/sodreoficial2-hue/LP-by-hs/actions/runs/42090342898) confirmou a igualdade integral dos oito cenários da Parte A usando as DLLs Windows distribuídas. Para layers-v6, sustain: 41,267652 → 22,610730 s; isotônica: 96,259598 → 45,720222 s. `real_sfizz_envelope` passou com essa DLL. São fixtures sintéticos, não o piano pessoal.
 
 A decisão pendente é se os 15 dB devem avaliar o ruído release_key isoladamente. Exigir essa redução no som completo ao desligar apenas release_key inclui a cauda da voz normal, que deve continuar presente. Até resolver o conflito e repetir as verificações necessárias, a revisão permanece sem merge e sem ZIP/Drive. Nenhum workflow foi alterado ou iniciado nesta retomada. Não há ferramenta de cota autenticada; saldo desconhecido.
+
+
+## Decisão por comportamento natural — retomada autorizada
+
+Hugo determinou usar o comportamento natural do instrumento para resolver a
+ambiguidade do teste. O liga/desliga de ruído release_key deve atuar nesse
+componente, sem cortar a vibração remanescente da nota. O contraste de 15 dB
+agora é medido em renders de release_key isolado, com um ataque silencioso
+para manter o histórico de note-on. O pico total continua registrado como
+diagnóstico, sem impor que a cauda da corda desapareça junto com o ruído.
+O teste também exige: release isolado audível quando ligado e abaixo de 1e-8
+quando desligado; ataque byte-idêntico; cauda normal audível; soma da cauda
+normal e do release isolado reconstruindo a mistura com erro <= max(1e-8,
+pico*1e-4). Permanecem os gates de monotonicidade, salto máximo de 3 dB,
+silêncio <=0,8 s e preservação byte a byte com pedal.
+
+Validação local com sfizz upstream 1.2.3 real: nas velocities 40/80/110,
+ruído desligado em silêncio digital, decomposição com erro máximo 1,31e-10,
+ataque e pedal byte-idênticos; silêncio da mistura em 0,1 s no vetor sintético.
+O teste de aceitação passou (13,96 s). Não é uma gravação de piano real e os
+valores temporais/gain do importador continuam aproximações conservadoras;
+não foi inventada uma equivalência numérica com o DSP proprietário Nord.
+
+Fontes primárias consultadas em 5/11/2026:
+
+- Modartt, manual Pianoteq, seção Action: distingue damping duration, last
+  damper, key release noise e sustain pedal noise. Fundamenta a separação
+  entre amortecimento da corda e ruído mecânico:
+  https://www.modartt.com/user_manual?product=pianoteq
+- Nord Piano 5, página oficial Overview: Soft Release prolonga suavemente
+  a soltura para legato, simulando menor tensão do amortecedor. Não fornece
+  uma constante universal em segundos ou dB:
+  https://www.nordkeyboards.com/legacy-products/nord-piano-5/overview/
+- Yamaha, How Does a Piano Work?, seção Dampers: amortecedores retornam ao
+  soltar a tecla; as notas mais altas não têm amortecedores; o pedal os eleva.
+  O limite damperTop e o comportamento anterior do pedal são preservados:
+  https://hub.yamaha.com/pianos/p-acoustic/how-does-a-piano-work/
+- VSL, Synchron Pianos Edit View: separa o nível das amostras release da
+  extensão temporal das amostras note-on, dependente de nota/velocity:
+  https://www.vsl.co.at/manuals/synchron-pianos/edit-view
+
+A suíte local sem renderer registrou 38 testes: 36 PASSOU, 0 FALHADO e 2 SKIP.
+A execução completa adicional com renderer real está sendo registrada sem
+ocultar a incompatibilidade conhecida do teste OSC ADSR com upstream Linux.
+A DLL distribuída Windows já passou esse teste anteriormente e será usada
+novamente na validação Windows completa. O workflow existente só produz ZIP
+se o CTest Windows inteiro passar. Autorização de Actions recuperada da
+instrução do usuário de 5/11 às 16:41 UTC; saldo autenticado desconhecido.
