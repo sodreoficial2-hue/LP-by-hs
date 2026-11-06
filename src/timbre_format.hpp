@@ -33,6 +33,7 @@ struct ConvertedZone {
  int zoneMode=0,zonePlayback=0,zoneOneShot=0;
  // Optional piano-module controls; defaults preserve existing writer output.
  bool hasPan=false,releaseTrigger=false;
+ bool pedalReleaseOnly=false; // NPNO: queue while CC64 is down, play on pedal-up only.
  double pan=0,releaseSeconds=-1;
  int cc64Low=-1,cc64High=-1,sequenceLength=0,sequencePosition=0;
  std::uintmax_t sampleStart=0,sampleEnd=0; // end exclusive; 0 means frames
@@ -40,7 +41,7 @@ struct ConvertedZone {
  bool muted=false;
  int xfinLowVel=-1,xfinHighVel=-1,xfoutLowVel=-1,xfoutHighVel=-1;
  int program=0;
- int sourceBank=-1; // NPNO: 0 attack, 1 pedal alternative, 2 key release; not a DSP resonance flag.
+ int sourceBank=-1; // NPNO: 0 attack, 1 pedal alternative, 2 auxiliary release; not a DSP resonance flag.
  int sourceVelLow=1,sourceVelHigh=127;
  double ampVeltrack=100,calibrationOffsetDb=0,calibrationResidualDb=0;
  bool calibrated=false;

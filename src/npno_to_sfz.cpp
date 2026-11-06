@@ -26,14 +26,14 @@ std::filesystem::path npnoParaSFZ(const std::filesystem::path& input,const std::
   "Velocity usa Touch 0 empírico legado; estimativa histórica de dois passos MIDI não confirmada independentemente. nord-format 0.8.0 e OpenNord divergem; curva e regras efetivas registradas no source_metadata. Cobertura auditada por root/banco antes do crossfade.",
   "Playback uses 35002 Hz and the stored root, following the hardware-tested reference. The alternate reference uses 44100 Hz and root+4. No rate field or resampling is invented.",
   "Per-key fine tune is 0.7 cents per unit (reference measurement 0.6..0.8). No global-detune field was identified; no guessed global tuning is applied.",
-  "Banco 1 igualado por RMS ao banco 0 quando sfizz está disponível; ressonância extra de ataque é aproximação, sem simulação física de cordas. Banco 2 usa release_key.",
+  "Banco 1 igualado por RMS ao banco 0 quando sfizz está disponível; ressonância extra de ataque é aproximação, sem simulação física de cordas. Banco 2 usa release condicionado a CC64 pressionado, enfileirado até soltar o pedal.",
   "Note-off fades and damping use conservative SFZ releases of 0.45 s for damped bank 0, 0.2 s for pedal bank 1, or 2 s for undamped upper keys, rather than an unverified conversion of raw fade bytes. Release-trigger regions use a Q23-derived bounded release time and a separately recorded gain. Source fade/release-level tables are retained raw.",
   "Loop bounds are mapped exactly (exclusive source end becomes inclusive SFZ end). loopDecay usa aproximação de projeto registrada; tabela de 14 entradas permanece crua, sem interpretação inventada.",
   "No confirmed pan, crossfade, round-robin or global-detune fields exist in the consulted schema. Take identifiers are retained, not treated as round robin. Entire prefix and each 118-byte record remain in source_metadata.",
   "WAV PCM16 mono/stereo sem normalização; estéreo intercalado por padrão, par mono hard-pan por opção. Ganho final limitado a [-144,+10.8] dB.",
   "Curva local de amplitude progressiva até o topo da camada suave evita pianissimo plano; acima desse topo o ganho fica unitário, sem tracking SFZ global duplicado. A curva dinâmica contínua do DSP Nord não é conhecida: equalização de pedal usa RMS; regressão isotônica por camada com PCM/trim é opcional; não comprova equivalência auditiva.",
   "Banco 2 mantém -18 dB inicial; ressonância não reage retroativamente a notas antigas.",
-  "damperTop confirma apenas o limite de amortecimento, não ausência de banco 2 acima dele: regiões release_key mantidas; sem confirmação independente para silenciá-las.",
+  "damperTop confirma apenas o limite de amortecimento, não ausência de banco 2 acima dele: regiões auxiliares de soltura mantidas; sem confirmação independente para silenciá-las.",
   "Known outer revisions 500/520/530/540 and 600/610/620/630 are routed by validated internal 0x450/0x464 layouts. Corpus-wide compatibility is not established. Limits: 512 MiB input, 16 million frames per record, 256 million total PCM values."
  });
  ConversionOutput transaction(output);std::filesystem::create_directory(output/"Samples");
@@ -41,7 +41,7 @@ std::filesystem::path npnoParaSFZ(const std::filesystem::path& input,const std::
  int lanes=module.channels==2&&!options.stereoMonoFallback?1:module.channels;
  out.preservedFeatures.push_back(lanes==1&&module.channels==2?"stereo_output=interleaved_pcm16; voices_per_stroke=1":"stereo_output=mono_lanes; voices_per_stroke="+std::to_string(lanes));
  if(module.channels==2)out.preservedFeatures.push_back("stereo_pan_law=sfizz_equal_power; mono_fallback_region_gain_db=-3.01029995664; WAV_PCM_unchanged=true");
- out.preservedFeatures.push_back("release_model=conservative; damped_bank0_seconds=0.45; damped_bank1_seconds=0.2; undamped_seconds=2.0; release_key_seconds=clamp_Q23_0.12..0.45_fallback_0.25; raw_fades_preserved=true");
+ out.preservedFeatures.push_back("release_model=conservative; damped_bank0_seconds=0.45; damped_bank1_seconds=0.2; undamped_seconds=2.0; pedal_release_only=true; release_key_seconds=clamp_Q23_0.12..0.45_fallback_0.25; raw_fades_preserved=true");
  out.preservedFeatures.push_back("pedal_equalization=offline_RMS; release_bank_initial_gain_db=-18; resonance_model=bounded_extra_attack");
  auto sfz=sfzStream();std::string stem;
  for(unsigned char c:input.stem().u8string()){if(stem.size()==32)break;if((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='-'||c=='_')stem+=char(c);}
@@ -122,13 +122,14 @@ std::filesystem::path npnoParaSFZ(const std::filesystem::path& input,const std::
  out.preservedFeatures.insert(out.preservedFeatures.end(),{"Original binary with SHA-256; full body prefix and every sample record in source_metadata; per-channel WAV hashes; separate extraction and velocity audit.","All source sample records are decoded, including unmapped/unreachable layers; only reachable regions are played."});
  status("calibrando níveis e sustain offline...");calibrateSfzZones(out.zones,out,effective,output);prepareNpnoSustain(out.zones,out,effective,output,library);
  out.releaseKeyGainDb=effective.releaseKeyGainDb;out.releaseKeyEnabled=effective.releaseKeyEnabled;
- std::vector<ConvertedZone> pedalReleases;
  for(auto& z:out.zones)if(z.releaseTrigger){
-  z.releaseKeyBaseVolumeDb=z.volumeDb;auto passthrough=z;passthrough.releaseKeyPedalPassthrough=true;passthrough.cc64Low=64;passthrough.cc64High=-1;passthrough.releaseSeconds=.2;pedalReleases.push_back(passthrough);
-  z.cc64Low=-1;z.cc64High=63;z.volumeDb=std::clamp(z.volumeDb+effective.releaseKeyGainDb,-144.0,10.8);
+  z.releaseKeyBaseVolumeDb=z.volumeDb;z.pedalReleaseOnly=true;
+  // sfizz queues eligible release regions at note-off while sustain is down.
+  // CC64-up starts that queue. With the pedal up this region is ineligible,
+  // so an ordinary key release cannot start the auxiliary sample.
+  z.cc64Low=64;z.cc64High=-1;z.volumeDb=std::clamp(z.volumeDb+effective.releaseKeyGainDb,-144.0,10.8);
   auto seconds=npnoLoopDecaySeconds(z.sourceLoopDecay);z.releaseSeconds=seconds<0?.25:std::clamp(seconds,.12,.45);if(!effective.releaseKeyEnabled)z.muted=true;
  }
- out.zones.insert(out.zones.end(),pedalReleases.begin(),pedalReleases.end());
  prepareSfzZones(out.zones,out,effective);
  auto releaseTemplate=out.zones;for(auto& zone:releaseTemplate)if(zone.releaseTrigger){zone.volumeDb=zone.releaseKeyBaseVolumeDb;zone.releaseSeconds=.2;zone.muted=false;}
  auto templatePath=output/input.filename();templatePath+=".release-base.txt";atomicWrite(templatePath,writeSfzInstrument(releaseTemplate));

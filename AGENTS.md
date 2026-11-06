@@ -230,3 +230,14 @@ Measure release_key mute contrast on its isolated component, preserve the normal
 string tail and unchanged pedal render, and keep the complete-signal decay,
 continuity and silence checks. Do not make the entire piano tail disappear to
 force a 15 dB total-output contrast. No claim of exact Nord DSP reproduction.
+
+## Pedal-up auxiliary correction (5 November 2026)
+
+Hugo reports that the auxiliary release sample must sound on sustain pedal-up,
+not physical key-up after a long hold. For NPNO/NPMO, use one gated
+`trigger=release locc64=64` bank, remove the old release_key/passthrough pair,
+and migrate already imported banks without modifying PCM or attack/string tails.
+Preserve the existing gain/enabled profile controls. See
+`docs/NPNO-PEDAL-UP-RELEASE.md` for event order and real-render test coverage.
+This correction does not request a portable ZIP or Drive delivery. Validate
+locally and publish one grouped source commit; authenticated quota is unknown.

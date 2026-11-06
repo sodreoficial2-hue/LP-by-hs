@@ -4,9 +4,9 @@
 #include <tuple>
 namespace lp {
 namespace {
-using Condition=std::tuple<int,int,bool,int,int,int,bool>;
-Condition condition(const ConvertedZone& z){return {z.program,z.root,z.releaseTrigger,z.cc64Low,z.cc64High,z.hasPan?static_cast<int>(z.pan*1000):0,z.npnoResonance};}
-bool sameTrigger(const ConvertedZone& a,const ConvertedZone& b){return a.npnoResonance==b.npnoResonance&&a.program==b.program&&a.releaseTrigger==b.releaseTrigger&&a.cc64Low==b.cc64Low&&a.cc64High==b.cc64High;}
+using Condition=std::tuple<int,int,bool,int,int,int,bool,bool>;
+Condition condition(const ConvertedZone& z){return {z.program,z.root,z.releaseTrigger,z.cc64Low,z.cc64High,z.hasPan?static_cast<int>(z.pan*1000):0,z.npnoResonance,z.pedalReleaseOnly};}
+bool sameTrigger(const ConvertedZone& a,const ConvertedZone& b){return a.npnoResonance==b.npnoResonance&&a.program==b.program&&a.releaseTrigger==b.releaseTrigger&&a.pedalReleaseOnly==b.pedalReleaseOnly&&a.cc64Low==b.cc64Low&&a.cc64High==b.cc64High;}
 }
 void auditVelocityCoverage(const std::vector<ConvertedZone>& zones){
  std::map<std::pair<Condition,int>,std::vector<const ConvertedZone*>> groups;
@@ -72,9 +72,9 @@ std::string writeSfzInstrument(const std::vector<ConvertedZone>& zones){
  auto s=sfzStream();
  // Stable first-seen group order, stable source order inside each group. Regions
  // retain their controls too: a new group cannot leak inherited CC/trigger state.
- using Group=std::tuple<int,int,bool,int,int,bool>;
+ using Group=std::tuple<int,int,bool,int,int,bool,bool>;
  std::vector<Group> order;std::map<Group,std::vector<const ConvertedZone*>> groups;
- for(const auto& z:zones){Group key{z.program,z.sourceBank,z.releaseTrigger,z.cc64Low,z.cc64High,z.npnoResonance};if(!groups.count(key))order.push_back(key);groups[key].push_back(&z);}
+ for(const auto& z:zones){Group key{z.program,z.sourceBank,z.releaseTrigger,z.cc64Low,z.cc64High,z.npnoResonance,z.pedalReleaseOnly};if(!groups.count(key))order.push_back(key);groups[key].push_back(&z);}
  for(const auto& key:order){writeSfzGroup(s);s<<"// source_bank="<<std::get<1>(key)<<"; resonance="<<std::get<5>(key)<<"; controls repeated per region\n";for(auto z:groups[key])writeSfzRegion(s,*z);}
  return s.str();
 }

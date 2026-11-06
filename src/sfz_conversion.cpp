@@ -73,7 +73,7 @@ bool writeSfzRegion(std::ostream& s,const ConvertedZone& z,std::vector<std::stri
  if(z.softVelocityCeiling){s<<" amp_veltrack=100 amp_velcurve_0=0 amp_velcurve_"<<z.softVelocityCeiling<<"=1";if(z.softVelocityCeiling<127)s<<" amp_velcurve_127=1";}
  else if(z.ampVeltrack!=100)s<<" amp_veltrack="<<z.ampVeltrack;
  if(z.hasPan)s<<" pan="<<z.pan;
- if(z.releaseTrigger)s<<" trigger=release_key";
+ if(z.releaseTrigger)s<<(z.pedalReleaseOnly?" trigger=release sustain_lo=64":" trigger=release_key");
  if(z.releaseSeconds>=0)s<<" ampeg_release="<<z.releaseSeconds;
  if(z.decaySeconds>=0)s<<" ampeg_decay="<<z.decaySeconds;
  if(z.sustainPercent>=0)s<<" ampeg_sustain="<<z.sustainPercent;
