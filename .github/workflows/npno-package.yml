@@ -1,8 +1,8 @@
 name: NPNO Windows final release gate
-# Natural note-off acceptance: isolate key noise while preserving the string tail.
+# Pedal-up-only auxiliary release; same strict Windows packaging gate.
 on:
   push:
-    branches: [work/npno-performance-release-20261105]
+    branches: [work/npno-pedal-up-package-20261105]
     paths: ['.github/workflows/npno-package.yml']
 permissions:
   contents: read
@@ -66,18 +66,18 @@ jobs:
           Live Performance — atualização NPNO/NPMO
           Feche o aplicativo. Extraia o conteúdo deste ZIP na pasta atual do Live Performance e substitua os arquivos com o mesmo nome.
           Mantenha os timbres, perfis e DLLs de áudio que já existem na instalação.
-          Esta atualização preserva o PCM dos WAVs; controles de soltura sem pedal ficam no menu do timbre.
+          Esta atualização corrige o som auxiliar para tocar ao soltar o pedal de sustain, preserva os WAVs e atualiza os timbres já importados sem reconversão.
           Testes automatizados Windows passaram; não substituem teste com seu driver ASIO e controlador.
           '@ | Set-Content update/LEIA-ME.txt -Encoding utf8
           $files=Get-ChildItem update -File -Recurse | Sort-Object FullName
           $manifest=$files | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.FullName.Substring((Resolve-Path update).Path.Length+1))" }
           $manifest | Set-Content update/SHA256SUMS.txt -Encoding utf8
-          Compress-Archive update/* LivePerformance-Atualizacao-NPNO-Soltura-Windows-x64.zip
+          Compress-Archive update/* LivePerformance-Atualizacao-Sustain-Pedal-Windows-x64.zip
       - uses: actions/upload-artifact@v4
         if: steps.tests.outcome == 'success'
         with:
-          name: LivePerformance-Atualizacao-NPNO-Soltura-Windows-x64
-          path: LivePerformance-Atualizacao-NPNO-Soltura-Windows-x64.zip
+          name: LivePerformance-Atualizacao-Sustain-Pedal-Windows-x64
+          path: LivePerformance-Atualizacao-Sustain-Pedal-Windows-x64.zip
           retention-days: 14
       - uses: actions/upload-artifact@v4
         if: always()
