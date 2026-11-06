@@ -64,3 +64,25 @@ Local validation completed:
   boundaries, pedal-up voice counts, stereo/mono and voice-budget checks.
 - Generated/migrated metadata and audit JSON parsed successfully; whitespace
   check passed. No Windows executable/hardware test is claimed for this change.
+
+## Requested Windows update delivery
+
+Hugo subsequently requested a compiled update ZIP and Google Drive delivery.
+Windows run 42143310123 completed successfully on source/package revision
+8e2cbf728759b72b565e632871c405dca94fc122: 40 executed CTest cases passed and
+2 optional external-fixture cases were skipped. Production ASIO classic/Vision
+applications compiled; no additional compiler runtime DLL dependency was found.
+Actual ASIO hardware remains outside this automated validation.
+
+The initial Windows gate exposed an older envelope test's fixed late/early
+attack ratio assumption. The test now compares OSC-controlled ADSR audio with
+the same runtime's explicit native SFZ ADSR reference for attack, independent
+voices and release (relative error < 0.0001), while retaining audible rise,
+decay, sustain, final silence and native-control restoration checks. This
+changes only validation, not the production engine or the sustain correction.
+Local reference comparisons had zero error; the complete Windows gate passed.
+
+Delivered ZIP: LivePerformance-Atualizacao-Sustain-Pedal-Windows-x64.zip
+SHA-256: 48ca43ae549d1316130315711e3826ed0d8ddd8e2a40d3cfd8be777ceb3f18ee
+13 payload hashes were verified against the archive's SHA256SUMS.txt, both EXEs
+were checked as AMD64, and archive CRC/integrity checks passed.
