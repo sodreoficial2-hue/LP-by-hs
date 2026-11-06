@@ -1,5 +1,5 @@
 name: NPNO Windows final release gate
-# Pedal-up-only auxiliary release; same strict Windows packaging gate.
+# Pedal-up-only auxiliary release; compare OSC ADSR against the native renderer reference.
 on:
   push:
     branches: [work/npno-pedal-up-package-20261105]
