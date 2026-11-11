@@ -87,6 +87,10 @@ int main(int argc,char** argv) {
  mod=router.route({0xb0,1,50});check(mod.action==lp::MidiAction::Parameter&&lp::forwardsToEngine(mod,{0xb0,1,50}));
  lp::MidiQueue<4> smallQueue;check(smallQueue.push({0x90,1,1}));check(smallQueue.push({0x90,2,2}));
  check(smallQueue.push({0x90,3,3}));check(!smallQueue.push({0x90,4,4}));check(smallQueue.takeOverflow());check(!smallQueue.takeOverflow());
+ // The production 1024-iteration panic drain covers a complete queue snapshot.
+ // Keep a finite budget: a concurrent producer may otherwise refill forever.
+ lp::MidiQueue<> fullQueue;unsigned queued=0;while(fullQueue.push({0x90,60,100}))++queued;check(queued==1023);
+ lp::MidiMessage discarded;for(int i=0;i<1024&&fullQueue.pop(discarded);++i){}check(!fullQueue.pop(discarded));
  lp::MidiQueue<> queue;
  std::thread producer([&]{for(unsigned i=0;i<100000;++i)while(!queue.push({0x90,static_cast<std::uint8_t>(i%128),0}))std::this_thread::yield();});
  for(unsigned i=0;i<100000;++i){lp::MidiMessage m;while(!queue.pop(m))std::this_thread::yield();check(m.data1==i%128);}

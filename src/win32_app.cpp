@@ -17,6 +17,7 @@
 #include "performance_store.hpp"
 #include "sound_parameters.hpp"
 #include "npno_release.hpp"
+#include "my_sounds.hpp"
 #include <set>
 #include "performance_workspace.hpp"
 #include "background_store.hpp"
@@ -245,32 +246,14 @@ struct App {
  }
  void saveMySounds(){
   if(settingsPath.empty())throw std::runtime_error("Pasta de Meus Sons indisponível");
-  auto target=mySoundsPath(),temp=target;temp+=L".tmp";
-  {
-   std::ofstream out(temp,std::ios::binary|std::ios::trunc);
-   if(!out)throw std::runtime_error("Não foi possível gravar Meus Sons");
-   out<<"LPHS_MY_SOUNDS 1\n";
-   for(const auto& item:instruments)if(item.userImported)
-    out<<std::quoted(item.sfz.u8string())<<' '<<std::quoted(item.name)<<'\n';
-   out.flush();if(!out)throw std::runtime_error("Falha ao salvar Meus Sons");
-  }
-  if(!MoveFileExW(temp.c_str(),target.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH))
-   throw std::runtime_error("Não foi possível atualizar Meus Sons");
+  std::vector<lp::MySoundRecord> records;
+  for(const auto& item:instruments)if(item.userImported)records.emplace_back(item.sfz.u8string(),item.name);
+  lp::saveMySoundRecords(mySoundsPath(),records,base);
  }
  void loadMySounds(){
   if(settingsPath.empty())return;
-  std::ifstream in(mySoundsPath(),std::ios::binary);
-  if(!in)return;
-  std::string header;if(!std::getline(in,header)||header!="LPHS_MY_SOUNDS 1")
-   throw std::runtime_error("Catálogo Meus Sons inválido");
-  std::string line;
-  while(std::getline(in,line)){
-   if(line.empty())continue;
-   std::istringstream row(line);std::string reference,name,extra;
-   if(!(row>>std::quoted(reference)>>std::quoted(name))||(row>>extra)||reference.empty()||name.empty())
-    throw std::runtime_error("Entrada inválida em Meus Sons");
-   lp::Instrument item;item.sfz=std::filesystem::u8path(reference);item.name=name;item.category=14;
-   addMySound(std::move(item));
+  for(const auto& record:lp::loadMySoundRecords(mySoundsPath(),base)){
+   lp::Instrument item;item.sfz=std::filesystem::u8path(record.first);item.name=record.second;item.category=14;addMySound(std::move(item));
   }
  }
 
@@ -415,7 +398,7 @@ struct App {
   if(!instruments.empty()){categoryIndex=static_cast<int>(instruments.front().category);SendMessageW(category,CB_SETCURSEL,categoryIndex,0);}
   updateSplash(12,L"Catálogo SFZ carregado. Inicializando o motor...");
   refreshCatalog();refreshFavorites();
-  try{auto dll=base/L"sfizz.dll";if(!std::filesystem::exists(dll))dll=base/L"recovery/extracted/live/sfizz.dll";engineLibrary=dll;engine=std::make_unique<lp::AudioHost>(dll);engine->masterVolume(show.master);engine->enableSmoothTransitions(true);engine->setLoadNotification([target=window]{PostMessageW(target,SoundReadyMessage,0,0);});
+  try{auto dll=base/L"sfizz.dll";if(!std::filesystem::exists(dll))dll=base/L"recovery/extracted/live/sfizz.dll";engineLibrary=dll;engine=std::make_unique<lp::AudioHost>(dll);engine->setBase(base);engine->masterVolume(show.master);engine->enableSmoothTransitions(true);engine->setLoadNotification([target=window]{PostMessageW(target,SoundReadyMessage,0,0);});
    // Discover SF2 evaluation presets without changing the approved SFZ bank.
    // Keep SF2 entries in memory only; the original curated catalog remains intact.
    // Scan standard banks and a user-owned "Red Pianos" folder placed beside the EXE.

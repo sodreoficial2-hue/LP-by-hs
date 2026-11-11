@@ -41,6 +41,7 @@ public:
  void requestPerformance(const Performance& performance);
  void requestSound(const std::string& reference,const std::array<float,16>& parameters,bool adsr=false);
  void enableSmoothTransitions(bool enabled)noexcept{smoothTransitions=enabled;masterSmoothed=master.load();}
+ void setBase(const std::filesystem::path& base);
  void setLoadNotification(std::function<void()> notify){loadNotification=std::move(notify);}
  unsigned beginMidiSwitch()noexcept{midiBarrier.store(true);return midiTicket.fetch_add(1)+1;}
  void acknowledgeMidiSwitch(unsigned ticket)noexcept{midiAcknowledged.store(ticket);}
@@ -79,7 +80,7 @@ private:
  void resetPerformance() noexcept;
  std::atomic<int> modulation{-1},sustain{-1},bend{0};
  std::atomic<bool> bendSeen{false};
- std::filesystem::path library,instrument,fluidLibrary;
+ std::filesystem::path library,instrument,fluidLibrary,basePath;
  bool sf2Active=false;int sf2Bank=0,sf2Program=0;
  double rate=48000;std::atomic<float> master{1};
  std::map<std::string,float> levelGains;

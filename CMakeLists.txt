@@ -446,3 +446,13 @@ add_test(NAME live_recall_immediate_gain COMMAND lp_live_recall_gain_test $<TARG
 add_executable(lp_npno_release_integrity_test tests/npno_release_integrity_test.cpp)
 target_link_libraries(lp_npno_release_integrity_test PRIVATE lp_timbre_import)
 add_test(NAME npno_release_integrity_and_recovery COMMAND lp_npno_release_integrity_test)
+
+add_executable(lp_realtime_fidelity_test tests/realtime_fidelity_test.cpp)
+target_link_libraries(lp_realtime_fidelity_test PRIVATE lp_engine)
+add_test(NAME neutral_dsp_preserves_headroom COMMAND lp_realtime_fidelity_test dsp)
+add_test(NAME live_envelope_updates_no_allocations COMMAND lp_realtime_fidelity_test alloc $<TARGET_FILE:lp_fake_sfizz>)
+
+add_executable(lp_sound_paths_test tests/sound_paths_test.cpp tests/fake_portaudio.cpp src/audio_host.cpp)
+target_include_directories(lp_sound_paths_test PRIVATE src third_party/portaudio)
+target_link_libraries(lp_sound_paths_test PRIVATE lp_engine Threads::Threads)
+add_test(NAME sound_paths_and_portable_catalog COMMAND lp_sound_paths_test $<TARGET_FILE:lp_fake_sfizz>)

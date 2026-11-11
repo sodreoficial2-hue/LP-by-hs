@@ -1,4 +1,5 @@
 #include "audio_host.hpp"
+#include "sound_paths.hpp"
 #include "pa_asio.h"
 #include <algorithm>
 #include <stdexcept>
@@ -112,17 +113,21 @@ void AudioHost::stop(){
  for(auto& tail:tails){delete tail;tail=nullptr;}delete pending.exchange(nullptr);delete waiting;waiting=nullptr;collectRetired();
 }
 void AudioHost::controlPanel(int id,void* window){requireAsio(id);bool restart=running();auto oldDevice=device;auto oldBuffer=buffer;stop();auto result=PaAsio_ShowControlPanel(id,window);if(restart)open(oldDevice,oldBuffer);paCheck(result);}
+void AudioHost::setBase(const std::filesystem::path& base){
+ if(running()||loaded()||loadThread.joinable())throw std::logic_error("Set application base before loading audio");
+ basePath=std::filesystem::absolute(base).lexically_normal();
+}
 void AudioHost::load(const std::filesystem::path& path,const std::array<float,16>& params,bool adsr){
  cancelPerformanceLoad();
  validParameters(params);auto oldPath=instrument;auto oldParams=current;bool oldAdsr=currentAdsr,oldPerformance=activePerformance,oldSf2=sf2Active;
- instrument=path;current=params;currentAdsr=adsr;activePerformance=false;sf2Active=false;
+ instrument=std::filesystem::u8path(normalizedSoundReference(path.u8string(),basePath));current=params;currentAdsr=adsr;activePerformance=false;sf2Active=false;
  try{auto graph=prepare(rate);parameters(params,adsr);publish(std::move(graph));}
  catch(...){instrument=oldPath;current=oldParams;currentAdsr=oldAdsr;activePerformance=oldPerformance;sf2Active=oldSf2;throw;}
 }
 void AudioHost::loadSf2(const std::filesystem::path& path,int bank,int program,const std::array<float,16>& params,bool adsr){
  cancelPerformanceLoad();
  validParameters(params);auto oldPath=instrument;auto oldParams=current;auto oldBank=sf2Bank,oldProgram=sf2Program;bool oldAdsr=currentAdsr,oldPerformance=activePerformance,oldSf2=sf2Active;
- instrument=path;current=params;currentAdsr=adsr;activePerformance=false;sf2Active=true;sf2Bank=bank;sf2Program=program;
+ instrument=std::filesystem::u8path(normalizedSoundReference(path.u8string(),basePath));current=params;currentAdsr=adsr;activePerformance=false;sf2Active=true;sf2Bank=bank;sf2Program=program;
  try{auto graph=prepare(rate);parameters(params,adsr);publish(std::move(graph));}
  catch(...){instrument=oldPath;current=oldParams;currentAdsr=oldAdsr;activePerformance=oldPerformance;sf2Active=oldSf2;sf2Bank=oldBank;sf2Program=oldProgram;throw;}
 }
@@ -138,7 +143,8 @@ void AudioHost::releaseResources(){
  destroyGraphs();preparedParts={};warmParts.clear();requestedControls={};instrument.clear();activePerformance=false;midiBarrier.store(false);liveSynths.store(0);
 }
 void AudioHost::unload(){cancelPerformanceLoad();instrument.clear();activePerformance=false;auto graph=std::make_unique<Graph>();graph->generation=loadGeneration;requestedGeneration.store(loadGeneration);graph->hardSwitch=true;publish(std::move(graph));}
-void AudioHost::loadPerformance(const Performance& selected){
+void AudioHost::loadPerformance(const Performance& input){
+ auto selected=input;for(auto& part:selected.parts)if(part.enabled)part.instrument=normalizedSoundReference(part.instrument,basePath);
  cancelPerformanceLoad();
  if(!selected.valid())throw std::invalid_argument("Invalid Performance");
  for(const auto& p:selected.parts)if(p.enabled)validParameters(p.patch.parameters);
@@ -186,7 +192,8 @@ void AudioHost::loadWorker(){
   if(notify&&loadNotification)try{loadNotification();}catch(...){}
  }
 }
-void AudioHost::requestGraph(const Performance& selected,bool layered){
+void AudioHost::requestGraph(const Performance& input,bool layered){
+ auto selected=input;for(auto& part:selected.parts)if(part.enabled)part.instrument=normalizedSoundReference(part.instrument,basePath);
  if(!selected.valid())throw std::invalid_argument("Invalid sound arrangement");for(const auto& p:selected.parts)if(p.enabled)validParameters(p.patch.parameters);
  if(!asyncLoading)rollback=Model{instrument,performance,current,currentAdsr,activePerformance,sf2Active,sf2Bank,sf2Program,requestedControls,publishedGeneration};
  if(!loadThread.joinable())loadThread=std::thread([this]{loadWorker();});
@@ -198,7 +205,8 @@ void AudioHost::requestGraph(const Performance& selected,bool layered){
  {std::lock_guard<std::mutex> lock(loadMutex);loadJob=std::move(job);if(loadResult)garbage.push_back(std::move(loadResult));loadError.clear();asyncLoading=true;}loadWake.notify_one();
 }
 void AudioHost::requestPerformance(const Performance& selected){requestGraph(selected,true);}
-void AudioHost::invalidateSound(const std::string& reference){
+void AudioHost::invalidateSound(const std::string& input){
+ const auto reference=normalizedSoundReference(input,basePath);
  cancelPerformanceLoad();
  for(auto& part:preparedParts)if(part&&part->reference==reference)part.reset();
  warmParts.erase(std::remove_if(warmParts.begin(),warmParts.end(),[&](const auto& entry){return entry.second->reference==reference;}),warmParts.end());
