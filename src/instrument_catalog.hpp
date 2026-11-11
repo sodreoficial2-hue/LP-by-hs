@@ -19,7 +19,7 @@ inline bool acceptedBankTimbre(const std::filesystem::path& path){auto e=timbreE
 // Catalog identity always remains the ORIGINAL; only playback resolves the derivative.
 inline std::filesystem::path playableInstrument(const std::filesystem::path& path){
  if(path.u8string().rfind("sf2://",0)==0)return path;
- if(convertedTimbre(path)){auto sfz=derivedSfz(path);auto sidecar=path;sidecar+=".meta.json";if(!std::filesystem::is_regular_file(path)||!std::filesystem::is_regular_file(sfz)||!std::filesystem::is_regular_file(sidecar))throw std::runtime_error("Timbre convertido incompleto; reimporte o original");return sfz;}
+ if(convertedTimbre(path)){auto pending=path;pending+=".release-pending.json";if(std::filesystem::exists(pending))throw std::runtime_error("Atualização de soltura pendente; reinicie para recuperar o banco");auto sfz=derivedSfz(path);auto sidecar=path;sidecar+=".meta.json";if(!std::filesystem::is_regular_file(path)||!std::filesystem::is_regular_file(sfz)||!std::filesystem::is_regular_file(sidecar))throw std::runtime_error("Timbre convertido incompleto; reimporte o original");return sfz;}
  if(timbreExtension(path)==".sf2")return std::filesystem::u8path(makeSf2Reference(path,0,0));
  return path;
 }

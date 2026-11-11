@@ -1,0 +1,89 @@
+Test project /workspace/scratch/7c4cda7fd03c/LP-by-hs/build
+      Start  1: automatic_sample_builder
+ 1/40 Test  #1: automatic_sample_builder ..................   Passed    0.18 sec
+      Start  2: session_regression
+ 2/40 Test  #2: session_regression ........................   Passed    0.00 sec
+      Start  3: engine_midi_regression
+ 3/40 Test  #3: engine_midi_regression ....................   Passed    0.01 sec
+      Start  4: dsp_regression
+ 4/40 Test  #4: dsp_regression ............................   Passed    0.30 sec
+      Start  5: audio_host_regression
+ 5/40 Test  #5: audio_host_regression .....................   Passed    0.04 sec
+      Start  6: instrument_catalog_regression
+ 6/40 Test  #6: instrument_catalog_regression .............   Passed    0.00 sec
+      Start  7: performance_midi_integration
+ 7/40 Test  #7: performance_midi_integration ..............   Passed    0.00 sec
+      Start  8: layout_glide_profile_regression
+ 8/40 Test  #8: layout_glide_profile_regression ...........   Passed    0.00 sec
+      Start  9: vision_bridge_protocol
+ 9/40 Test  #9: vision_bridge_protocol ....................   Passed    0.00 sec
+      Start 10: large_hall_reverb
+10/40 Test #10: large_hall_reverb .........................   Passed    8.60 sec
+      Start 11: sf2_expansion_categories
+11/40 Test #11: sf2_expansion_categories ..................   Passed    0.00 sec
+      Start 12: hidden_sounds_persistence
+12/40 Test #12: hidden_sounds_persistence .................   Passed    0.00 sec
+      Start 13: stage_readiness_profiles_restore_search
+13/40 Test #13: stage_readiness_profiles_restore_search ...   Passed    0.00 sec
+      Start 14: audio_continuous_handoff
+14/40 Test #14: audio_continuous_handoff ..................   Passed    0.01 sec
+      Start 15: persistent_level_balance
+15/40 Test #15: persistent_level_balance ..................   Passed    0.01 sec
+      Start 16: offline_incremental_level_calibration
+16/40 Test #16: offline_incremental_level_calibration .....   Passed    0.35 sec
+      Start 17: catalog_edits_and_permanent_delete
+17/40 Test #17: catalog_edits_and_permanent_delete ........   Passed    0.00 sec
+      Start 18: independent_performance_persistence
+18/40 Test #18: independent_performance_persistence .......   Passed    0.00 sec
+      Start 19: performance_workspace_recovery
+19/40 Test #19: performance_workspace_recovery ............   Passed    0.00 sec
+      Start 20: async_performance_latest_selection
+20/40 Test #20: async_performance_latest_selection ........   Passed    0.33 sec
+      Start 21: stability_audio_switch_order
+21/40 Test #21: stability_audio_switch_order ..............   Passed    0.11 sec
+      Start 22: stability_recovery_dependencies
+22/40 Test #22: stability_recovery_dependencies ...........   Passed    0.00 sec
+      Start 23: stability_concurrent_four_layers
+23/40 Test #23: stability_concurrent_four_layers ..........   Passed    0.01 sec
+      Start 24: cached_performance_recall_no_ghost
+24/40 Test #24: cached_performance_recall_no_ghost ........   Passed    0.05 sec
+      Start 25: master_midi_learn_all_cc_channels
+25/40 Test #25: master_midi_learn_all_cc_channels .........   Passed    0.04 sec
+      Start 26: smooth_transition_budget_and_peaks
+26/40 Test #26: smooth_transition_budget_and_peaks ........   Passed    0.08 sec
+      Start 27: timbre_import_validation
+27/40 Test #27: timbre_import_validation ..................   Passed    0.14 sec
+      Start 28: npno_import_validation
+28/40 Test #28: npno_import_validation ....................   Passed    0.31 sec
+      Start 29: npno_external_fixture
+29/40 Test #29: npno_external_fixture .....................***Skipped   0.00 sec
+      Start 30: nsmp_external_real_fixture
+30/40 Test #30: nsmp_external_real_fixture ................***Skipped   0.00 sec
+      Start 31: nki_generate_spec_fixtures
+31/40 Test #31: nki_generate_spec_fixtures ................   Passed    0.16 sec
+      Start 32: pitch_restore_reference_fixtures
+32/40 Test #32: pitch_restore_reference_fixtures ..........   Passed    0.02 sec
+      Start 33: nki_binary_mapping
+33/40 Test #33: nki_binary_mapping ........................   Passed    0.34 sec
+      Start 34: shared_format_policy
+34/40 Test #34: shared_format_policy ......................   Passed    0.10 sec
+      Start 35: timbre_conversion_cli
+35/40 Test #35: timbre_conversion_cli .....................   Passed    0.11 sec
+      Start 36: permanent_sound_parameters
+36/40 Test #36: permanent_sound_parameters ................   Passed    0.00 sec
+      Start 37: npno_release_runtime_and_profiles
+37/40 Test #37: npno_release_runtime_and_profiles .........   Passed    0.50 sec
+      Start 38: npno_hashes_and_cancel_rollback
+38/40 Test #38: npno_hashes_and_cancel_rollback ...........   Passed    0.02 sec
+      Start 39: live_recall_immediate_gain
+39/40 Test #39: live_recall_immediate_gain ................   Passed    0.15 sec
+      Start 40: npno_release_integrity_and_recovery
+40/40 Test #40: npno_release_integrity_and_recovery .......   Passed    0.03 sec
+
+100% tests passed out of 40
+
+Total Test time (real) =  12.04 sec
+
+The following tests did not run:
+	 29 - npno_external_fixture (Skipped)
+	 30 - nsmp_external_real_fixture (Skipped)

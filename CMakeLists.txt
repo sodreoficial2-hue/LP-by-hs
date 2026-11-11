@@ -437,3 +437,12 @@ if(LP_REAL_SFIZZ_LIBRARY AND LP_SNDFILE_LIBRARY)
  add_test(NAME npno_release_audio_acceptance COMMAND lp_npno_release_acceptance_test "${LP_REAL_SFIZZ_LIBRARY}" "${LP_SNDFILE_LIBRARY}" "${LP_IMPORT_FIXTURE_ROOT}/npno/layers-v6.npno" "${CMAKE_BINARY_DIR}/release-acceptance")
 endif()
 
+
+add_executable(lp_live_recall_gain_test tests/live_recall_gain_test.cpp tests/fake_portaudio.cpp src/audio_host.cpp)
+target_include_directories(lp_live_recall_gain_test PRIVATE src third_party/portaudio)
+target_link_libraries(lp_live_recall_gain_test PRIVATE lp_engine Threads::Threads)
+add_test(NAME live_recall_immediate_gain COMMAND lp_live_recall_gain_test $<TARGET_FILE:lp_fake_sfizz>)
+
+add_executable(lp_npno_release_integrity_test tests/npno_release_integrity_test.cpp)
+target_link_libraries(lp_npno_release_integrity_test PRIVATE lp_timbre_import)
+add_test(NAME npno_release_integrity_and_recovery COMMAND lp_npno_release_integrity_test)

@@ -15,6 +15,15 @@
 #include <cerrno>
 #endif
 namespace lp {
+inline void syncParentDirectory(const std::filesystem::path& destination){
+#ifndef _WIN32
+ auto parent=destination.parent_path();if(parent.empty())parent=".";
+ int directory=::open(parent.c_str(),O_RDONLY|O_DIRECTORY);
+ if(directory<0)throw std::runtime_error("Cannot open storage directory");
+ auto result=::fsync(directory);::close(directory);
+ if(result!=0)throw std::runtime_error("Cannot flush storage directory");
+#endif
+}
 // Write a sibling temporary file and replace only after all data is flushed.
 // Existing shows survive failed writes. No automatic saving is performed.
 inline void atomicWrite(const std::filesystem::path& destination,const std::string& bytes) {
@@ -68,6 +77,7 @@ inline void atomicWrite(const std::filesystem::path& destination,const std::stri
   auto closeResult=::close(file);closed=true;
   if(closeResult!=0)throw std::runtime_error("Profile close failed");
   std::filesystem::rename(temporary,destination);
+  syncParentDirectory(destination);
 #endif
  }catch(...) {
   if(!closed) {

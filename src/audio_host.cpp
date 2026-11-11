@@ -333,9 +333,13 @@ int AudioHost::render(float** output,unsigned long frames,PaStreamCallbackFlags 
     tailGain[t]=std::max(0.f,tailGain[t]-tailStep[t]*size);if(tailGain[t]<=1e-6f){retire(tails[t]);tails[t]=nullptr;}
    }
    for(int j=0;j<size;++j){
-    if(smoothTransitions&&overlapping){float step=1/static_cast<float>(rate*.020);activeMix=std::clamp(activeMix+(activeAudible?step:-step),0.f,1.f);
-     float weight=mixWeights[j]>0?activeMix:1,normal=std::max(1.f,weight+mixWeights[j]);
-     output[0][offset+j]=(output[0][offset+j]*weight+mixLeft[j])/normal;output[1][offset+j]=(output[1][offset+j]*weight+mixRight[j])/normal;
+    if(smoothTransitions&&overlapping){float step=1/static_cast<float>(rate*.020);if(activeAudible)activeMix=std::min(1.f,activeMix+step);
+     // Crossfade only at the new attack. Dividing the active instrument by
+     // the two-second tail weight made every recall start up to 6 dB low.
+     // Once the new sound enters, do not bring old tails back in its rests.
+     float weight=mixWeights[j]>0?activeMix:1;
+     float tailWeight=(1-activeMix)/std::max(1.f,mixWeights[j]);
+     output[0][offset+j]=output[0][offset+j]*weight+mixLeft[j]*tailWeight;output[1][offset+j]=output[1][offset+j]*weight+mixRight[j]*tailWeight;
     }else{output[0][offset+j]+=mixLeft[j];output[1][offset+j]+=mixRight[j];if(!overlapping)activeMix=1;}
    }
    for(int j=0;j<size;++j){float smoothing=1-std::exp(-1.f/(static_cast<float>(rate)*.003f));if(smoothTransitions)masterSmoothed+=smoothing*(gain-masterSmoothed);else masterSmoothed=gain;for(int c=0;c<2;++c){auto& sample=output[c][offset+j];sample*=masterSmoothed;if(transitionFrames){float alpha=1-static_cast<float>(transitionFrames)/transitionTotal;sample=transitionFrom[c]*(1-alpha)+sample*alpha;}lastOutput[c]=sample;if(!std::isfinite(sample)){sample=0;meterClip.store(true);}peak=std::max(peak,std::abs(sample));}if(transitionFrames)--transitionFrames;}
