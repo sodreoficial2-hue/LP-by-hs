@@ -142,10 +142,16 @@
    const volume=node('input',{type:'range',id:`part-volume-${i}`,min:0,max:1000,step:1,value:p.volumes?.[i]??1000,'data-focus':`part-volume-${i}`,'aria-label':`Volume da camada ${i+1}`,disabled:!selected});
    const output=node('output',{for:`part-volume-${i}`,id:`part-volume-value-${i}`},`${Math.round((p.volumes?.[i]??1000)/10)}%`);
    volume.addEventListener('input',()=>{output.textContent=`${Math.round(volume.value/10)}%`;send('partVolume',i,Number(volume.value));});
+   const transpose=p.transposes?.[i]??0;
+   const octave=node('select',{id:`part-octave-${i}`,'data-focus':`part-octave-${i}`,'aria-label':`Oitava da camada ${i+1}`,disabled:!selected});
+   for(let n=-4;n<=4;n++)octave.append(node('option',{value:n+4},n===0?'Original (0)':`${n>0?'+':''}${n} ${Math.abs(n)===1?'oitava':'oitavas'}`));
+   if(transpose%12){octave.append(node('option',{value:'legacy',disabled:true},`Atual: ${transpose>0?'+':''}${transpose} semitons`));octave.value='legacy';}else octave.value=String(transpose/12+4);
+   octave.addEventListener('change',()=>{flushParameters();send('partOctave',i,Number(octave.value));});
    const target=field(`Destino da camada ${i+1}`,`part-target-${i}`,['Camada 1','Camada 2','Camada 3','Camada 4'],partTargets[i]??(i+1)%4,n=>{partTargets[i]=n;});
    const destination=()=>Number(target.querySelector('select').value);
    const tools=node('div',{class:'part-tools'},
     node('label',{class:'field',for:`part-volume-${i}`},'Volume',volume,output),
+    node('label',{class:'field',for:`part-octave-${i}`},'Oitava',octave),
     button(p.solo===i?'Ouvir todas':'Ouvir somente esta camada',()=>send('partSolo',i),{'aria-pressed':String(p.solo===i),disabled:!selected,'data-focus':`part-solo-${i}`}),
     button(p.muted?.[i]?'Reativar camada':'Silenciar camada',()=>send('partMute',i),{'aria-pressed':String(Boolean(p.muted?.[i])),disabled:!selected,'data-focus':`part-mute-${i}`}),
     target,button('Copiar para o destino',()=>send('copyPart',i,destination()),{disabled:!selected}),button('Trocar com o destino',()=>send('swapParts',i,destination())),
@@ -209,7 +215,7 @@
   // text and caret/selection, including edits in the middle of a search term.
   const textEdit=active?.matches('input[type="search"],input[type="text"]')?
    {value:active.value,start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection}:null;
-  const key=JSON.stringify([state.screen,state.effects,state.category,state.loading,state.partMix,state.restoring,state.catalog.map(r=>r.name),state.category===15?state.favorites.map(r=>[r.name,r.occupied]):null,state.audio.drivers,state.audio.midiInputs,state.performance.instruments,state.performance.instrumentCategories,state.performance.instrumentVisible,state.screen==='performance'?[state.performance.parts,state.performance.name,state.performance.muted,state.performance.solo,state.performance.zones,state.performance.splitLearning,state.performance.editingSaved,state.performance.browseCategories,state.performance.searches]:null,state.screen==='performance'&&state.effects?state.performance.editingPart:null]);
+  const key=JSON.stringify([state.screen,state.effects,state.category,state.loading,state.partMix,state.restoring,state.catalog.map(r=>r.name),state.category===15?state.favorites.map(r=>[r.name,r.occupied]):null,state.audio.drivers,state.audio.midiInputs,state.performance.instruments,state.performance.instrumentCategories,state.performance.instrumentVisible,state.screen==='performance'?[state.performance.parts,state.performance.transposes,state.performance.name,state.performance.muted,state.performance.solo,state.performance.zones,state.performance.splitLearning,state.performance.editingSaved,state.performance.browseCategories,state.performance.searches]:null,state.screen==='performance'&&state.effects?state.performance.editingPart:null]);
   if(key!==structure){
    structure=key;let body;
    if(state.loading){title('Preparando seus instrumentos');body=node('section',{class:'waiting panel'},node('h2',{},'Carregando a biblioteca'),node('progress',{id:'progress',max:100,value:state.progress}),node('p',{class:'details'},state.status));}

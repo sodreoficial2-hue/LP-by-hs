@@ -456,3 +456,8 @@ add_executable(lp_sound_paths_test tests/sound_paths_test.cpp tests/fake_portaud
 target_include_directories(lp_sound_paths_test PRIVATE src third_party/portaudio)
 target_link_libraries(lp_sound_paths_test PRIVATE lp_engine Threads::Threads)
 add_test(NAME sound_paths_and_portable_catalog COMMAND lp_sound_paths_test $<TARGET_FILE:lp_fake_sfizz>)
+
+add_executable(lp_performance_octave_test tests/performance_octave_test.cpp tests/fake_portaudio.cpp src/audio_host.cpp)
+target_include_directories(lp_performance_octave_test PRIVATE src third_party/portaudio)
+target_link_libraries(lp_performance_octave_test PRIVATE lp_engine Threads::Threads)
+add_test(NAME performance_layer_octaves COMMAND lp_performance_octave_test $<TARGET_FILE:lp_fake_sfizz>)

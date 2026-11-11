@@ -50,7 +50,7 @@
 #endif
 
 namespace {
-constexpr int Search=160,RestoreSounds=161,RestoreSelected=162,RestoreAll=163,LocateSounds=164,ProfileState=165,OutputMeter=166,PartSearch=167,PartVolumeBase=500,PartSoloBase=504,PartMuteBase=508,PartTargetBase=512,PartCopyBase=516,PartSwapBase=520,PartLowBase=524,PartHighBase=528,PerformanceSaveNew=532,PartZoneBase=536,AudioDiagnostics=170,MasterVolume=171,MasterLabel=172,CreateSample=173;
+constexpr int Search=160,RestoreSounds=161,RestoreSelected=162,RestoreAll=163,LocateSounds=164,ProfileState=165,OutputMeter=166,PartSearch=167,PartVolumeBase=500,PartSoloBase=504,PartMuteBase=508,PartTargetBase=512,PartCopyBase=516,PartSwapBase=520,PartLowBase=524,PartHighBase=528,PerformanceSaveNew=532,PartZoneBase=536,PartOctaveBase=540,AudioDiagnostics=170,MasterVolume=171,MasterLabel=172,CreateSample=173;
 constexpr int Catalog=100,Favorites=101,Save=102,Open=103,Midi=104,Effects=105,Import=106,ImportSf2=114,AudioDriver=107,AudioStart=109,AudioStop=110,AudioPanel=111,Panic=112,Category=113,Knob=200,MidiLearnKnob=115,PerformanceButton=116,PerformanceModeControl=117,PerformancePartBase=118,PerformancePlay=122,PerformanceSave=123,PerformanceName=124,PerformanceEditPart=125,PerformanceClearBase=126,AudioMidiButton=140,SettingsButton=141,AboutButton=142,CategoryTile=143,PreviousCategory=144,NextCategory=145,InstrumentArt=146,AboutText=147,HomeButton=148,KeyboardButton=149,CategoryCardBase=400;
 constexpr UINT BeginParameterLearn=WM_APP+40,LoadLibraryMessage=WM_APP+41,ToggleFavoriteMessage=WM_APP+42,SelectSoundMessage=WM_APP+43,RevealFocusMessage=WM_APP+44,VisionCommandMessage=WM_APP+45,DirectMidiMessage=WM_APP+46,SoundReadyMessage=WM_APP+47,ImportEventMessage=WM_APP+48;
 LRESULT CALLBACK pageProc(HWND,UINT,WPARAM,LPARAM,UINT_PTR,DWORD_PTR);
@@ -154,9 +154,16 @@ struct App {
   }
  }
  int editorInstrumentRow(int row)const{return static_cast<int>(SendMessageW(performancePartControls[0],CB_GETITEMDATA,row,0))-1;}
+ void syncOctaveControl(int part){
+  auto control=item(PartOctaveBase+part);SendMessageW(control,CB_RESETCONTENT,0,0);
+  for(int octave=-4;octave<=4;++octave){auto label=L"Oitava: "+std::filesystem::u8path(lp::performanceOctaveLabel(octave*12)).wstring();SendMessageW(control,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(label.c_str()));}
+  int transpose=editingPerformance.parts[part].transpose,index=transpose/12+4;
+  if(transpose%12){auto label=std::filesystem::u8path(lp::performanceOctaveLabel(transpose)).wstring();SendMessageW(control,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(label.c_str()));index=9;}
+  SendMessageW(control,CB_SETCURSEL,index,0);EnableWindow(control,editingPerformance.parts[part].enabled);
+ }
  void syncEditorControls(){
   internalEdit=true;
-  for(int i=0;i<4;++i){int chosen=0;auto control=performancePartControls[i];auto count=SendMessageW(control,CB_GETCOUNT,0,0);for(int row=1;row<count;++row){auto n=SendMessageW(control,CB_GETITEMDATA,row,0);if(n>0&&static_cast<std::size_t>(n)<=instruments.size()&&lp::instrumentReference(instruments[n-1])==editingPerformance.parts[i].instrument){chosen=row;break;}}SendMessageW(control,CB_SETCURSEL,chosen,0);SendMessageW(item(PartVolumeBase+i),TBM_SETPOS,TRUE,static_cast<int>(editingPerformance.parts[i].patch.parameters[0]*1000));}
+  for(int i=0;i<4;++i){int chosen=0;auto control=performancePartControls[i];auto count=SendMessageW(control,CB_GETCOUNT,0,0);for(int row=1;row<count;++row){auto n=SendMessageW(control,CB_GETITEMDATA,row,0);if(n>0&&static_cast<std::size_t>(n)<=instruments.size()&&lp::instrumentReference(instruments[n-1])==editingPerformance.parts[i].instrument){chosen=row;break;}}SendMessageW(control,CB_SETCURSEL,chosen,0);SendMessageW(item(PartVolumeBase+i),TBM_SETPOS,TRUE,static_cast<int>(editingPerformance.parts[i].patch.parameters[0]*1000));syncOctaveControl(i);}
   SetWindowTextW(performanceSave,workspace.original.empty()?L"Salvar Performance":L"Salvar alterações");
   SendMessageW(performanceMode,CB_SETCURSEL,workspace.mode,0);SetWindowTextW(performanceName,std::filesystem::u8path(editingPerformance.name).wstring().c_str());internalEdit=false;
  }
@@ -173,6 +180,11 @@ struct App {
  }
  void partOperation(const std::string& action,int a,int b=0){
   if(screen!=lp::Screen::PerformanceEditor||a<0||a>3)throw std::invalid_argument("Abra o Performance Editor");
+  if(action=="partOctave"){
+   if(b<0||b>8)throw std::invalid_argument("Oitava de camada inválida");
+   if(editingPerformance.parts[a].transpose==(b-4)*12)return;
+   lp::setPerformancePartOctave(editingPerformance,a,b-4);syncOctaveControl(a);requestEditorAudio();touchEditor();markVisionStructureDirty();return;
+  }
   if(action=="partSolo"){workspace.solo=workspace.solo==a?-1:a;applyAudition();return;}
   if(action=="partMute"){workspace.muted[a]=!workspace.muted[a];applyAudition();return;}
   if(action=="partVolume"){auto& part=editingPerformance.parts[a];part.patch.parameters[0]=b/1000.f;rememberActiveParameters();if(engine&&engine->performanceActive()&&part.enabled)engine->setPerformancePartParameters(a,part.patch.parameters,part.patch.adsrEnabled);SendMessageW(item(PartVolumeBase+a),TBM_SETPOS,TRUE,b);touchEditor();refreshParameters();return;}
@@ -365,7 +377,7 @@ struct App {
   SendMessageW(performanceEditPart,CB_SETCURSEL,0,0);
   performanceSave=control(L"BUTTON",L"Salvar Performance",BS_PUSHBUTTON|WS_TABSTOP,PerformanceSave);
   control(L"BUTTON",L"Salvar como nova",BS_PUSHBUTTON|WS_TABSTOP,PerformanceSaveNew);
-  for(int i=0;i<4;++i){auto volume=control(TRACKBAR_CLASSW,L"Volume da camada",TBS_HORZ|WS_TABSTOP,PartVolumeBase+i);SendMessageW(volume,TBM_SETRANGE,TRUE,MAKELPARAM(0,1000));SendMessageW(volume,TBM_SETPOS,TRUE,1000);
+  for(int i=0;i<4;++i){control(L"COMBOBOX",L"Oitava da camada",CBS_DROPDOWNLIST|WS_TABSTOP,PartOctaveBase+i);syncOctaveControl(i);auto volume=control(TRACKBAR_CLASSW,L"Volume da camada",TBS_HORZ|WS_TABSTOP,PartVolumeBase+i);SendMessageW(volume,TBM_SETRANGE,TRUE,MAKELPARAM(0,1000));SendMessageW(volume,TBM_SETPOS,TRUE,1000);
    control(L"BUTTON",L"Ouvir somente",BS_PUSHBUTTON|WS_TABSTOP,PartSoloBase+i);control(L"BUTTON",L"Silenciar",BS_PUSHBUTTON|WS_TABSTOP,PartMuteBase+i);
    auto target=control(L"COMBOBOX",L"",CBS_DROPDOWNLIST|WS_TABSTOP,PartTargetBase+i);for(int n=0;n<4;++n){auto label=L"Destino: camada "+std::to_wstring(n+1);SendMessageW(target,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(label.c_str()));}SendMessageW(target,CB_SETCURSEL,(i+1)%4,0);
    control(L"BUTTON",L"Copiar para",BS_PUSHBUTTON|WS_TABSTOP,PartCopyBase+i);control(L"BUTTON",L"Trocar com",BS_PUSHBUTTON|WS_TABSTOP,PartSwapBase+i);control(L"STATIC",L"Zona do teclado",SS_LEFT|SS_NOPREFIX,PartZoneBase+i);control(L"BUTTON",L"Aprender início MIDI",BS_PUSHBUTTON|WS_TABSTOP,PartLowBase+i);control(L"BUTTON",L"Aprender fim MIDI",BS_PUSHBUTTON|WS_TABSTOP,PartHighBase+i);
@@ -753,17 +765,17 @@ struct App {
  }
  void activateEditorPerformance(){
   learningPerformanceParameter=-1;if(!engine)throw std::runtime_error("Audio engine unavailable");lp::Performance selected;selected.name="Performance";int mode=static_cast<int>(SendMessageW(performanceMode,CB_GETCURSEL,0,0));selected.mode=mode==0?lp::PerformanceMode::Layer:lp::PerformanceMode::Split;
-   for(int i=0;i<4;++i){int item=static_cast<int>(SendMessageW(performancePartControls[i],CB_GETCURSEL,0,0));if(item<=0)continue;item=static_cast<int>(SendMessageW(performancePartControls[i],CB_GETITEMDATA,item,0));if(item<=0||static_cast<std::size_t>(item)>instruments.size())continue;auto& part=selected.parts[i];part.enabled=true;part.instrument=lp::instrumentReference(instruments[static_cast<std::size_t>(item-1)]);soundParameters.restore(lp::soundParameterKey(part.instrument,base),part.patch);if(hiddenSounds.contains(lp::soundExclusionKey(part.instrument,base))&&part.instrument!=editingPerformance.parts[i].instrument)throw std::runtime_error("Este timbre está oculto. Restaure-o em Perfis para escolher novamente.");auto zone=lp::splitZone(mode,i);part.low=zone[0];part.high=zone[1];if(editingPerformanceValid&&editingPerformance.parts[i].instrument==part.instrument){part.patch=editingPerformance.parts[i].patch;part.transpose=editingPerformance.parts[i].transpose;}if(workspace.customZones){part.low=editingPerformance.parts[i].low;part.high=editingPerformance.parts[i].high;}}
+   for(int i=0;i<4;++i){int item=static_cast<int>(SendMessageW(performancePartControls[i],CB_GETCURSEL,0,0));if(item<=0)continue;item=static_cast<int>(SendMessageW(performancePartControls[i],CB_GETITEMDATA,item,0));if(item<=0||static_cast<std::size_t>(item)>instruments.size())continue;auto& part=selected.parts[i];part.enabled=true;part.instrument=lp::instrumentReference(instruments[static_cast<std::size_t>(item-1)]);soundParameters.restore(lp::soundParameterKey(part.instrument,base),part.patch);if(hiddenSounds.contains(lp::soundExclusionKey(part.instrument,base))&&part.instrument!=editingPerformance.parts[i].instrument)throw std::runtime_error("Este timbre está oculto. Restaure-o em Perfis para escolher novamente.");auto zone=lp::splitZone(mode,i);part.low=zone[0];part.high=zone[1];part.transpose=editingPerformance.parts[i].transpose;if(editingPerformanceValid&&editingPerformance.parts[i].instrument==part.instrument){part.patch=editingPerformance.parts[i].patch;part.transpose=editingPerformance.parts[i].transpose;}if(workspace.customZones){part.low=editingPerformance.parts[i].low;part.high=editingPerformance.parts[i].high;}}
 
    wchar_t name[256]{};GetWindowTextW(performanceName,name,256);selected.name=std::filesystem::path(name).u8string();if(selected.name.empty())selected.name="Performance";
    auto resolved=selected;for(auto& part:resolved.parts)if(part.enabled)part.instrument=lp::resolveInstrument(part.instrument,instruments).u8string();
    bool same=performanceActive()&&selected.mode==editingPerformance.mode;
    for(int i=0;i<4&&same;++i){const auto& a=selected.parts[i];const auto& b=editingPerformance.parts[i];same=a.enabled==b.enabled&&a.instrument==b.instrument&&a.low==b.low&&a.high==b.high&&a.transpose==b.transpose;}
    bool any=false;for(const auto& part:selected.parts)any|=part.enabled;
-   if(!any){engine->unload();previewActive=false;editingPerformance=selected;editingPerformanceValid=false;show.current.reset();touchEditor();refreshParameters();return;}
+   if(!any){engine->unload();previewActive=false;editingPerformance=selected;for(int i=0;i<4;++i)syncOctaveControl(i);editingPerformanceValid=false;show.current.reset();touchEditor();refreshParameters();return;}
    if(!selected.valid())throw std::runtime_error("Escolha ao menos uma parte e um nome válido para a Performance");
    if(!same)engine->requestPerformance(resolved);engine->setPerformanceAuditionMask(workspace.auditionMask());
-   router.cancelLearn();learningVolume=-1;previewActive=false;editingPerformance=selected;editingPerformanceValid=true;show.current.reset();refreshParameters();
+   router.cancelLearn();learningVolume=-1;previewActive=false;editingPerformance=selected;for(int i=0;i<4;++i)syncOctaveControl(i);editingPerformanceValid=true;show.current.reset();refreshParameters();
    touchEditor();message(engine->performanceLoading()?L"Preparando o timbre em segundo plano...":L"Camadas prontas para tocar.");
  }
  bool preserveEditorDraft(){try{if(screen==lp::Screen::PerformanceEditor&&editorDraft){saveEditorDraft();KillTimer(window,5);}if(engine)engine->setPerformanceAuditionMask(15);return true;}catch(const std::exception& e){error(e);return false;}}
@@ -772,7 +784,7 @@ struct App {
   splitLearning.store(-1);workspace={};KillTimer(window,5);
   if(engine)engine->unload();editingPerformance={};editingPerformanceValid=false;activePerformanceIndex=-1;editingPart=0;editorDraft=false;previewActive=false;show.current.reset();cancelMidiLearn();
   internalEdit=true;for(auto control:performancePartControls)SendMessageW(control,CB_SETCURSEL,0,0);SendMessageW(performanceMode,CB_SETCURSEL,0,0);SetWindowTextW(performanceName,L"");internalEdit=false;
-  refreshParameters();markVisionDirty();
+  for(int i=0;i<4;++i)syncOctaveControl(i);refreshParameters();markVisionStructureDirty();
  }
  void storeEditorPerformance(bool forceNew=false){
   wchar_t name[256]{};GetWindowTextW(performanceName,name,256);
@@ -909,6 +921,7 @@ struct App {
   if(!internalEdit&&id==PerformanceModeControl&&event==CBN_SELCHANGE){workspace.customZones=false;workspace.mode=static_cast<int>(SendMessageW(performanceMode,CB_GETCURSEL,0,0));}
   if(!internalEdit&&event==CBN_SELCHANGE&&(id==PerformanceModeControl||(id>=PerformancePartBase&&id<PerformancePartBase+4))){if(id>=PerformancePartBase&&id<PerformancePartBase+4)editingPart=id-PerformancePartBase;activateEditorPerformance();}
   if(id==PerformanceSave||id==PerformanceSaveNew){activateEditorPerformance();storeEditorPerformance(id==PerformanceSaveNew);}
+  if(!internalEdit&&event==CBN_SELCHANGE&&id>=PartOctaveBase&&id<PartOctaveBase+4){int index=static_cast<int>(SendMessageW(item(id),CB_GETCURSEL,0,0));if(index>=0&&index<=8)partOperation("partOctave",id-PartOctaveBase,index);}
   if(id>=PartSoloBase&&id<PartSoloBase+4)partOperation("partSolo",id-PartSoloBase);
   if(id>=PartMuteBase&&id<PartMuteBase+4)partOperation("partMute",id-PartMuteBase);
   if(id>=PartLowBase&&id<PartLowBase+4)partOperation("learnLow",id-PartLowBase);

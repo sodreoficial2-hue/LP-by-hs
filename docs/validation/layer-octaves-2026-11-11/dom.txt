@@ -1,0 +1,2 @@
+PASS: production four-layer keyboard audition, immediate selection, duplicate suppression, automatic activation and explicit Save
+PASS: independent octave selector, disabled/legacy controls, state recovery, complete renderer volume, solo/mute, copy destination, split Learn, per-layer search recovery and distinct edit/save-as-new controls

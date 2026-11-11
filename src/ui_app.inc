@@ -110,7 +110,7 @@
    place(PartSearch,56,p+10,width-112,44);p+=64;
    place(PerformanceModeControl,56,p+68,width-112,300);
    for(int i=0;i<4;++i){int y=p+152+i*300;place(PerformancePartBase+i,116,y+22,width-308,300);place(PerformanceClearBase+i,width-172,y+18,112,56);int half=(width-144)/2;
-    place(PartVolumeBase+i,56,y+76,width-112,36);place(PartZoneBase+i,56,y+112,width-112,28);place(PartSoloBase+i,56,y+140,half,50);place(PartMuteBase+i,80+half,y+140,half,50);
+    place(PartVolumeBase+i,56,y+76,width-412,36);place(PartOctaveBase+i,width-332,y+65,276,300);place(PartZoneBase+i,56,y+112,width-112,28);place(PartSoloBase+i,56,y+140,half,50);place(PartMuteBase+i,80+half,y+140,half,50);
     place(PartTargetBase+i,56,y+198,220,300);place(PartCopyBase+i,292,y+198,180,50);place(PartSwapBase+i,488,y+198,180,50);
     place(PartLowBase+i,56,y+252,260,44);place(PartHighBase+i,332,y+252,260,44);
    }

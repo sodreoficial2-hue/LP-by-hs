@@ -54,6 +54,7 @@ inline Command parse(std::string_view wire) {
  else if(c.action=="master")limit(1000,0);
  else if(c.action=="learnMaster")limit(0,0);
  else if(c.action=="masterStep")limit(1,0);
+ else if(c.action=="partOctave")limit(3,8);
  else if(c.action=="partVolume")limit(3,1000);
  else if(c.action=="copyPart"||c.action=="swapParts")limit(3,3);
  else if(c.action=="partCategory")limit(3,14);

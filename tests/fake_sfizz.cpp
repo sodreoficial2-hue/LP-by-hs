@@ -10,7 +10,7 @@
 #else
 #define EXPORT extern "C"
 #endif
-struct sfizz_synth_t {int regions=0;bool playing=false,held=false,sustain=false;int modulation=0,pitch=0;std::array<std::array<float,2>,3> bends{{{{200,-200}},{{200,-200}},{{200,-200}}}};std::array<std::array<float,4>,3> envelope{{{{.01f,.2f,75.f,.3f}},{{.02f,.4f,50.f,.6f}},{{.03f,.8f,25.f,.9f}}}};};
+struct sfizz_synth_t {int regions=0,note=60;bool pitchProbe=false;bool playing=false,held=false,sustain=false;int modulation=0,pitch=0;std::array<std::array<float,2>,3> bends{{{{200,-200}},{{200,-200}},{{200,-200}}}};std::array<std::array<float,4>,3> envelope{{{{.01f,.2f,75.f,.3f}},{{.02f,.4f,50.f,.6f}},{{.03f,.8f,25.f,.9f}}}};};
 struct sfizz_client_t {void* user;sfizz_receive_t* receive=nullptr;};
 EXPORT sfizz_client_t* sfizz_create_client(void* user){return new sfizz_client_t{user};}
 EXPORT void sfizz_delete_client(sfizz_client_t* c){delete c;}
@@ -29,11 +29,11 @@ EXPORT void sfizz_free(sfizz_synth_t* p){delete p;}
 EXPORT bool sfizz_load_file(sfizz_synth_t* p,const char* path){
  if(std::strstr(path,"slow.sfz"))std::this_thread::sleep_for(std::chrono::milliseconds(100));
  if(std::strstr(path,"broken"))return false;
- p->regions=std::strstr(path,"empty")?0:3;return true;
+ p->pitchProbe=std::strstr(path,"octave-probe")!=nullptr;p->regions=std::strstr(path,"empty")?0:3;return true;
 }
 EXPORT void sfizz_set_sample_rate(sfizz_synth_t*,float){}
 EXPORT void sfizz_set_samples_per_block(sfizz_synth_t*,int){}
-EXPORT void sfizz_send_note_on(sfizz_synth_t* p,int,int,int){p->playing=true;p->held=true;}
+EXPORT void sfizz_send_note_on(sfizz_synth_t* p,int,int note,int){p->note=note;p->playing=true;p->held=true;}
 EXPORT void sfizz_send_note_off(sfizz_synth_t* p,int,int,int){p->held=false;if(!p->sustain)p->playing=false;}
 EXPORT void sfizz_send_cc(sfizz_synth_t* p,int,int cc,int value){if(cc==1)p->modulation=value;if(cc==64){p->sustain=value>=64;if(!p->sustain&&!p->held)p->playing=false;}if(cc==121){p->modulation=0;p->pitch=0;p->sustain=false;if(!p->held)p->playing=false;}if(cc==120||cc==123){p->playing=false;p->held=false;}}
 EXPORT void sfizz_send_pitch_wheel(sfizz_synth_t* p,int,int value){p->pitch=value;}
@@ -41,5 +41,5 @@ EXPORT void sfizz_enable_freewheeling(sfizz_synth_t*){}
 EXPORT void sfizz_all_sound_off(sfizz_synth_t* p){p->playing=false;p->held=false;}
 EXPORT int sfizz_get_num_regions(sfizz_synth_t* p){return p->regions;}
 EXPORT void sfizz_render_block(sfizz_synth_t* p,float** channels,int count,int frames){
- for(int c=0;c<count;++c)for(int i=0;i<frames;++i)channels[c][i]=p->playing?(0.25f+p->pitch/32768.f)*(1+p->modulation/127.f):0;
+ for(int c=0;c<count;++c)for(int i=0;i<frames;++i)channels[c][i]=p->playing?((p->pitchProbe?p->note/512.f:0.25f)+p->pitch/32768.f)*(1+p->modulation/127.f):0;
 }

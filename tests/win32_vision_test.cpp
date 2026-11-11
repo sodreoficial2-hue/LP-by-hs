@@ -34,6 +34,8 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
   command(L"screen",2);command(L"performanceMode",1);command(L"performancePart",0,1);command(L"performancePart",1,2);command(L"performanceName",0,0,L"Apresenta%C3%A7%C3%A3o%20Soul");command(L"performancePlay");
   assert(app.editingPerformanceControls()&&app.editingPerformance.parts[0].high==47&&app.editingPerformance.parts[2].low==0);
   assert(app.show.performanceLibrary.empty()); // Audition never saves implicitly.
+  command(L"partOctave",1,5);assert(app.editingPerformance.parts[0].transpose==0&&app.editingPerformance.parts[1].transpose==12);
+  assert(SendMessageW(app.item(PartOctaveBase+1),CB_GETCURSEL,0,0)==5);
   command(L"editPart",1);command(L"effects");assert(app.editingPerformanceControls()&&!app.performanceControls());
   command(L"parameter",1,430);command(L"parameter",6,620);assert(app.editingPerformance.parts[1].patch.parameters[1]==.43f&&app.editingPerformance.parts[1].patch.adsrEnabled);
   assert(app.editingPerformance.parts[0].patch.parameters[1]!=.43f);
@@ -42,9 +44,10 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int){
   command(L"editPart",0);command(L"effects");command(L"parameter",11,810);command(L"effects");command(L"performanceSave");
   assert(!app.editingPerformanceValid&&!app.engine->loaded()&&!app.editorDraft);
   for(auto control:app.performancePartControls)assert(SendMessageW(control,CB_GETCURSEL,0,0)==0);
-  lp::PerformanceStore reopened;reopened.load(app.settingsPath.parent_path()/L"performances.lphs");lp::Session persisted;reopened.mergeInto(persisted);assert(persisted.performanceLibrary.size()==1);
+  for(int i=0;i<4;++i)assert(SendMessageW(app.item(PartOctaveBase+i),CB_GETCURSEL,0,0)==4&&!IsWindowEnabled(app.item(PartOctaveBase+i)));
+  lp::PerformanceStore reopened;reopened.load(app.settingsPath.parent_path()/L"performances.lphs");lp::Session persisted;reopened.mergeInto(persisted);assert(persisted.performanceLibrary.size()==1&&persisted.performanceLibrary[0].parts[1].transpose==12);
   assert(app.show.performanceLibrary[0].parts[0].patch.parameters[11]==.81f&&app.show.performanceLibrary[0].parts[1].patch.parameters[6]==.62f);
-  app.editSavedPerformance(0,false);assert(!app.workspace.original.empty());
+  app.editSavedPerformance(0,false);assert(!app.workspace.original.empty()&&app.editingPerformance.parts[1].transpose==12);
   command(L"partVolume",0,780);command(L"partSolo",0);assert(app.workspace.solo==0);command(L"partSolo",0);command(L"partMute",1);assert(app.workspace.muted[1]);command(L"partMute",1);
   command(L"partCategory",0,1);command(L"partSearch",0,0,L"Rhodes");app.saveEditorDraft();command(L"category",1);command(L"screen",2);assert(app.workspace.searches[0]=="Rhodes"&&app.workspace.categories[0]==1&&app.editingPerformance.parts[0].patch.parameters[0]==.78f);
   command(L"copyPart",0,2);assert(app.editingPerformance.parts[2].instrument==app.editingPerformance.parts[0].instrument&&app.editingPerformance.parts[2].patch.parameters[0]==.78f);

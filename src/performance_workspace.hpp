@@ -2,6 +2,15 @@
 #include "performance.hpp"
 #include <iomanip>
 namespace lp {
+inline void setPerformancePartOctave(Performance& performance,std::size_t part,int octave){
+ if(part>=4||octave< -4||octave>4||!performance.parts[part].enabled)throw std::invalid_argument("Oitava de camada inválida");
+ performance.parts[part].transpose=octave*12;
+}
+inline std::string performanceOctaveLabel(int semitones){
+ if(semitones==0)return "Original (0)";
+ auto signedValue=[](int n){return (n>0?std::string("+"):std::string{})+std::to_string(n);};
+ return semitones%12==0?signedValue(semitones/12)+(std::abs(semitones)==12?" oitava":" oitavas"):"Atual: "+signedValue(semitones)+" semitons";
+}
 inline void copyPerformancePart(Performance& p,std::size_t from,std::size_t to){
  if(from>=4||to>=4||from==to)throw std::invalid_argument("Invalid layer copy");
  auto low=p.parts[to].low,high=p.parts[to].high;p.parts[to]=p.parts[from];p.parts[to].low=low;p.parts[to].high=high;
