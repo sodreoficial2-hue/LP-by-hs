@@ -29,8 +29,8 @@ public:
  void start(int device,unsigned long buffer=0);
  void stop();
  void controlPanel(int device,void* window);
- void load(const std::filesystem::path& sfz,const std::array<float,16>& parameters,bool adsrEnabled=false);
- void loadSf2(const std::filesystem::path& sf2,int bank,int program,const std::array<float,16>& parameters,bool adsrEnabled=false);
+ void load(const std::filesystem::path& sfz,const std::array<float,17>& parameters,bool adsrEnabled=false);
+ void loadSf2(const std::filesystem::path& sf2,int bank,int program,const std::array<float,17>& parameters,bool adsrEnabled=false);
  std::vector<Sf2Preset> sf2Presets(const std::filesystem::path& sf2) const;
  // Owner thread, before loading/starting playback. Graphs snapshot fixed gains.
  void setLevelCompensations(const std::map<std::string,float>& gains);
@@ -39,7 +39,7 @@ public:
  void releaseResources(); // Explicit destructive-file operation: join loader after stopping audio.
  void loadPerformance(const Performance& performance);
  void requestPerformance(const Performance& performance);
- void requestSound(const std::string& reference,const std::array<float,16>& parameters,bool adsr=false);
+ void requestSound(const std::string& reference,const std::array<float,17>& parameters,bool adsr=false);
  void enableSmoothTransitions(bool enabled)noexcept{smoothTransitions=enabled;masterSmoothed=master.load();}
  void setBase(const std::filesystem::path& base);
  void setLoadNotification(std::function<void()> notify){loadNotification=std::move(notify);}
@@ -54,8 +54,8 @@ public:
  void setPerformanceAuditionMask(unsigned mask)noexcept{auditionMask.store(mask&15);}
 
  bool performanceActive() const noexcept {return activePerformance;}
- void setPerformancePartParameters(std::size_t index,const std::array<float,16>& params,bool adsrEnabled);
- void parameters(const std::array<float,16>& values,bool adsrEnabled=false);
+ void setPerformancePartParameters(std::size_t index,const std::array<float,17>& params,bool adsrEnabled);
+ void parameters(const std::array<float,17>& values,bool adsrEnabled=false);
  void send(MidiMessage message) noexcept;
  void sendRealtime(MidiMessage message) noexcept; // One dedicated hardware MIDI producer.
  void panic() noexcept;
@@ -85,7 +85,7 @@ private:
  double rate=48000;std::atomic<float> master{1};
  std::map<std::string,float> levelGains;
  struct PartSynth {std::unique_ptr<SfizzEngine> sfz;std::unique_ptr<Sf2Engine> sf2;float levelGain=1;std::string reference;double sampleRate=0;};
- struct PartControl {std::array<std::atomic<float>,16> values;std::atomic<bool> adsr{false};std::atomic<unsigned> revision{2};};
+ struct PartControl {std::array<std::atomic<float>,17> values;std::atomic<bool> adsr{false};std::atomic<unsigned> revision{2};};
  struct Graph {
   std::array<std::shared_ptr<PartSynth>,4> voices{};
   Performance performance{};
@@ -109,7 +109,7 @@ private:
  std::mutex loadMutex;std::condition_variable loadWake;std::thread loadThread;
  std::vector<std::unique_ptr<Graph>> garbage;std::function<void()> loadNotification;
  std::array<std::shared_ptr<PartControl>,4> requestedControls{};
- struct Model {std::filesystem::path instrument;Performance performance;std::array<float,16> parameters;bool adsr,layered,sf2;int bank,program;std::array<std::shared_ptr<PartControl>,4> controls;unsigned long long generation;};
+ struct Model {std::filesystem::path instrument;Performance performance;std::array<float,17> parameters;bool adsr,layered,sf2;int bank,program;std::array<std::shared_ptr<PartControl>,4> controls;unsigned long long generation;};
  std::optional<Model> rollback;unsigned long long publishedGeneration=0;
  void restoreModel();
  std::optional<LoadJob> loadJob;std::unique_ptr<Graph> loadResult;std::string loadError;
@@ -143,9 +143,9 @@ private:
  MidiQueue<> midi,hardwareMidi;
  std::atomic<bool> panicRequested{false},fault{false};
  std::atomic<unsigned long> underruns{0};
- std::array<std::atomic<float>,16> values;
+ std::array<std::atomic<float>,17> values;
  std::atomic<unsigned> revision{0};
  std::atomic<bool> desiredAdsr{false};bool currentAdsr=false;
- std::array<float,16> current=Patch{}.parameters;
+ std::array<float,17> current=Patch{}.parameters;
 };
 }

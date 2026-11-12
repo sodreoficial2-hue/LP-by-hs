@@ -72,10 +72,10 @@ Dsp::Dsp(float sampleRate):rate(sampleRate) {
  attackCoeff=std::exp(-1.f/(rate*.005f));releaseCoeff=std::exp(-1.f/(rate*.10f));volumeCoeff=1-std::exp(-1.f/(rate*.003f));hallCoeff=1-std::exp(-1/(rate*.03f));
  parameters(p);
 }
-void Dsp::parameters(const std::array<float,16>& values) {
+void Dsp::parameters(const std::array<float,17>& values) {
  for(float v:values)if(!std::isfinite(v)||v<0||v>1)throw std::invalid_argument("Invalid DSP parameter");
  if(p[7]>0&&values[7]==0)delayTail=static_cast<int>(rate*4);if(p[8]>0&&values[8]==0)chorusTail=static_cast<int>(rate*.06f);if(p[6]>0&&values[6]==0)reverbTail=static_cast<int>(rate*10);
- auto previous=p;p=values;if(previous[10]!=p[10]){thresholdValue=std::pow(10.f,(-6-24*p[10])/20);ratioValue=1+7*p[10];}
+ auto previous=p;p=values;boostGain=std::pow(10.f,0.6f*p[16]);if(previous[10]!=p[10]){thresholdValue=std::pow(10.f,(-6-24*p[10])/20);ratioValue=1+7*p[10];}
  float upper=std::clamp((p[6]-.7f)/.3f,0.f,1.f);
  hallTarget=upper*upper*(3-2*upper);
  if(previous[6]!=p[6])for(auto& room:hall)room.decay(rate,2.5f+6.5f*hallTarget);
@@ -84,7 +84,7 @@ void Dsp::parameters(const std::array<float,16>& values) {
 }
 void Dsp::reset() noexcept {
  phaserState={};phaserPhase=0;phaserMix=p[15];phaserCoefficient={};phaserTick=0;
- delayTail=chorusTail=reverbTail=0;volumeSmoothed=p[0];
+ delayTail=chorusTail=reverbTail=0;volumeSmoothed=p[0]*boostGain;
  for(auto& room:hall)room.reset();hallMix=hallTarget;
  filter.fill({});follower=0;envelope=phase=chorusPhase=0;delayAt=chorusAt=0;
  for(auto& channel:eq)for(auto& band:channel)band.z1=band.z2=0;
@@ -126,7 +126,7 @@ void Dsp::process(float* left,float* right,int frames) noexcept {
   float coefficient=peak>envelope?attack:release;envelope=coefficient*envelope+(1-coefficient)*peak;
   float gain=p[10]>0&&envelope>threshold?std::pow(threshold/envelope,1-1/ratio):1;
   float trem=p[9]>0?1-p[9]*(.5f+.5f*std::sin(phase)):1;
-  if(smoothVolume)volumeSmoothed+=volumeSmoothing*(p[0]-volumeSmoothed);else volumeSmoothed=p[0];
+  if(smoothVolume)volumeSmoothed+=volumeSmoothing*(p[0]*boostGain-volumeSmoothed);else volumeSmoothed=p[0]*boostGain;
   for(int c=0;c<2;++c){
    float dry=x[c]*gain*trem;
    if(phaserMix>1e-6f){

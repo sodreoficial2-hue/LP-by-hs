@@ -15,8 +15,8 @@ inline std::string soundParameterKey(const std::string& reference,const std::fil
  return soundExclusionKey(normalized,base);
 }
 struct SoundParameters {
- std::array<float,16> values=Patch{}.parameters;
- std::array<int,16> cc=Patch{}.cc;
+ std::array<float,17> values=Patch{}.parameters;
+ std::array<int,17> cc=Patch{}.cc;
  bool adsr=false;
  explicit SoundParameters(const Patch& patch):values(patch.parameters),cc(patch.cc),adsr(patch.adsrEnabled){}
  SoundParameters()=default;
@@ -58,7 +58,7 @@ public:
   for(auto& p:session.favorites)if(p&&p->sfz.rfind("performance://",0)!=0)restore(soundParameterKey(p->sfz,base),*p);
  }
  std::string serialize()const{
-  std::ostringstream out;out<<std::setprecision(9)<<"LPHS_SOUND_PARAMETERS 1\n"<<bool(master);
+  std::ostringstream out;out<<std::setprecision(9)<<"LPHS_SOUND_PARAMETERS 2\n"<<bool(master);
   if(master)out<<' '<<master->first<<' '<<master->second;out<<'\n'<<entries.size()<<'\n';
   for(const auto& pair:entries){out<<std::quoted(pair.first)<<' '<<pair.second.adsr;for(float v:pair.second.values)out<<' '<<v;for(int c:pair.second.cc)out<<' '<<c;out<<'\n';}
   auto bytes=out.str();if(bytes.size()>32*1024*1024)throw std::runtime_error("Memória de timbres excede o limite de 32 MiB");return bytes;
@@ -66,12 +66,12 @@ public:
  bool load(const std::filesystem::path& file){
   if(!std::filesystem::exists(file)){entries.clear();master.reset();return false;}
   return recoverFile(file,[&](const std::filesystem::path& source){
-   SoundParameterStore next;std::istringstream in(boundedFile(source));std::string header;std::getline(in,header);if(header!="LPHS_SOUND_PARAMETERS 1")throw std::runtime_error("Memória permanente de timbres inválida");
+   SoundParameterStore next;std::istringstream in(boundedFile(source));std::string header;std::getline(in,header);const int fields=header=="LPHS_SOUND_PARAMETERS 1"?16:17;if(fields==17&&header!="LPHS_SOUND_PARAMETERS 2")throw std::runtime_error("Memória permanente de timbres inválida");
    int hasMaster=0;if(!(in>>hasMaster)||(hasMaster!=0&&hasMaster!=1))throw std::runtime_error("Master memorizado inválido");
    if(hasMaster){float value;int cc;if(!(in>>value>>cc))throw std::runtime_error("Master memorizado incompleto");next.rememberMaster(value,cc);}
    std::size_t count=0;if(!(in>>count)||count>maxEntries)throw std::runtime_error("Contagem de timbres memorizados inválida");
    for(std::size_t i=0;i<count;++i){std::string key;int adsr;Patch patch;if(!(in>>std::quoted(key)>>adsr)||(adsr!=0&&adsr!=1))throw std::runtime_error("Registro de timbre memorizado inválido");patch.adsrEnabled=adsr;
-    for(auto& v:patch.parameters)if(!(in>>v))throw std::runtime_error("Parâmetro memorizado incompleto");for(auto& cc:patch.cc)if(!(in>>cc))throw std::runtime_error("Mapeamento memorizado incompleto");
+    for(int j=0;j<fields;++j)if(!(in>>patch.parameters[j]))throw std::runtime_error("Parâmetro memorizado incompleto");for(int j=0;j<fields;++j)if(!(in>>patch.cc[j]))throw std::runtime_error("Mapeamento memorizado incompleto");
     if(next.entries.count(key))throw std::runtime_error("Identidade de timbre memorizado duplicada");next.remember(key,patch);
    }
    std::string extra;if(in>>extra)throw std::runtime_error("Dados extras na memória de timbres");*this=std::move(next);

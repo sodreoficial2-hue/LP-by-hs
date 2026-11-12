@@ -109,7 +109,7 @@
   }
   width-=20;
   if(effects){
-   int count=performanceControls()?4:16,rows=performanceControls()?2:8,half=(width-84)/2;
+   int count=performanceControls()?4:17,rows=performanceControls()?2:9,half=(width-84)/2;
    label(performanceControls()?L"PARTES 1 E 2":L"EXPRESSÃO E AMBIENTE",{32,p+8,half,p+40});
    label(performanceControls()?L"PARTES 3 E 4":L"TEXTURA E SAÍDA",{56+half,p+8,width-32,p+40});
    for(int i=0;i<count;++i){int x=28+(i/rows)*(half+28),y=p+56+(i%rows)*96;panel({x,y,x+half,y+88});}

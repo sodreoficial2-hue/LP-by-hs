@@ -5,7 +5,7 @@
  HWND item(int id) const {auto child=GetDlgItem(window,id);return child?child:GetDlgItem(page,id);}
  int pageTop() const {return 156;}
  int pageMinimum() const {
-  if(effects)return performanceControls()?360:864;
+  if(effects)return performanceControls()?360:960;
   switch(screen){case lp::Screen::Home:return 316;case lp::Screen::Keyboard:return 360;case lp::Screen::Instruments:return 400;case lp::Screen::AudioMidi:return 660;case lp::Screen::Settings:return 850;case lp::Screen::PerformanceEditor:return 1600;case lp::Screen::About:return 600;}
   return 580;
  }
@@ -88,7 +88,7 @@
   place(ProfileState,54,windowHeight-102,(windowWidth-110)/2,36);place(OutputMeter,windowWidth/2,windowHeight-102,windowWidth/2-36,36);
   int width=windowWidth-20,p=pageOrigin;
   if(effects){
-   int count=performanceControls()?4:16,rows=performanceControls()?2:8,half=(width-84)/2;
+   int count=performanceControls()?4:17,rows=performanceControls()?2:9,half=(width-84)/2;
    for(int i=0;i<count;++i){int x=28+(i/rows)*(half+28),y=p+56+(i%rows)*96;
     place(Knob+100+i,x+18,y+12,half-36,32);place(Knob+i,x+18,y+48,half-36,34);}
   }else if(screen==lp::Screen::Home){

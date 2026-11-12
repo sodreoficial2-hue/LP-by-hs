@@ -11,12 +11,12 @@ void requireAsio(int device){
  auto info=Pa_GetDeviceInfo(device);auto api=info?Pa_GetHostApiInfo(info->hostApi):nullptr;
  if(!info||!api||api->type!=paASIO||info->maxOutputChannels<2)throw std::runtime_error("Selecione um driver ASIO com saída estéreo");
 }
-void validParameters(const std::array<float,16>& p){for(float v:p)if(!std::isfinite(v)||v<0||v>1)throw std::invalid_argument("Invalid audio parameter");}
+void validParameters(const std::array<float,17>& p){for(float v:p)if(!std::isfinite(v)||v<0||v>1)throw std::invalid_argument("Invalid audio parameter");}
 }
 AudioHost::AudioHost(const std::filesystem::path& sfizz):library(sfizz){
  static_assert(std::atomic<float>::is_always_lock_free&&std::atomic<Graph*>::is_always_lock_free,"Audio handoff must be lock free");
  for(std::size_t i=0;i<values.size();++i)values[i].store(current[i]);
- for(auto& p:partControls)for(std::size_t i=0;i<16;++i)p.values[i].store(current[i]);
+ for(auto& p:partControls)for(std::size_t i=0;i<17;++i)p.values[i].store(current[i]);
  fluidLibrary=library.parent_path()/"libfluidsynth-3.dll";
  // Fail early for an unavailable engine, before initializing PortAudio.
  auto probe=std::make_unique<SfizzEngine>(library);
@@ -117,14 +117,14 @@ void AudioHost::setBase(const std::filesystem::path& base){
  if(running()||loaded()||loadThread.joinable())throw std::logic_error("Set application base before loading audio");
  basePath=std::filesystem::absolute(base).lexically_normal();
 }
-void AudioHost::load(const std::filesystem::path& path,const std::array<float,16>& params,bool adsr){
+void AudioHost::load(const std::filesystem::path& path,const std::array<float,17>& params,bool adsr){
  cancelPerformanceLoad();
  validParameters(params);auto oldPath=instrument;auto oldParams=current;bool oldAdsr=currentAdsr,oldPerformance=activePerformance,oldSf2=sf2Active;
  instrument=std::filesystem::u8path(normalizedSoundReference(path.u8string(),basePath));current=params;currentAdsr=adsr;activePerformance=false;sf2Active=false;
  try{auto graph=prepare(rate);parameters(params,adsr);publish(std::move(graph));}
  catch(...){instrument=oldPath;current=oldParams;currentAdsr=oldAdsr;activePerformance=oldPerformance;sf2Active=oldSf2;throw;}
 }
-void AudioHost::loadSf2(const std::filesystem::path& path,int bank,int program,const std::array<float,16>& params,bool adsr){
+void AudioHost::loadSf2(const std::filesystem::path& path,int bank,int program,const std::array<float,17>& params,bool adsr){
  cancelPerformanceLoad();
  validParameters(params);auto oldPath=instrument;auto oldParams=current;auto oldBank=sf2Bank,oldProgram=sf2Program;bool oldAdsr=currentAdsr,oldPerformance=activePerformance,oldSf2=sf2Active;
  instrument=std::filesystem::u8path(normalizedSoundReference(path.u8string(),basePath));current=params;currentAdsr=adsr;activePerformance=false;sf2Active=true;sf2Bank=bank;sf2Program=program;
@@ -153,7 +153,7 @@ void AudioHost::loadPerformance(const Performance& input){
  for(const auto& p:selected.parts)if(p.enabled){instrument=std::filesystem::u8path(p.instrument);break;}
  try{
   auto graph=prepare(rate);
-  for(std::size_t i=0;i<4;++i){auto& control=partControls[i];control.revision.fetch_add(1);for(std::size_t j=0;j<16;++j)control.values[j].store(selected.parts[i].patch.parameters[j]);control.adsr.store(selected.parts[i].patch.adsrEnabled);control.revision.fetch_add(1);graph->applied[i]=0;}
+  for(std::size_t i=0;i<4;++i){auto& control=partControls[i];control.revision.fetch_add(1);for(std::size_t j=0;j<17;++j)control.values[j].store(selected.parts[i].patch.parameters[j]);control.adsr.store(selected.parts[i].patch.adsrEnabled);control.revision.fetch_add(1);graph->applied[i]=0;}
   publish(std::move(graph));
  }catch(...){performance=previous;activePerformance=wasPerformance;instrument=previousPath;throw;}
 }
@@ -198,7 +198,7 @@ void AudioHost::requestGraph(const Performance& input,bool layered){
  if(!asyncLoading)rollback=Model{instrument,performance,current,currentAdsr,activePerformance,sf2Active,sf2Bank,sf2Program,requestedControls,publishedGeneration};
  if(!loadThread.joinable())loadThread=std::thread([this]{loadWorker();});
  std::array<std::shared_ptr<PartControl>,4> controls;
- for(std::size_t i=0;i<4;++i){controls[i]=std::make_shared<PartControl>();for(std::size_t j=0;j<16;++j)controls[i]->values[j].store(selected.parts[i].patch.parameters[j]);controls[i]->adsr.store(selected.parts[i].patch.adsrEnabled);}
+ for(std::size_t i=0;i<4;++i){controls[i]=std::make_shared<PartControl>();for(std::size_t j=0;j<17;++j)controls[i]->values[j].store(selected.parts[i].patch.parameters[j]);controls[i]->adsr.store(selected.parts[i].patch.adsrEnabled);}
  auto id=++loadGeneration;requestedGeneration.store(id);LoadJob job{id,selected,layered,controls,rate,levelGains,preparedParts,warmParts};
  performance=selected;activePerformance=layered;requestedControls=controls;for(const auto& part:selected.parts)if(part.enabled){instrument=std::filesystem::u8path(part.instrument);break;}
  if(!layered){auto ref=parseSf2Reference(selected.parts[0].instrument);sf2Active=ref.has_value();if(ref){sf2Bank=ref->bank;sf2Program=ref->program;instrument=ref->path;}current=selected.parts[0].patch.parameters;currentAdsr=selected.parts[0].patch.adsrEnabled;}
@@ -211,7 +211,7 @@ void AudioHost::invalidateSound(const std::string& input){
  for(auto& part:preparedParts)if(part&&part->reference==reference)part.reset();
  warmParts.erase(std::remove_if(warmParts.begin(),warmParts.end(),[&](const auto& entry){return entry.second->reference==reference;}),warmParts.end());
 }
-void AudioHost::requestSound(const std::string& reference,const std::array<float,16>& params,bool adsr){
+void AudioHost::requestSound(const std::string& reference,const std::array<float,17>& params,bool adsr){
  Performance sound;sound.name="Timbre";sound.parts[0].enabled=true;sound.parts[0].instrument=reference;sound.parts[0].patch.parameters=params;sound.parts[0].patch.adsrEnabled=adsr;requestGraph(sound,false);
 }
 bool AudioHost::pollPerformance(){
@@ -219,13 +219,13 @@ bool AudioHost::pollPerformance(){
  {std::lock_guard<std::mutex> lock(loadMutex);if(resultGeneration!=loadGeneration||(!loadResult&&loadError.empty()))return false;graph=std::move(loadResult);error=std::move(loadError);loadError.clear();}
  asyncLoading=false;if(!error.empty()){restoreModel();if(midiBarrier.load())panic();throw std::runtime_error(error);}publish(std::move(graph));rollback.reset();return true;
 }
-void AudioHost::setPerformancePartParameters(std::size_t i,const std::array<float,16>& params,bool adsr){
+void AudioHost::setPerformancePartParameters(std::size_t i,const std::array<float,17>& params,bool adsr){
  if(!activePerformance||i>=4||!performance.parts[i].enabled)throw std::invalid_argument("Inactive Performance part");validParameters(params);
  performance.parts[i].patch.parameters=params;performance.parts[i].patch.adsrEnabled=adsr;
- auto& control=requestedControls[i]?*requestedControls[i]:partControls[i];control.revision.fetch_add(1);for(std::size_t j=0;j<16;++j)control.values[j].store(params[j]);control.adsr.store(adsr);control.revision.fetch_add(1);
+ auto& control=requestedControls[i]?*requestedControls[i]:partControls[i];control.revision.fetch_add(1);for(std::size_t j=0;j<17;++j)control.values[j].store(params[j]);control.adsr.store(adsr);control.revision.fetch_add(1);
 }
-void AudioHost::parameters(const std::array<float,16>& params,bool adsr){
- validParameters(params);current=params;currentAdsr=adsr;if(requestedControls[0]&&!activePerformance){auto& c=*requestedControls[0];c.revision.fetch_add(1);for(std::size_t j=0;j<16;++j)c.values[j].store(params[j]);c.adsr.store(adsr);c.revision.fetch_add(1);return;}revision.fetch_add(1);desiredAdsr.store(adsr);for(std::size_t i=0;i<16;++i)values[i].store(params[i]);revision.fetch_add(1);
+void AudioHost::parameters(const std::array<float,17>& params,bool adsr){
+ validParameters(params);current=params;currentAdsr=adsr;if(requestedControls[0]&&!activePerformance){auto& c=*requestedControls[0];c.revision.fetch_add(1);for(std::size_t j=0;j<17;++j)c.values[j].store(params[j]);c.adsr.store(adsr);c.revision.fetch_add(1);return;}revision.fetch_add(1);desiredAdsr.store(adsr);for(std::size_t i=0;i<17;++i)values[i].store(params[i]);revision.fetch_add(1);
 }
 void AudioHost::resetPerformance()noexcept{modulation.store(0);sustain.store(0);bend.store(0);bendSeen.store(true);}
 void AudioHost::controls(Graph& graph){
@@ -321,7 +321,7 @@ int AudioHost::render(float** output,unsigned long frames,PaStreamCallbackFlags 
   if(active&&active->layered){auto mask=auditionMask.load();for(std::size_t i=0;i<4;++i)if((active->audible&~mask)&(1u<<i)){auto& v=active->voices[i];if(v){if(v->sf2)v->sf2->panic();else v->sfz->panic();}}active->audible=mask;}
   if(active)for(std::size_t i=0;i<4;++i){if(!active->voices[i])continue;auto& v=*active->voices[i];
    auto state=active->controls[i].get();auto& rev=state?state->revision:(active->layered?partControls[i].revision:revision);unsigned before=rev.load();if((before&1)||before==active->applied[i])continue;
-   std::array<float,16> params;for(std::size_t j=0;j<16;++j)params[j]=state?state->values[j].load():(active->layered?partControls[i].values[j].load():values[j].load());bool adsr=state?state->adsr.load():(active->layered?partControls[i].adsr.load():desiredAdsr.load());
+   std::array<float,17> params;for(std::size_t j=0;j<17;++j)params[j]=state?state->values[j].load():(active->layered?partControls[i].values[j].load():values[j].load());bool adsr=state?state->adsr.load():(active->layered?partControls[i].adsr.load():desiredAdsr.load());
    if(before==rev.load()){if(v.sf2)v.sf2->parameters(params,adsr);else v.sfz->parameters(params,adsr);active->applied[i]=before;}
   }
   const bool overflow=midi.takeOverflow()|hardwareMidi.takeOverflow();

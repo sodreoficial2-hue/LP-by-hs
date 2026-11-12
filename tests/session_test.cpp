@@ -52,7 +52,7 @@ int main(int argc,char** argv) {
   while(std::getline(f,line)){std::istringstream record(line);std::string tag;record>>tag;if(tag=="NPNO_RELEASE")continue; // This fixture intentionally represents v7, before release controls.
    if(tag=="PART"||(!tag.empty()&&std::isdigit(tag[0]))){
     std::vector<std::string> fields;std::string token;while(record>>std::quoted(token))fields.push_back(token);
-    const int prefix=tag=="PART"?7:1;fields.erase(fields.begin()+prefix+16+15);fields.erase(fields.begin()+prefix+15);
+    const int prefix=tag=="PART"?7:1;fields.erase(fields.begin()+prefix+32,fields.begin()+prefix+34);fields.erase(fields.begin()+prefix+15,fields.begin()+prefix+17);
     legacy<<tag;for(std::size_t j=0;j<fields.size();++j){legacy<<' ';if(j==static_cast<std::size_t>(tag=="PART"?2:0))legacy<<std::quoted(fields[j]);else legacy<<fields[j];}legacy<<'\n';
    }else legacy<<line<<'\n';
   }std::ofstream(path)<<legacy.str();}

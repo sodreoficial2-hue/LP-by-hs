@@ -167,7 +167,7 @@
  function parameters(){
   title(state.partMix?'Mix da Performance':state.screen==='performance'?`Parâmetros da parte ${state.performance.editingPart+1}`:'Parâmetros do instrumento',state.partMix?'VOLUMES DAS QUATRO PARTES':'EXPRESSÃO · TEXTURA · AMBIENTE');
   const grid=node('div',{class:`parameter-grid${state.partMix?' mix':''}`});
-  state.controls.slice(0,state.partMix?4:16).forEach(c=>{
+  state.controls.slice(0,state.partMix?4:state.controls.length).forEach(c=>{
    const range=node('input',{type:'range',min:0,max:1000,step:1,value:c.value,id:`parameter-${c.id}`,'aria-label':c.name,'data-focus':`parameter-${c.id}`,disabled:!c.enabled});
    const knob=node('div',{class:'knob','aria-hidden':'true'}),out=node('output',{for:`parameter-${c.id}`,id:`value-${c.id}`},`${Math.round(c.value/10)}%`);
    range.addEventListener('input',()=>{out.textContent=`${Math.round(range.value/10)}%`;knob.style.setProperty('--angle',`${Number(range.value)*.27}deg`);setParameter(c.id,range.value);});range.addEventListener('change',()=>setParameter(c.id,range.value,true));

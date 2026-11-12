@@ -72,7 +72,7 @@ LRESULT CALLBACK parameterProc(HWND control,UINT msg,WPARAM wp,LPARAM lp,UINT_PT
 struct App {
  static double memoryMB(){using MemoryFn=BOOL(WINAPI*)(HANDLE,PPROCESS_MEMORY_COUNTERS,DWORD);auto module=GetModuleHandleW(L"kernel32.dll");auto get=reinterpret_cast<MemoryFn>(GetProcAddress(module,"K32GetProcessMemoryInfo"));PROCESS_MEMORY_COUNTERS memory{};return get&&get(GetCurrentProcess(),&memory,sizeof(memory))?memory.WorkingSetSize/(1024.*1024.):0.;}
  HWND window{},catalog{},favorites{},status{},midi{},effectsButton{},category{};
- std::array<HWND,16> sliders{},labels{};
+ std::array<HWND,17> sliders{},labels{};
  HFONT font{}; HBRUSH background=CreateSolidBrush(lpui::ink),panelBackground=CreateSolidBrush(lpui::panel);
  lp::Session show; lp::MidiRouter router{show};
  std::filesystem::path currentProfile;
@@ -385,10 +385,10 @@ struct App {
   control(L"BUTTON",L"Pânico (F12)",BS_PUSHBUTTON|WS_TABSTOP,Panic);
   SendMessageW(audioDriver,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Selecione driver ASIO"));
   SendMessageW(audioDriver,CB_SETCURSEL,0,0);
-  auto masterLabel=control(L"STATIC",L"Master",SS_LEFT|SS_NOTIFY,MasterLabel);SetWindowSubclass(masterLabel,parameterProc,16,0);
+  auto masterLabel=control(L"STATIC",L"Master",SS_LEFT|SS_NOTIFY,MasterLabel);SetWindowSubclass(masterLabel,parameterProc,17,0);
   auto masterControl=control(TRACKBAR_CLASSW,L"Volume Master",TBS_HORZ|WS_TABSTOP,MasterVolume);
-  SendMessageW(masterControl,TBM_SETRANGE,TRUE,MAKELPARAM(0,1000));SetWindowSubclass(masterControl,parameterProc,16,0);
-  for(int i=0;i<16;++i){labels[i]=control(L"STATIC",L"",SS_LEFT|SS_NOTIFY,Knob+100+i);sliders[i]=control(TRACKBAR_CLASSW,L"",TBS_HORZ|WS_TABSTOP,Knob+i);SendMessageW(sliders[i],TBM_SETRANGE,TRUE,MAKELPARAM(0,1000));
+  SendMessageW(masterControl,TBM_SETRANGE,TRUE,MAKELPARAM(0,1000));SetWindowSubclass(masterControl,parameterProc,17,0);
+  for(int i=0;i<17;++i){labels[i]=control(L"STATIC",L"",SS_LEFT|SS_NOTIFY,Knob+100+i);sliders[i]=control(TRACKBAR_CLASSW,L"",TBS_HORZ|WS_TABSTOP,Knob+i);SendMessageW(sliders[i],TBM_SETRANGE,TRUE,MAKELPARAM(0,1000));
    if(!SetWindowSubclass(sliders[i],parameterProc,i,0)||!SetWindowSubclass(labels[i],parameterProc,i,0))throw std::runtime_error("Não foi possível habilitar o clique direito dos parâmetros");}
   for(int i=0;i<4;++i){SendMessageW(performancePartControls[i],CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Desativado"));SendMessageW(performancePartControls[i],CB_SETCURSEL,0,0);}
   internalEdit=false;editorDraft=false;layout();PostMessageW(window,LoadLibraryMessage,0,0);
@@ -547,7 +547,7 @@ struct App {
  }catch(const std::exception& e){error(e);}}
  std::wstring parameterName(int index){return std::wstring(lp::parameterNames[index],lp::parameterNames[index]+std::char_traits<char>::length(lp::parameterNames[index]));}
  void beginParameterLearn(std::size_t index){
-  if(index==16){if(!midiHandle){message(L"Selecione a entrada MIDI primeiro.");return;}cancelMidiLearn();learningMaster=true;message(L"Master: mova um knob ou fader MIDI. Memorização automática; ESC cancela.");markVisionDirty();return;}
+  if(index==17){if(!midiHandle){message(L"Selecione a entrada MIDI primeiro.");return;}cancelMidiLearn();learningMaster=true;message(L"Master: mova um knob ou fader MIDI. Memorização automática; ESC cancela.");markVisionDirty();return;}
   if(!effects||index>=sliders.size())return;
   if(!midiHandle){message(L"Selecione a entrada MIDI em Áudio / MIDI antes de mapear.");return;}
   cancelMidiLearn();
@@ -706,7 +706,7 @@ struct App {
   SendMessageW(item(MasterVolume),TBM_SETPOS,TRUE,static_cast<int>(show.master*1000));
   SetWindowTextW(item(MasterLabel),(L"Master: "+std::to_wstring(static_cast<int>(show.master*100))+L"%").c_str());
   bool perf=performanceControls();
-  for(int i=0;i<16;++i){float value=0;int cc=-1;bool enabled=false;std::wstring name;
+  for(int i=0;i<17;++i){float value=0;int cc=-1;bool enabled=false;std::wstring name;
    if(perf){if(i<4){const auto& part=editingPerformance.parts[i];name=L"Camada "+std::to_wstring(i+1)+L" · Volume";value=part.patch.parameters[0];cc=part.patch.cc[0];enabled=part.enabled;}}
    else {name=parameterName(i);const lp::Patch* patch=editingPerformanceControls()?(editingPerformance.parts[editingPart].enabled?&editingPerformance.parts[editingPart].patch:nullptr):(show.current&&show.favorites[*show.current]?&*show.favorites[*show.current]:(previewActive?&previewPatch:nullptr));if(patch){value=patch->parameters[i];cc=patch->cc[i];enabled=true;}}
    auto label=name+L": "+std::to_wstring(static_cast<int>(value*100))+L"%";
@@ -914,7 +914,7 @@ struct App {
    editingPart=static_cast<int>(SendMessageW(performanceEditPart,CB_GETCURSEL,0,0));
    if(editingPart>=0&&editingPart<4){
     const auto& patch=editingPerformance.parts[editingPart].patch;
-    for(int i=0;i<16;++i)SendMessageW(sliders[i],TBM_SETPOS,TRUE,static_cast<int>(patch.parameters[i]*1000));
+    for(int i=0;i<17;++i)SendMessageW(sliders[i],TBM_SETPOS,TRUE,static_cast<int>(patch.parameters[i]*1000));
     refreshParameters();
    }
   }
@@ -966,7 +966,7 @@ struct App {
     auto& p=editingPerformance.parts[editingPart];
     if(p.enabled){
      if(learningPerformanceParameter>=0){for(auto& cc:p.patch.cc)if(cc==binding)cc=-1;p.patch.cc[learningPerformanceParameter]=binding;learningPerformanceParameter=-1;}
-     for(int i=0;i<16;++i)if(p.patch.cc[i]==binding){p.patch.parameters[i]=lp::knobValue(m);if(i>=1&&i<=4)p.patch.adsrEnabled=true;applyParameters();consumed=true;}
+     for(int i=0;i<17;++i)if(p.patch.cc[i]==binding){p.patch.parameters[i]=lp::knobValue(m);if(i>=1&&i<=4)p.patch.adsrEnabled=true;applyParameters();consumed=true;}
     }
    }else if(!consumed&&performanceControls()){
     if(learningVolume>=0){for(auto& part:editingPerformance.parts)if(part.patch.cc[0]==binding)part.patch.cc[0]=-1;editingPerformance.parts[learningVolume].patch.cc[0]=binding;learningVolume=-1;}
@@ -974,7 +974,7 @@ struct App {
     if(consumed)syncPerformance();
    }else if(!consumed&&previewActive&&!show.current){
     if(learningPerformanceParameter>=0){for(auto& cc:previewPatch.cc)if(cc==binding)cc=-1;previewPatch.cc[learningPerformanceParameter]=binding;learningPerformanceParameter=-1;}
-    for(int i=0;i<16;++i)if(previewPatch.cc[i]==binding){previewPatch.parameters[i]=lp::knobValue(m);if(i>=1&&i<=4)previewPatch.adsrEnabled=true;applyParameters();consumed=true;}
+    for(int i=0;i<17;++i)if(previewPatch.cc[i]==binding){previewPatch.parameters[i]=lp::knobValue(m);if(i>=1&&i<=4)previewPatch.adsrEnabled=true;applyParameters();consumed=true;}
    }
   }
   if(consumed){refreshParameters();if(engine&&m.data1==1&&!(forwarded&&directMidi(m)))engine->send(m);return;}
@@ -1079,7 +1079,7 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
  case SelectSoundMessage:if(reinterpret_cast<HWND>(wp)==app->catalog)app->audition();else {auto slot=SendMessageW(app->favorites,LB_GETCURSEL,0,0);if(slot>=0)app->activate(static_cast<unsigned>(slot));}return 0;
  case RevealFocusMessage:app->revealFocus(reinterpret_cast<HWND>(lp));return 0;
  case BeginParameterLearn:app->beginParameterLearn(static_cast<std::size_t>(wp));return 0;
- case WM_HSCROLL:if(reinterpret_cast<HWND>(lp)==app->item(MasterVolume)){app->setMasterValue(static_cast<float>(SendMessageW(app->item(MasterVolume),TBM_GETPOS,0,0))/1000);return 0;}for(int i=0;i<4;++i)if(reinterpret_cast<HWND>(lp)==app->item(PartVolumeBase+i)){app->partOperation("partVolume",i,static_cast<int>(SendMessageW(app->item(PartVolumeBase+i),TBM_GETPOS,0,0)));return 0;}for(int i=0;i<16;++i)if(reinterpret_cast<HWND>(lp)==app->sliders[i]){app->setPanelValue(i,static_cast<float>(SendMessageW(app->sliders[i],TBM_GETPOS,0,0))/1000);return 0;}break;
+ case WM_HSCROLL:if(reinterpret_cast<HWND>(lp)==app->item(MasterVolume)){app->setMasterValue(static_cast<float>(SendMessageW(app->item(MasterVolume),TBM_GETPOS,0,0))/1000);return 0;}for(int i=0;i<4;++i)if(reinterpret_cast<HWND>(lp)==app->item(PartVolumeBase+i)){app->partOperation("partVolume",i,static_cast<int>(SendMessageW(app->item(PartVolumeBase+i),TBM_GETPOS,0,0)));return 0;}for(int i=0;i<17;++i)if(reinterpret_cast<HWND>(lp)==app->sliders[i]){app->setPanelValue(i,static_cast<float>(SendMessageW(app->sliders[i],TBM_GETPOS,0,0))/1000);return 0;}break;
  case WM_ACTIVATE:if(LOWORD(wp)==WA_INACTIVE)app->releaseVirtual();break;
  case WM_CONTEXTMENU:if(reinterpret_cast<HWND>(wp)==app->catalog){
   auto row=SendMessageW(app->catalog,LB_GETCURSEL,0,0);POINT point{};
@@ -1091,7 +1091,7 @@ LRESULT CALLBACK proc(HWND w,UINT msg,WPARAM wp,LPARAM lp){
   if(lp!=-1){POINT pt{static_cast<short>(LOWORD(lp)),static_cast<short>(HIWORD(lp))};ScreenToClient(app->favorites,&pt);auto hit=SendMessageW(app->favorites,LB_ITEMFROMPOINT,0,MAKELPARAM(pt.x,pt.y));slot=HIWORD(hit)?-1:LOWORD(hit);}
   if(slot>=0){try{app->router.learnFavorite(static_cast<std::size_t>(slot));app->message(L"MIDI Learn: pressione o Program Change correspondente ao favorito (1 a 20). ESC cancela.");}catch(const std::exception& e){app->error(e);}}return 0;
  }break;
- case WM_CTLCOLORSTATIC:case WM_CTLCOLOREDIT:case WM_CTLCOLORLISTBOX:{auto dc=reinterpret_cast<HDC>(wp);SetTextColor(dc,lpui::white);int id=GetDlgCtrlID(reinterpret_cast<HWND>(lp));bool panel=(id>=Knob+100&&id<Knob+116)||id==PerformanceName||id==AboutText||id==2;SetBkColor(dc,panel?lpui::panel:lpui::ink);return reinterpret_cast<LRESULT>(panel?app->panelBackground:app->background);}
+ case WM_CTLCOLORSTATIC:case WM_CTLCOLOREDIT:case WM_CTLCOLORLISTBOX:{auto dc=reinterpret_cast<HDC>(wp);SetTextColor(dc,lpui::white);int id=GetDlgCtrlID(reinterpret_cast<HWND>(lp));bool panel=(id>=Knob+100&&id<Knob+117)||id==PerformanceName||id==AboutText||id==2;SetBkColor(dc,panel?lpui::panel:lpui::ink);return reinterpret_cast<LRESULT>(panel?app->panelBackground:app->background);}
  case WM_ERASEBKGND:return 1;
  case WM_GETMINMAXINFO:reinterpret_cast<MINMAXINFO*>(lp)->ptMinTrackSize={1024,600};return 0;
  case WM_CLOSE:try{app->flushParameterMemory();if(!app->confirmProfileChange())return 0;app->releaseVirtual();if(app->engine)app->persistAudioAndMidi();}catch(const std::exception& e){app->error(e);return 0;}break;

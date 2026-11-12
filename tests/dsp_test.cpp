@@ -11,6 +11,7 @@ float tone(float hz,int parameter,float value,float amplitude=.4f){
  dsp.process(l.data(),r.data(),48000);return rms(l);
 }
 int main(){
+ for(float value:{0.f,.5f,1.f})check(std::abs(tone(440,16,value,.01f)/tone(440,16,0,.01f)-std::pow(10.f,.6f*value))<.0001f,"Boost gain");
  lp::Dsp dsp;auto p=lp::Patch{}.parameters;std::vector<float> l(48000),r(48000);
  for(int i=0;i<48000;++i){l[i]=.25f;r[i]=-.125f;}
  dsp.process(l.data(),r.data(),48000);check(l[24000]==.25f&&r[24000]==-.125f,"Neutral DSP must preserve stereo samples");

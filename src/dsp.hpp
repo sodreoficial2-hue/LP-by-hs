@@ -9,9 +9,9 @@ namespace lp {
 class Dsp {
 public:
  explicit Dsp(float sampleRate=48000);
- void parameters(const std::array<float,16>& values);
+ void parameters(const std::array<float,17>& values);
  void reset() noexcept;
- void smoothing(bool enabled)noexcept{smoothVolume=enabled;volumeSmoothed=p[0];}
+ void smoothing(bool enabled)noexcept{smoothVolume=enabled;volumeSmoothed=p[0]*boostGain;}
  unsigned long long timeEffectFrames()const noexcept{return effectFrames;}
  void process(float* left,float* right,int frames) noexcept;
 private:
@@ -43,12 +43,12 @@ private:
  std::array<std::array<float,6>,2> phaserState{};
  float phaserPhase=0,phaserMix=0;std::array<float,2> phaserCoefficient{};unsigned phaserTick=0;
  float follower=0,followerAttack=0,followerRelease=0;
- std::array<float,16> p=Patch{}.parameters;
+ std::array<float,17> p=Patch{}.parameters;
  std::array<std::array<Biquad,3>,2> eq;
  std::array<std::vector<float>,2> delay,chorus;
  std::array<std::array<Comb,4>,2> reverb;
  std::array<Hall,2> hall;
- bool smoothVolume=false;float volumeSmoothed=1;
+ bool smoothVolume=false;float boostGain=1,volumeSmoothed=1;
  unsigned long long effectFrames=0;int delayTail=0,chorusTail=0,reverbTail=0;
  float hallMix=0,hallTarget=0;
  std::size_t delayAt=0,chorusAt=0;
