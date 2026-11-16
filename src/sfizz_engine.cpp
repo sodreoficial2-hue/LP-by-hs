@@ -45,12 +45,13 @@ public:
   if(handle) dlclose(handle);
 #endif
  }
- template<class T> T symbol(const char* name) {
+ template<class T> T symbol(const char* name, bool required=true) {
 #ifdef _WIN32
   auto address=GetProcAddress(handle,name);
 #else
   auto address=dlsym(handle,name);
 #endif
+  if(!address && !required) return nullptr;
   if(!address) throw std::runtime_error(std::string("Missing sfizz API: ")+name);
   T function{};
   static_assert(sizeof(function)==sizeof(address),"Unsupported dynamic function-pointer ABI");
@@ -86,6 +87,7 @@ struct SfizzEngine::Impl {
  sfizz_synth_t* (*create)();
  void (*freeSynth)(sfizz_synth_t*);
  bool (*loadFile)(sfizz_synth_t*,const char*);
+ void (*setVoices)(sfizz_synth_t*,int);
  void (*setRate)(sfizz_synth_t*,float);
  void (*setBlock)(sfizz_synth_t*,int);
  void (*on)(sfizz_synth_t*,int,int,int);
@@ -109,6 +111,7 @@ struct SfizzEngine::Impl {
   LP_BIND(off,"sfizz_send_note_off"); LP_BIND(control,"sfizz_send_cc");
   LP_BIND(enableOffline,"sfizz_enable_freewheeling"); LP_BIND(silence,"sfizz_all_sound_off"); LP_BIND(renderBlock,"sfizz_render_block");
   LP_BIND(numRegions,"sfizz_get_num_regions");LP_BIND(bend,"sfizz_send_pitch_wheel");
+  setVoices=module.symbol<decltype(setVoices)>("sfizz_set_num_voices",false);
 #undef LP_BIND
   client=createClient(this);if(!client)throw std::runtime_error("sfizz messaging client unavailable");
   receiveCallback(client,receive);
@@ -127,6 +130,7 @@ void SfizzEngine::load(const std::filesystem::path& path) {
  auto candidate=std::unique_ptr<sfizz_synth_t,decltype(a.freeSynth)>(a.create(),a.freeSynth);
  if(!candidate) throw std::runtime_error("sfizz could not create a synthesizer");
  a.setRate(candidate.get(),a.rate); a.setBlock(candidate.get(),a.block);
+ if(!a.offline && a.setVoices) a.setVoices(candidate.get(),128);
  const auto utf8=std::filesystem::absolute(path).u8string();
  if(!a.loadFile(candidate.get(),utf8.c_str()) || a.numRegions(candidate.get())<=0)
   throw std::runtime_error("SFZ failed to load or has no regions");
